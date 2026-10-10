@@ -25,11 +25,6 @@ class ExpenseBudgetController extends Controller
             ->orderBy('name')
             ->pluck('name')
             ->toArray();
-            
-        // Default kategori pengeluaran jika kosong
-        if (empty($expenseCategories)) {
-            $expenseCategories = ['Makanan & Minuman', 'Transportasi', 'Tagihan', 'Belanja', 'Hiburan', 'Lainnya'];
-        }
 
         // Cek dan gandakan anggaran berulang (recurring)
         $recurringPastBudgets = Budget::where('user_id', $user->id)

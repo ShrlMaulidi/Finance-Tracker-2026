@@ -18,11 +18,12 @@ class TransactionController extends Controller
         $transactions = Transaction::where('user_id', Auth::id())
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc')
+            ->limit(300) // Prevent loading thousands of records into memory at once
             ->get()
             ->map(function ($t) {
                 return [
                     'id' => $t->id,
-                    'type' => $t->type, // pemasukan, pengeluaran
+                    'type' => $t->type,
                     'amount' => (float)$t->amount,
                     'category' => $t->category,
                     'payment_method' => $t->payment_method,
@@ -33,30 +34,25 @@ class TransactionController extends Controller
                 ];
             });
 
-        // Calculate totals for the current month
+        // Calculate totals for the current month using SQL aggregates
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         
-        $monthTransactions = Transaction::where('user_id', Auth::id())
+        $totals = Transaction::where('user_id', Auth::id())
             ->whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
-            ->get();
+            ->selectRaw('type, SUM(amount) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
             
-        $totalPemasukan = $monthTransactions->where('type', 'pemasukan')->sum('amount');
-        $totalPengeluaran = $monthTransactions->where('type', 'pengeluaran')->sum('amount');
-        $totalTabungan = $monthTransactions->where('type', 'tabungan')->sum('amount');
+        $totalPemasukan = $totals->get('pemasukan', 0);
+        $totalPengeluaran = $totals->get('pengeluaran', 0);
+        $totalTabungan = $totals->get('tabungan', 0);
 
         // Get categories from database
         $userCategories = \App\Models\Category::where('user_id', Auth::id())->get();
         $pemasukanCategories = $userCategories->where('type', 'pemasukan')->pluck('name')->toArray();
         $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->pluck('name')->toArray();
-        
-        if (empty($pemasukanCategories)) {
-            $pemasukanCategories = ['Gaji Bulanan', 'Bonus', 'Hasil Usaha'];
-        }
-        if (empty($pengeluaranCategories)) {
-            $pengeluaranCategories = ['Makanan & Minuman', 'Transportasi', 'Tagihan', 'Belanja', 'Hiburan', 'Lainnya'];
-        }
 
         $paymentMethods = \App\Models\PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
 

@@ -28,62 +28,69 @@ class DashboardController extends Controller
             $query->whereYear('date', $yearQuery);
         }
         
-        $transactions = $query->get();
+        $totals = (clone $query)->selectRaw('type, SUM(amount) as total')->groupBy('type')->pluck('total', 'type');
         
-        $totalPemasukan = $transactions->where('type', 'pemasukan')->sum('amount');
-        $totalPengeluaran = $transactions->where('type', 'pengeluaran')->sum('amount');
-        $totalTabungan = $transactions->where('type', 'tabungan')->sum('amount');
+        $totalPemasukan = $totals->get('pemasukan', 0);
+        $totalPengeluaran = $totals->get('pengeluaran', 0);
+        $totalTabungan = $totals->get('tabungan', 0);
         
         // Prepare graph data
         $chartData = [];
         
         if ($filter === 'bulan') {
-            // Group by day
+            // Group by day using SQL
+            $grouped = (clone $query)
+                ->selectRaw('DAY(date) as day, type, SUM(amount) as total')
+                ->groupBy('day', 'type')
+                ->get();
+                
             $activeDate = Carbon::create($yearQuery, $monthQuery, 1);
             $daysInMonth = $activeDate->daysInMonth;
+            
             for ($i = 1; $i <= $daysInMonth; $i++) {
-                $dayTransactions = $transactions->filter(function($item) use ($i) {
-                    return Carbon::parse($item->date)->day == $i;
-                });
+                $dayData = $grouped->where('day', $i);
                 $chartData[] = [
                     'name' => (string)$i,
-                    'pemasukan' => $dayTransactions->where('type', 'pemasukan')->sum('amount'),
-                    'pengeluaran' => $dayTransactions->where('type', 'pengeluaran')->sum('amount'),
-                    'tabungan' => $dayTransactions->where('type', 'tabungan')->sum('amount'),
+                    'pemasukan' => (float)$dayData->where('type', 'pemasukan')->sum('total'),
+                    'pengeluaran' => (float)$dayData->where('type', 'pengeluaran')->sum('total'),
+                    'tabungan' => (float)$dayData->where('type', 'tabungan')->sum('total'),
                 ];
             }
         } elseif ($filter === 'tahun') {
-            // Group by month
+            // Group by month using SQL
+            $grouped = (clone $query)
+                ->selectRaw('MONTH(date) as month, type, SUM(amount) as total')
+                ->groupBy('month', 'type')
+                ->get();
+                
             for ($i = 1; $i <= 12; $i++) {
-                $monthTransactions = $transactions->filter(function($item) use ($i) {
-                    return Carbon::parse($item->date)->month == $i;
-                });
+                $monthData = $grouped->where('month', $i);
                 $chartData[] = [
                     'name' => Carbon::create()->month($i)->translatedFormat('M'),
-                    'pemasukan' => $monthTransactions->where('type', 'pemasukan')->sum('amount'),
-                    'pengeluaran' => $monthTransactions->where('type', 'pengeluaran')->sum('amount'),
-                    'tabungan' => $monthTransactions->where('type', 'tabungan')->sum('amount'),
+                    'pemasukan' => (float)$monthData->where('type', 'pemasukan')->sum('total'),
+                    'pengeluaran' => (float)$monthData->where('type', 'pengeluaran')->sum('total'),
+                    'tabungan' => (float)$monthData->where('type', 'tabungan')->sum('total'),
                 ];
             }
         } else {
-            // Group by Year
-            $years = $transactions->map(function($item) {
-                return Carbon::parse($item->date)->year;
-            })->unique()->sort()->values();
-            
+            // Group by year using SQL
+            $grouped = (clone $query)
+                ->selectRaw('YEAR(date) as year, type, SUM(amount) as total')
+                ->groupBy('year', 'type')
+                ->get();
+                
+            $years = $grouped->pluck('year')->unique()->sort()->values();
             if ($years->isEmpty()) {
                 $years = collect([$now->year]);
             }
             
             foreach ($years as $year) {
-                $yearTransactions = $transactions->filter(function($item) use ($year) {
-                    return Carbon::parse($item->date)->year == $year;
-                });
+                $yearData = $grouped->where('year', $year);
                 $chartData[] = [
                     'name' => (string)$year,
-                    'pemasukan' => $yearTransactions->where('type', 'pemasukan')->sum('amount'),
-                    'pengeluaran' => $yearTransactions->where('type', 'pengeluaran')->sum('amount'),
-                    'tabungan' => $yearTransactions->where('type', 'tabungan')->sum('amount'),
+                    'pemasukan' => (float)$yearData->where('type', 'pemasukan')->sum('total'),
+                    'pengeluaran' => (float)$yearData->where('type', 'pengeluaran')->sum('total'),
+                    'tabungan' => (float)$yearData->where('type', 'tabungan')->sum('total'),
                 ];
             }
         }

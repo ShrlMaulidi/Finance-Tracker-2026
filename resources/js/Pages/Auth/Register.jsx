@@ -29,7 +29,7 @@ export default function Register() {
                     href={route('login')} 
                     className="px-6 py-2 border-2 border-[#009bd2] text-[#009bd2] font-semibold rounded-lg hover:bg-[#009bd2]/10 transition-colors text-sm"
                 >
-                    Log In
+                    Masuk
                 </Link>
             </nav>
 
@@ -38,8 +38,8 @@ export default function Register() {
                 <div className="w-full max-w-[440px] mx-auto space-y-6">
                     
                     <div className="text-center mb-6">
-                        <h1 className="text-[32px] font-extrabold text-slate-900 tracking-tight">Create an Account</h1>
-                        <p className="text-slate-500 mt-2 font-medium">Join us to manage your finances seamlessly.</p>
+                        <h1 className="text-[32px] font-extrabold text-slate-900 tracking-tight">Buat Akun Baru</h1>
+                        <p className="text-slate-500 mt-2 font-medium">Bergabunglah untuk mengelola keuangan Anda dengan mudah.</p>
                     </div>
 
                     {/* Form Container */}
@@ -47,7 +47,7 @@ export default function Register() {
                         
                         {/* Name Input */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Full Name</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Nama Lengkap</label>
                             <input
                                 id="name"
                                 type="text"
@@ -63,7 +63,7 @@ export default function Register() {
 
                         {/* Email Input */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Email Address</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Alamat Email</label>
                             <input
                                 id="email"
                                 type="email"
@@ -79,7 +79,7 @@ export default function Register() {
 
                         {/* Password Input */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Password</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Kata Sandi</label>
                             <input
                                 id="password"
                                 type="password"
@@ -95,7 +95,7 @@ export default function Register() {
 
                         {/* Confirm Password Input */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Confirm Password</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Konfirmasi Kata Sandi</label>
                             <input
                                 id="password_confirmation"
                                 type="password"
@@ -116,7 +116,7 @@ export default function Register() {
                                 disabled={processing}
                                 className="w-full bg-[#009bd2] hover:bg-[#0089ba] text-white font-bold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70"
                             >
-                                Sign Up
+                                Daftar
                             </button>
                         </div>
                     </form>
@@ -124,7 +124,7 @@ export default function Register() {
                     {/* Login Link */}
                     <div className="text-center mt-2">
                         <p className="text-gray-500 text-sm font-medium">
-                            Already have an account? <Link href={route('login')} className="text-[#009bd2] font-bold hover:underline">Log In</Link>
+                            Sudah punya akun? <Link href={route('login')} className="text-[#009bd2] font-bold hover:underline">Masuk</Link>
                         </p>
                     </div>
                 </div>
@@ -132,8 +132,8 @@ export default function Register() {
 
             {/* Footer */}
             <footer className="py-8 text-center text-[13px] text-gray-400 font-medium space-x-6">
-                <a href="#" className="hover:text-gray-600 transition-colors">Terms of Service</a>
-                <a href="#" className="hover:text-gray-600 transition-colors">Privacy Policy</a>
+                <a href="#" className="hover:text-gray-600 transition-colors">Syarat Ketentuan</a>
+                <a href="#" className="hover:text-gray-600 transition-colors">Kebijakan Privasi</a>
             </footer>
         </div>
     );

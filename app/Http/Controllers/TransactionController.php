@@ -51,8 +51,15 @@ class TransactionController extends Controller
 
         // Get categories from database
         $userCategories = \App\Models\Category::where('user_id', Auth::id())->get();
-        $pemasukanCategories = $userCategories->where('type', 'pemasukan')->pluck('name')->toArray();
-        $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->pluck('name')->toArray();
+        $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
+        $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
+
+        // Inject active Debts/Receivables into categories
+        $activeHutang = \App\Models\Debt::where('user_id', Auth::id())->where('type', 'hutang')->where('status', 'belum_lunas')->get()->map(fn($d) => ['id' => $d->name, 'label' => 'Hutang: ' . $d->name])->toArray();
+        $activePiutang = \App\Models\Debt::where('user_id', Auth::id())->where('type', 'piutang')->where('status', 'belum_lunas')->get()->map(fn($d) => ['id' => $d->name, 'label' => 'Piutang: ' . $d->name])->toArray();
+
+        $pengeluaranCategories = collect(array_merge($pengeluaranCategories, $activeHutang))->unique('id')->values()->toArray();
+        $pemasukanCategories = collect(array_merge($pemasukanCategories, $activePiutang))->unique('id')->values()->toArray();
 
         $paymentMethods = \App\Models\PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
 
@@ -101,6 +108,11 @@ class TransactionController extends Controller
             }
         }
 
+        // Sync debt if it's a debt payment
+        if (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
+            $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
+        }
+
         return redirect()->back()->with('success', 'Transaksi berhasil ditambahkan.');
     }
 
@@ -130,6 +142,9 @@ class TransactionController extends Controller
                 }
                 $oldTarget->save();
             }
+        } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
+            // Revert old debt payment
+            $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
         $transaction->update($validated);
@@ -144,6 +159,9 @@ class TransactionController extends Controller
                 }
                 $newTarget->save();
             }
+        } elseif (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
+            // Apply new debt payment
+            $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
         }
 
         return redirect()->back()->with('success', 'Transaksi berhasil diperbarui.');
@@ -164,10 +182,43 @@ class TransactionController extends Controller
                 }
                 $target->save();
             }
+        } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
+            // Revert debt payment when transaction is deleted
+            $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
         $transaction->delete();
 
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
+    }
+
+    private function syncDebtAmount($category, $amount, $type, $isRevert = false)
+    {
+        $debt = \App\Models\Debt::where('user_id', Auth::id())
+            ->where('name', $category)
+            ->first();
+            
+        if ($debt) {
+            if ($type === 'pengeluaran' && $debt->type === 'hutang') {
+                $debt->remaining_amount += $isRevert ? $amount : -$amount;
+            } elseif ($type === 'pemasukan' && $debt->type === 'piutang') {
+                $debt->remaining_amount += $isRevert ? $amount : -$amount;
+            }
+            
+            // Prevent negative remaining amount and update status
+            if ($debt->remaining_amount <= 0) {
+                $debt->remaining_amount = 0;
+                $debt->status = 'lunas';
+            } else {
+                $debt->status = 'belum_lunas';
+            }
+            
+            // Prevent remaining amount from exceeding original amount
+            if ($debt->remaining_amount > $debt->amount) {
+                $debt->remaining_amount = $debt->amount;
+            }
+            
+            $debt->save();
+        }
     }
 }

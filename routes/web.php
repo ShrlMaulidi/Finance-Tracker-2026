@@ -33,10 +33,24 @@ Route::middleware('auth')->group(function () {
     Route::put('/anggaran/pengeluaran/{budget}', [\App\Http\Controllers\ExpenseBudgetController::class, 'update'])->name('anggaran.pengeluaran.update');
     Route::delete('/anggaran/pengeluaran/{budget}', [\App\Http\Controllers\ExpenseBudgetController::class, 'destroy'])->name('anggaran.pengeluaran.destroy');
     
+    Route::get('/anggaran/hutang', [\App\Http\Controllers\DebtBudgetController::class, 'index'])->name('anggaran.hutang');
+    Route::post('/anggaran/hutang', [\App\Http\Controllers\DebtBudgetController::class, 'store'])->name('anggaran.hutang.store');
+    Route::put('/anggaran/hutang/{budget}', [\App\Http\Controllers\DebtBudgetController::class, 'update'])->name('anggaran.hutang.update');
+    Route::delete('/anggaran/hutang/{budget}', [\App\Http\Controllers\DebtBudgetController::class, 'destroy'])->name('anggaran.hutang.destroy');
+    
+    Route::get('/hutang-piutang', [\App\Http\Controllers\DebtController::class, 'index'])->name('hutang-piutang.index');
+    Route::post('/hutang-piutang', [\App\Http\Controllers\DebtController::class, 'store'])->name('hutang-piutang.store');
+    Route::put('/hutang-piutang/{debt}', [\App\Http\Controllers\DebtController::class, 'update'])->name('hutang-piutang.update');
+    Route::delete('/hutang-piutang/{debt}', [\App\Http\Controllers\DebtController::class, 'destroy'])->name('hutang-piutang.destroy');
+    
     Route::get('/transaksi', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transaksi.index');
     Route::post('/transaksi', [\App\Http\Controllers\TransactionController::class, 'store'])->name('transaksi.store');
     Route::put('/transaksi/{transaction}', [\App\Http\Controllers\TransactionController::class, 'update'])->name('transaksi.update');
     Route::delete('/transaksi/{transaction}', [\App\Http\Controllers\TransactionController::class, 'destroy'])->name('transaksi.destroy');
+    Route::get('/transaksi/history/{type?}', [\App\Http\Controllers\TransactionHistoryController::class, 'index'])->name('transaksi.history');
+    Route::get('/laporan', [\App\Http\Controllers\ReportController::class, 'index'])->name('laporan.index');
+    Route::get('/berita', [\App\Http\Controllers\NewsController::class, 'index'])->name('news.index');
+    Route::get('/ai-agent', [\App\Http\Controllers\AIAgentController::class, 'index'])->name('ai-agent.index');
     
     Route::get('/kategori', [\App\Http\Controllers\CategoryController::class, 'index'])->name('kategori.index');
     Route::post('/kategori', [\App\Http\Controllers\CategoryController::class, 'store'])->name('kategori.store');

@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import OfferModal from '@/Components/OfferModal';
 
 export default function Dashboard({ auth, summary, chartData, currentFilter, selectedMonth, selectedYear }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
@@ -36,6 +37,7 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
+            <OfferModal />
 
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-10 space-y-6 sm:space-y-10 relative">
                 

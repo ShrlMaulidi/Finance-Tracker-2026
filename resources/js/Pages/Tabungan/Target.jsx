@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
+import CurrencyInput from '@/Components/CurrencyInput';
 
 export default function Target({ dbTargets }) {
     const [activeTab, setActiveTab] = useState('berjalan');
@@ -13,7 +14,7 @@ export default function Target({ dbTargets }) {
     // Inertia form
     const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
         name: '',
-        category: 'Tabungan',
+        category: '',
         target_amount: '',
         target_date: '',
         image: null
@@ -393,12 +394,13 @@ export default function Target({ dbTargets }) {
                                             onChange={e => setData('category', e.target.value)}
                                             className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white appearance-none transition-colors"
                                         >
-                                            <option>Tabungan</option>
-                                            <option>Kendaraan</option>
-                                            <option>Properti</option>
-                                            <option>Liburan</option>
-                                            <option>Pendidikan</option>
-                                            <option>Lainnya</option>
+                                            <option value="" disabled>Pilih Kategori</option>
+                                            <option value="Tabungan">Tabungan</option>
+                                            <option value="Kendaraan">Kendaraan</option>
+                                            <option value="Properti">Properti</option>
+                                            <option value="Liburan">Liburan</option>
+                                            <option value="Pendidikan">Pendidikan</option>
+                                            <option value="Lainnya">Lainnya</option>
                                         </select>
                                         <svg className="w-4 h-4 absolute right-4 top-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
                                     </div>
@@ -408,10 +410,9 @@ export default function Target({ dbTargets }) {
                                     <label className="text-sm font-bold text-slate-700 block mb-2">Target Nominal</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-2.5 text-slate-500 font-bold">Rp</span>
-                                        <input 
-                                            type="number" 
+                                        <CurrencyInput 
                                             value={data.target_amount}
-                                            onChange={e => setData('target_amount', e.target.value)}
+                                            onValueChange={val => setData('target_amount', val)}
                                             placeholder="50.000.000" 
                                             className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-12 pr-4 py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white font-bold transition-colors" 
                                         />

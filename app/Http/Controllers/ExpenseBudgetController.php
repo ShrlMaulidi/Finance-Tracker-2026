@@ -97,10 +97,35 @@ class ExpenseBudgetController extends Controller
                 ];
             });
 
+        // Calculate history data
+        $historyBudgets = Budget::where('user_id', $user->id)
+            ->where('type', 'Pengeluaran')
+            ->where('month', '!=', $currentMonth)
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        $historyData = $historyBudgets->map(function($budget) {
+            return [
+                'id' => $budget->id,
+                'name' => $budget->name,
+                'target' => $budget->target_amount,
+                'used' => $budget->current_amount,
+                'month' => $budget->month
+            ];
+        });
+        
+        $historyMonths = collect($historyData)->pluck('month')->unique()->values();
+
+        $usedCategories = $currentBudgets->pluck('name')->toArray();
+        $availableCategories = array_values(array_diff($expenseCategories, $usedCategories));
+
         return Inertia::render('Anggaran/PengeluaranBulanan', [
             'currentMonth' => $currentMonth,
             'currentBudgets' => $currentBudgets,
-            'expenseCategories' => $expenseCategories
+            'expenseCategories' => $expenseCategories,
+            'availableCategories' => $availableCategories,
+            'historyData' => $historyData,
+            'historyMonths' => $historyMonths
         ]);
     }
 
@@ -149,6 +174,17 @@ class ExpenseBudgetController extends Controller
             'target_amount' => 'required|numeric|min:1',
             'is_recurring' => 'boolean'
         ]);
+
+        $exists = Budget::where('user_id', auth()->id())
+            ->where('type', 'Pengeluaran')
+            ->where('name', $request->name)
+            ->where('month', $budget->month)
+            ->where('id', '!=', $budget->id)
+            ->exists();
+            
+        if ($exists) {
+            return redirect()->back()->withErrors(['name' => 'Anggaran untuk kategori ini sudah ada.']);
+        }
 
         $budget->update([
             'name' => $request->name,

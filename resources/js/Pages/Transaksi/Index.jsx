@@ -2,19 +2,20 @@ import React, { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
+import CurrencyInput from '@/Components/CurrencyInput';
 
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     const tabunganCategories = targets && targets.length > 0 
-        ? targets.map(t => t.name) 
-        : ['Belum ada target tabungan'];
+        ? targets.map(t => ({ id: t.name, label: t.name })) 
+        : [{ id: '', label: 'Belum ada target tabungan' }];
 
     const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
         type: 'pengeluaran',
         amount: '',
-        category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0] : '',
-        payment_method: paymentMethods && paymentMethods.length > 0 ? paymentMethods[0] : '',
+        category: '',
+        payment_method: '',
         title: '',
         description: '',
         date: new Date().toISOString().split('T')[0]
@@ -56,7 +57,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
             type: item.type,
             amount: item.amount,
             category: item.category,
-            payment_method: item.payment_method || (paymentMethods && paymentMethods.length > 0 ? paymentMethods[0] : ''),
+            payment_method: item.payment_method || '',
             title: item.title,
             description: item.description || '',
             date: item.date
@@ -141,21 +142,21 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <div className="flex bg-slate-100/80 p-1.5 rounded-[1rem] items-center">
                                         <button 
                                             type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0] : ''})); clearErrors('type'); }}
+                                            onClick={() => { setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : ''})); clearErrors('type'); }}
                                             className={`flex-1 py-2.5 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${data.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pemasukan
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0] : ''})); clearErrors('type'); }}
+                                            onClick={() => { setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : ''})); clearErrors('type'); }}
                                             className={`flex-1 py-2.5 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${data.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pengeluaran
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0]})); clearErrors('type'); }}
+                                            onClick={() => { setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id})); clearErrors('type'); }}
                                             className={`flex-1 py-2.5 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${data.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Tabungan
@@ -174,7 +175,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         >
                                             <option value="" disabled>Pilih Kategori</option>
                                             {(data.type === 'pengeluaran' ? pengeluaranCategories : data.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
+                                                <option key={cat.id} value={cat.id}>{cat.label}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -204,10 +205,9 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <label className="text-[13px] font-bold text-slate-600 block mb-2">Nominal</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-3.5 text-slate-400 font-extrabold">Rp</span>
-                                        <input 
-                                            type="number" 
+                                        <CurrencyInput 
                                             value={data.amount}
-                                            onChange={e => setData('amount', e.target.value)}
+                                            onValueChange={val => setData('amount', val)}
                                             placeholder="50000" 
                                             className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-2xl pl-12 pr-4 py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] font-extrabold transition-all" 
                                         />
@@ -384,21 +384,21 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <div className="flex bg-slate-100/80 p-1.5 rounded-[1rem] items-center">
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0] : ''}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : ''}))}
                                             className={`flex-1 py-2 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${editData.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pemasukan
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0] : ''}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : ''}))}
                                             className={`flex-1 py-2 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${editData.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pengeluaran
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'tabungan', category: tabunganCategories[0]}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id}))}
                                             className={`flex-1 py-2 px-2 rounded-xl font-extrabold text-[11px] md:text-xs tracking-wide transition-all duration-300 ${editData.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_10px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Tabungan
@@ -417,7 +417,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         >
                                             <option value="" disabled>Pilih Kategori</option>
                                             {(editData.type === 'pengeluaran' ? pengeluaranCategories : editData.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
+                                                <option key={cat.id} value={cat.id}>{cat.label}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -447,10 +447,9 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <label className="text-sm font-bold text-slate-700 block mb-2">Nominal</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-2.5 text-slate-500 font-bold">Rp</span>
-                                        <input 
-                                            type="number" 
+                                        <CurrencyInput 
                                             value={editData.amount}
-                                            onChange={e => setEditData('amount', e.target.value)}
+                                            onValueChange={val => setEditData('amount', val)}
                                             className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-12 pr-4 py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white font-bold transition-colors" 
                                         />
                                     </div>

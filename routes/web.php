@@ -42,6 +42,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/kategori', [\App\Http\Controllers\CategoryController::class, 'store'])->name('kategori.store');
     Route::put('/kategori/{category}', [\App\Http\Controllers\CategoryController::class, 'update'])->name('kategori.update');
     Route::delete('/kategori/{category}', [\App\Http\Controllers\CategoryController::class, 'destroy'])->name('kategori.destroy');
+    
+    Route::get('/metode', [\App\Http\Controllers\PaymentMethodController::class, 'index'])->name('metode.index');
+    Route::post('/metode', [\App\Http\Controllers\PaymentMethodController::class, 'store'])->name('metode.store');
+    Route::put('/metode/{paymentMethod}', [\App\Http\Controllers\PaymentMethodController::class, 'update'])->name('metode.update');
+    Route::delete('/metode/{paymentMethod}', [\App\Http\Controllers\PaymentMethodController::class, 'destroy'])->name('metode.destroy');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

@@ -25,6 +25,7 @@ class TransactionController extends Controller
                     'type' => $t->type, // pemasukan, pengeluaran
                     'amount' => (float)$t->amount,
                     'category' => $t->category,
+                    'payment_method' => $t->payment_method,
                     'title' => $t->title,
                     'description' => $t->description,
                     'date' => $t->date,
@@ -57,6 +58,8 @@ class TransactionController extends Controller
             $pengeluaranCategories = ['Makanan & Minuman', 'Transportasi', 'Tagihan', 'Belanja', 'Hiburan', 'Lainnya'];
         }
 
+        $paymentMethods = \App\Models\PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
+
         return Inertia::render('Transaksi/Index', [
             'transactions' => $transactions,
             'summary' => [
@@ -68,7 +71,8 @@ class TransactionController extends Controller
             'currentMonthName' => Carbon::now()->translatedFormat('F Y'),
             'targets' => $targets,
             'pemasukanCategories' => $pemasukanCategories,
-            'pengeluaranCategories' => $pengeluaranCategories
+            'pengeluaranCategories' => $pengeluaranCategories,
+            'paymentMethods' => $paymentMethods
         ]);
     }
 
@@ -78,6 +82,7 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
+            'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',
@@ -113,6 +118,7 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
+            'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',

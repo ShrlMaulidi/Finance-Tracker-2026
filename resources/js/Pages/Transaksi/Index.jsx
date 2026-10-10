@@ -3,7 +3,7 @@ import { Head, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 
-export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories }) {
+export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     const tabunganCategories = targets && targets.length > 0 
@@ -14,6 +14,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
         type: 'pengeluaran',
         amount: '',
         category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0] : '',
+        payment_method: paymentMethods && paymentMethods.length > 0 ? paymentMethods[0] : '',
         title: '',
         description: '',
         date: new Date().toISOString().split('T')[0]
@@ -35,6 +36,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
         type: 'pengeluaran',
         amount: '',
         category: '',
+        payment_method: '',
         title: '',
         description: '',
         date: ''
@@ -43,7 +45,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const submit = (e) => {
         e.preventDefault();
         post(route('transaksi.store'), {
-            onSuccess: () => reset('amount', 'category', 'title', 'description'),
+            onSuccess: () => reset('amount', 'category', 'title', 'description', 'payment_method'),
         });
     };
 
@@ -54,6 +56,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
             type: item.type,
             amount: item.amount,
             category: item.category,
+            payment_method: item.payment_method || (paymentMethods && paymentMethods.length > 0 ? paymentMethods[0] : ''),
             title: item.title,
             description: item.description || '',
             date: item.date
@@ -124,7 +127,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     
                     {/* Form Kiri */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[660px] flex flex-col">
+                        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[760px] flex flex-col">
                             <h2 className="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-3 shrink-0">
                                 <div className="w-10 h-10 rounded-xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
@@ -179,6 +182,25 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 </div>
 
                                 <div>
+                                    <label className="text-[13px] font-bold text-slate-600 block mb-2">Metode Pembayaran</label>
+                                    <div className="relative">
+                                        <select 
+                                            value={data.payment_method}
+                                            onChange={e => setData('payment_method', e.target.value)}
+                                            className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-2xl px-4 py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] font-bold transition-all text-sm pr-10"
+                                        >
+                                            <option value="" disabled>Pilih Metode Pembayaran</option>
+                                            {paymentMethods && paymentMethods.length > 0 ? paymentMethods.map(method => (
+                                                <option key={method} value={method}>{method}</option>
+                                            )) : (
+                                                <option value="" disabled>Belum ada metode</option>
+                                            )}
+                                        </select>
+                                    </div>
+                                    {errors.payment_method && <p className="text-red-500 text-xs font-bold mt-1">{errors.payment_method}</p>}
+                                </div>
+
+                                <div>
                                     <label className="text-[13px] font-bold text-slate-600 block mb-2">Nominal</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-3.5 text-slate-400 font-extrabold">Rp</span>
@@ -230,7 +252,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
                     {/* List Kanan */}
                     <div className="desktop-col-span-2">
-                        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[660px] flex flex-col">
+                        <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[760px] flex flex-col">
                             <h2 className="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-3 shrink-0">
                                 <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -256,8 +278,11 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     </div>
                                     <div>
                                         <h3 className="text-base font-extrabold text-slate-800 leading-tight">{item.title}</h3>
-                                        <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex flex-wrap items-center gap-2 mt-1">
                                             <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{item.category}</span>
+                                            {item.payment_method && (
+                                                <span className="text-xs font-bold text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">{item.payment_method}</span>
+                                            )}
                                             <span className="text-[11px] font-semibold text-slate-400">{item.date_formatted}</span>
                                         </div>
                                     </div>
@@ -397,6 +422,25 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         </select>
                                     </div>
                                     {editErrors.category && <p className="text-red-500 text-xs mt-1">{editErrors.category}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-bold text-slate-700 block mb-2">Metode Pembayaran</label>
+                                    <div className="relative">
+                                        <select 
+                                            value={editData.payment_method}
+                                            onChange={e => setEditData('payment_method', e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white transition-colors"
+                                        >
+                                            <option value="" disabled>Pilih Metode Pembayaran</option>
+                                            {paymentMethods && paymentMethods.length > 0 ? paymentMethods.map(method => (
+                                                <option key={method} value={method}>{method}</option>
+                                            )) : (
+                                                <option value="" disabled>Belum ada metode</option>
+                                            )}
+                                        </select>
+                                    </div>
+                                    {editErrors.payment_method && <p className="text-red-500 text-xs mt-1">{editErrors.payment_method}</p>}
                                 </div>
 
                                 <div>

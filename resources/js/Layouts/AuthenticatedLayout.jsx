@@ -97,7 +97,7 @@ export default function AuthenticatedLayout({ children }) {
                     {menuKey === 'kelola' && (
                         <>
                             <Link href={route('kategori.index')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href="#" className="block py-1.5 text-[12.5px] font-medium text-slate-500 hover:text-[#009bd2] whitespace-nowrap">Metode Pembayaran</Link>
+                            <Link href={route('metode.index')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>
@@ -149,7 +149,7 @@ export default function AuthenticatedLayout({ children }) {
 
                     <SectionLabel text="Akun" />
                     <div className="space-y-1">
-                        <SubMenuParent icon={Icons.Database} text="Kelola Data" menuKey="kelola" active={route().current('kelola.*') || route().current('kategori.*')} />
+                        <SubMenuParent icon={Icons.Database} text="Kelola Data" menuKey="kelola" active={route().current('kelola.*') || route().current('kategori.*') || route().current('metode.*')} />
                         <MenuItem icon={Icons.Settings} text="Setting" active={route().current('profile.*')} routeName="profile.edit" />
                     </div>
                 </div>

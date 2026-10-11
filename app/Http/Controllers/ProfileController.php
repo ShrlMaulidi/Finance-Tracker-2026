@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
 
+use Illuminate\Support\Facades\Storage;
+
 class ProfileController extends Controller
 {
     /**
@@ -29,13 +31,38 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $validated = $request->validated();
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        // Handle Avatar Removal
+        if ($request->boolean('remove_avatar')) {
+            $oldAvatar = $user->getRawOriginal('avatar');
+            if ($oldAvatar && !str_starts_with($oldAvatar, 'http')) {
+                Storage::disk('public')->delete($oldAvatar);
+            }
+            $user->avatar = null;
+        }
+
+        // Handle Avatar Upload
+        if ($request->hasFile('avatar')) {
+            $oldAvatar = $user->getRawOriginal('avatar');
+            if ($oldAvatar && !str_starts_with($oldAvatar, 'http')) {
+                Storage::disk('public')->delete($oldAvatar);
+            }
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar = $path;
+        }
+
+        $user->save();
 
         return Redirect::route('profile.edit');
     }

@@ -1,13 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import OfferModal from '@/Components/OfferModal';
 
 export default function Dashboard({ auth, summary, chartData, currentFilter, selectedMonth, selectedYear }) {
+    const [chartType, setChartType] = useState('area'); // 'area' | 'bar'
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+
+    const formatYAxis = (value) => {
+        if (!value || value === 0) return '0';
+        if (value >= 1000000000) return `${(value / 1000000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
+        if (value >= 1000000) return `${(value / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt`;
+        if (value >= 1000) return `${(value / 1000).toLocaleString('id-ID', { maximumFractionDigits: 0 })} Rb`;
+        return value;
+    };
 
     const handleFilterChange = (filter) => {
         router.get(route('dashboard'), { filter }, { preserveState: true, preserveScroll: true });
@@ -34,42 +52,105 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
 
     const availableYears = Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i);
 
+    const monthNames = [
+        '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            const pemasukan = payload.find(p => p.dataKey === 'pemasukan')?.value || 0;
+            const pengeluaran = payload.find(p => p.dataKey === 'pengeluaran')?.value || 0;
+            const tabungan = payload.find(p => p.dataKey === 'tabungan')?.value || 0;
+            const net = pemasukan - pengeluaran - tabungan;
+
+            let periodTitle = '';
+            if (currentFilter === 'bulan') {
+                periodTitle = `Tanggal ${label} ${monthNames[selectedMonth] || ''} ${selectedYear || ''}`;
+            } else if (currentFilter === 'tahun') {
+                periodTitle = `Bulan ${label} ${selectedYear || ''}`;
+            } else {
+                periodTitle = `Tahun ${label}`;
+            }
+
+            return (
+                <div className="bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 text-xs min-w-[210px] space-y-2.5">
+                    <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-black text-slate-800 text-[13px]">{periodTitle}</p>
+                    </div>
+                    <div className="space-y-1.5 font-bold">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-1.5 text-slate-500">
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                Pemasukan:
+                            </span>
+                            <span className="font-black text-emerald-600">{formatRp(pemasukan)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-1.5 text-slate-500">
+                                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                                Pengeluaran:
+                            </span>
+                            <span className="font-black text-rose-600">{formatRp(pengeluaran)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-1.5 text-slate-500">
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#009bd2] shrink-0"></span>
+                                Tabungan:
+                            </span>
+                            <span className="font-black text-[#009bd2]">{formatRp(tabungan)}</span>
+                        </div>
+                    </div>
+                    {(pemasukan > 0 || pengeluaran > 0 || tabungan > 0) && (
+                        <div className="border-t border-slate-100 pt-2 flex items-center justify-between font-bold">
+                            <span className="text-slate-400 text-[11px]">Arus Kas Bersih:</span>
+                            <span className={`font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {net >= 0 ? `+${formatRp(net)}` : formatRp(net)}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
             <OfferModal />
 
-            <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-10 space-y-6 sm:space-y-10 relative">
+            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
                 
                 {/* Header & Filter */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
                     <div>
-                        <p className="text-xs md:text-sm font-bold text-[#009bd2] uppercase tracking-widest mb-1">Overview</p>
-                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
+                        <p className="text-[11px] sm:text-xs font-bold text-[#009bd2] uppercase tracking-wider mb-0.5 sm:mb-1">Overview</p>
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
                             Dashboard Keuangan
                         </h1>
-                        <p className="text-slate-500 font-medium text-sm mt-1">Ringkasan kondisi keuangan Anda.</p>
+                        <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5 sm:mt-1">Ringkasan kondisi keuangan Anda.</p>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-3 self-start md:self-end">
+                    <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full md:w-auto items-stretch sm:items-center">
                         {currentFilter === 'bulan' && (
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                                <label className="text-xs font-bold text-slate-500 mr-2">Pilih Bulan:</label>
+                            <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
+                                <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Bulan:</label>
                                 <input 
                                     type="month" 
                                     value={monthInputValue}
                                     onChange={handleMonthChange}
-                                    className="border-none bg-transparent text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-2"
+                                    className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-1"
                                 />
                             </div>
                         )}
                         {currentFilter === 'tahun' && (
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                                <label className="text-xs font-bold text-slate-500 mr-2">Pilih Tahun:</label>
+                            <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
+                                <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Tahun:</label>
                                 <select 
                                     value={selectedYear || new Date().getFullYear()}
                                     onChange={handleYearChange}
-                                    className="border-none bg-transparent text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-6"
+                                    className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-5"
                                 >
                                     {availableYears.map(y => (
                                         <option key={y} value={y}>{y}</option>
@@ -77,128 +158,246 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
                                 </select>
                             </div>
                         )}
-                        <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                        <div className="flex bg-slate-100/90 p-1 rounded-xl w-full sm:w-auto gap-1">
                             <button 
                                 onClick={() => handleFilterChange('bulan')}
-                                className={`px-4 py-2 rounded-lg font-bold text-xs md:text-sm transition-all duration-300 ${currentFilter === 'bulan' ? 'bg-white text-[#009bd2] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'bulan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Bulanan
                             </button>
                             <button 
                                 onClick={() => handleFilterChange('tahun')}
-                                className={`px-4 py-2 rounded-lg font-bold text-xs md:text-sm transition-all duration-300 ${currentFilter === 'tahun' ? 'bg-white text-[#009bd2] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'tahun' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Tahunan
                             </button>
                             <button 
                                 onClick={() => handleFilterChange('semua')}
-                                className={`px-4 py-2 rounded-lg font-bold text-xs md:text-sm transition-all duration-300 ${currentFilter === 'semua' ? 'bg-white text-[#009bd2] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'semua' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                Semua Waktu
+                                Semua
                             </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
                     {/* Pemasukan */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(16,185,129,0.1)] transition-all">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(16,185,129,0.08)] transition-all">
+                        <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                             </div>
-                            <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">Pemasukan</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Pemasukan</span>
                         </div>
                         <div>
-                            <p className="text-slate-400 font-bold text-sm mb-1">Total Pemasukan</p>
-                            <h3 className="text-2xl lg:text-3xl font-black text-slate-800">{formatRp(summary.pemasukan)}</h3>
+                            <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Pemasukan</p>
+                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary.pemasukan)}>{formatRp(summary.pemasukan)}</h3>
                         </div>
                     </div>
 
                     {/* Pengeluaran */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(244,63,94,0.1)] transition-all">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(244,63,94,0.08)] transition-all">
+                        <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                             </div>
-                            <span className="text-xs font-bold text-rose-500 bg-rose-50 px-3 py-1 rounded-full">Pengeluaran</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Pengeluaran</span>
                         </div>
                         <div>
-                            <p className="text-slate-400 font-bold text-sm mb-1">Total Pengeluaran</p>
-                            <h3 className="text-2xl lg:text-3xl font-black text-slate-800">{formatRp(summary.pengeluaran)}</h3>
+                            <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Pengeluaran</p>
+                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary.pengeluaran)}>{formatRp(summary.pengeluaran)}</h3>
                         </div>
                     </div>
 
                     {/* Tabungan */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(0,155,210,0.1)] transition-all">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(0,155,210,0.08)] transition-all">
+                        <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                             </div>
-                            <span className="text-xs font-bold text-[#009bd2] bg-[#009bd2]/10 px-3 py-1 rounded-full">Tabungan</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-[#009bd2] bg-[#009bd2]/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Tabungan</span>
                         </div>
                         <div>
-                            <p className="text-slate-400 font-bold text-sm mb-1">Total Tabungan</p>
-                            <h3 className="text-2xl lg:text-3xl font-black text-slate-800">{formatRp(summary.tabungan)}</h3>
+                            <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Tabungan</p>
+                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary.tabungan)}>{formatRp(summary.tabungan)}</h3>
                         </div>
                     </div>
                 </div>
 
-                {/* Saldo Akhir */}
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
-                    <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-[#009bd2]/20 rounded-full blur-3xl"></div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 font-bold text-sm uppercase tracking-widest mb-2">Estimasi Saldo Tersisa</p>
-                        <h2 className="text-4xl lg:text-5xl font-black text-white">{formatRp(summary.saldo)}</h2>
+                {/* Saldo Akhir Banner */}
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-xl sm:shadow-2xl relative overflow-hidden">
+                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-[#009bd2]/20 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                        <div>
+                            <p className="text-slate-400 font-bold text-[11px] sm:text-xs md:text-sm uppercase tracking-wider mb-1 sm:mb-2">Estimasi Saldo Tersisa</p>
+                            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight truncate" title={formatRp(summary.saldo)}>{formatRp(summary.saldo)}</h2>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-2 self-start sm:self-center bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="text-xs font-bold text-white/90">Saldo Aktif</span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Grafik */}
-                <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
-                    <h3 className="text-lg font-extrabold text-slate-800 mb-6">Grafik Arus Kas</h3>
+                {/* Grafik Arus Kas */}
+                <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-[#009bd2]"></div>
+                                <h3 className="text-base sm:text-lg font-extrabold text-slate-800">Grafik Arus Kas</h3>
+                            </div>
+                            <p className="text-xs font-medium text-slate-400 mt-0.5">
+                                Perbandingan pemasukan, pengeluaran, dan tabungan secara berkala.
+                            </p>
+                        </div>
+
+                        {/* Chart View Toggle & Indicator */}
+                        <div className="flex items-center gap-2 self-start sm:self-center">
+                            <div className="bg-slate-100/80 p-1 rounded-xl flex items-center shadow-inner">
+                                <button
+                                    onClick={() => setChartType('area')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
+                                        chartType === 'area'
+                                            ? 'bg-white text-slate-900 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                >
+                                    <svg className="w-3.5 h-3.5 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                                    <span>Area</span>
+                                </button>
+                                <button
+                                    onClick={() => setChartType('bar')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
+                                        chartType === 'bar'
+                                            ? 'bg-white text-slate-900 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                >
+                                    <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                                    <span>Batang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
                     {chartData.length > 0 ? (
-                        <div className="h-[400px] w-full">
+                        <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={chartData}
-                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis 
-                                        dataKey="name" 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
-                                        dy={10}
-                                    />
-                                    <YAxis 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
-                                        tickFormatter={(value) => `Rp ${value / 1000}k`}
-                                        dx={-10}
-                                    />
-                                    <Tooltip 
-                                        cursor={{ fill: '#f8fafc' }}
-                                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                                        formatter={(value) => [formatRp(value), ""]}
-                                    />
-                                    <Legend 
-                                        iconType="circle"
-                                        wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 700 }}
-                                    />
-                                    <Bar dataKey="pemasukan" name="Pemasukan" fill="#10b981" radius={[4, 4, 0, 0]} barSize={12} />
-                                    <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={12} />
-                                    <Bar dataKey="tabungan" name="Tabungan" fill="#009bd2" radius={[4, 4, 0, 0]} barSize={12} />
-                                </BarChart>
+                                {chartType === 'area' ? (
+                                    <AreaChart
+                                        data={chartData}
+                                        margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="gradientPemasukan" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                                            </linearGradient>
+                                            <linearGradient id="gradientPengeluaran" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35}/>
+                                                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
+                                            </linearGradient>
+                                            <linearGradient id="gradientTabungan" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#009bd2" stopOpacity={0.35}/>
+                                                <stop offset="95%" stopColor="#009bd2" stopOpacity={0.0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            axisLine={{ stroke: '#f1f5f9' }} 
+                                            tickLine={false} 
+                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
+                                            dy={8}
+                                            interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
+                                            tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
+                                        />
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
+                                            tickFormatter={formatYAxis}
+                                            width={isMobile ? 48 : 58}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend 
+                                            iconType="circle"
+                                            wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="pemasukan" 
+                                            name="Pemasukan" 
+                                            stroke="#10b981" 
+                                            strokeWidth={2.5} 
+                                            fillOpacity={1} 
+                                            fill="url(#gradientPemasukan)" 
+                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#10b981' }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="pengeluaran" 
+                                            name="Pengeluaran" 
+                                            stroke="#f43f5e" 
+                                            strokeWidth={2.5} 
+                                            fillOpacity={1} 
+                                            fill="url(#gradientPengeluaran)" 
+                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#f43f5e' }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="tabungan" 
+                                            name="Tabungan" 
+                                            stroke="#009bd2" 
+                                            strokeWidth={2.5} 
+                                            fillOpacity={1} 
+                                            fill="url(#gradientTabungan)" 
+                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#009bd2' }}
+                                        />
+                                    </AreaChart>
+                                ) : (
+                                    <BarChart
+                                        data={chartData}
+                                        margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
+                                        barGap={2}
+                                        barCategoryGap={chartData.length > 20 ? '15%' : '25%'}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            axisLine={{ stroke: '#f1f5f9' }} 
+                                            tickLine={false} 
+                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
+                                            dy={8}
+                                            interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
+                                            tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
+                                        />
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
+                                            tickFormatter={formatYAxis}
+                                            width={isMobile ? 48 : 58}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend 
+                                            iconType="circle"
+                                            wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
+                                        />
+                                        <Bar dataKey="pemasukan" name="Pemasukan" fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
+                                        <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#f43f5e" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
+                                        <Bar dataKey="tabungan" name="Tabungan" fill="#009bd2" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
+                                    </BarChart>
+                                )}
                             </ResponsiveContainer>
                         </div>
                     ) : (
-                        <div className="h-[400px] flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem]">
-                            <p className="text-slate-400 font-bold">Tidak ada data transaksi untuk ditampilkan.</p>
+                        <div className="h-[220px] sm:h-[340px] flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-[2rem] p-6 text-center">
+                            <p className="text-slate-400 font-bold text-xs sm:text-sm">Tidak ada data transaksi untuk ditampilkan.</p>
                         </div>
                     )}
                 </div>

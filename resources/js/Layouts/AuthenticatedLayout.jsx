@@ -7,6 +7,7 @@ const Icons = {
     Anggaran: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4M20 12a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0a2 2 0 00-2-2H6a2 2 0 00-2 2" /></svg>,
     Pengeluaran: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Transaksi: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>,
+    Hutang: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 15h2a2 2 0 100-4h-3c-.6 0-1.1.2-1.4.6L3 17" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 00-2.75-2.91l-4.2 3.9" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m2 16 6 6" /><circle cx="16" cy="9" r="2.9" strokeWidth={1.5} /><circle cx="6" cy="5" r="3" strokeWidth={1.5} /></svg>,
     Laporan: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
     Database: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>,
     Settings: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
@@ -16,22 +17,59 @@ const Icons = {
     ChevronDown: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>,
     CollapseLeft: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
     AIAgent: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>,
+    Berlangganan: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4l3 6 5-4-2 12H6L4 6l5 4 3-6z" /></svg>,
 };
 
 export default function AuthenticatedLayout({ children }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
 
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        if (typeof window !== 'undefined') {
+            if (window.innerWidth < 768) {
+                return false;
+            }
+            const saved = localStorage.getItem('sidebarOpen');
+            return saved !== null ? saved === 'true' : true;
+        }
+        return false;
+    });
 
+    const currentUrl = usePage().url;
+
+    // Automatically ensure sidebar stays closed on mobile when navigating
     useEffect(() => {
-        if (window.innerWidth < 768) {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
             setSidebarOpen(false);
         }
+    }, [currentUrl]);
+
+    // Handle screen resize cleanly
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setSidebarOpen(false);
+            } else {
+                const saved = localStorage.getItem('sidebarOpen');
+                setSidebarOpen(saved !== null ? saved === 'true' : true);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    const toggleSidebar = () => {
+        setSidebarOpen(prev => {
+            const next = !prev;
+            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                localStorage.setItem('sidebarOpen', String(next));
+            }
+            return next;
+        });
+    };
 
     const [openMenus, setOpenMenus] = useState({
         anggaran: route().current('anggaran.*') || route().current('anggaran.investasi'),
-        transaksi: route().current('transaksi.*') && !route().current('transaksi.index'),
         kelola: route().current('kelola.*') || route().current('kategori.*') || route().current('metode.*')
     });
 
@@ -56,7 +94,15 @@ export default function AuthenticatedLayout({ children }) {
 
     // Helper for Menu Items that anchor icons so they never move during width transitions
     const MenuItem = ({ icon, text, active = false, routeName = "#" }) => (
-        <Link href={routeName === '#' ? '#' : route(routeName)} className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}>
+        <Link 
+            href={routeName === '#' ? '#' : route(routeName)} 
+            onClick={() => {
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                    setSidebarOpen(false);
+                }
+            }}
+            className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}
+        >
             <div className={`w-10 h-10 flex justify-center items-center shrink-0 transition-all duration-300 ease-out group-hover:scale-[1.1] group-hover:-rotate-[12deg] ${active ? '' : 'group-hover:text-[#009bd2]'}`}>
                 {icon}
             </div>
@@ -84,23 +130,15 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.investasi')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Tabungan & Target</Link>
-                            <Link href={route('anggaran.hutang')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Hutang</Link>
-                            <Link href={route('anggaran.pengeluaran')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pengeluaran Bulanan</Link>
-                        </>
-                    )}
-                    {menuKey === 'transaksi' && (
-                        <>
-                            <Link href={route('transaksi.history', { type: 'semua' })} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${usePage().url.startsWith('/transaksi/history/semua') || (usePage().url.startsWith('/transaksi/history') && !usePage().url.includes('pengeluaran') && !usePage().url.includes('pemasukan') && !usePage().url.includes('tabungan')) ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Semua Transaksi</Link>
-                            <Link href={route('transaksi.history', { type: 'pengeluaran' })} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${usePage().url.startsWith('/transaksi/history/pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pengeluaran</Link>
-                            <Link href={route('transaksi.history', { type: 'pemasukan' })} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${usePage().url.startsWith('/transaksi/history/pemasukan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pemasukan</Link>
-                            <Link href={route('transaksi.history', { type: 'tabungan' })} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${usePage().url.startsWith('/transaksi/history/tabungan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Riwayat Tabungan</Link>
+                            <Link href={route('anggaran.investasi')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Tabungan & Target</Link>
+                            <Link href={route('anggaran.hutang')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Hutang</Link>
+                            <Link href={route('anggaran.pengeluaran')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pengeluaran Bulanan</Link>
                         </>
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>
@@ -139,11 +177,11 @@ export default function AuthenticatedLayout({ children }) {
                     <SectionLabel text="Persiapan" />
                     <div className="space-y-1">
                         <MenuItem icon={Icons.Dashboard} text="Dashboard" active={route().current('dashboard')} routeName="dashboard" />
-                        <MenuItem icon={Icons.Target} text="Tabungan dan Target" active={route().current('tabungan.*')} routeName="tabungan.target" />
-                        <MenuItem icon={Icons.Transaksi} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
+                        <MenuItem icon={Icons.Target} text="Tabungan & Target" active={route().current('tabungan.*')} routeName="tabungan.target" />
+                        <MenuItem icon={Icons.Hutang} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
                         <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} />
                         <MenuItem icon={Icons.Pengeluaran} text="Pengeluaran & Pemasukan" active={route().current('transaksi.index')} routeName="transaksi.index" />
-                        <SubMenuParent icon={Icons.Transaksi} text="Transaksi" menuKey="transaksi" active={route().current('transaksi.*') && !route().current('transaksi.index')} />
+                        <MenuItem icon={Icons.Transaksi} text="Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
                     </div>
 
                     <SectionLabel text="Inspirasi" />
@@ -159,8 +197,9 @@ export default function AuthenticatedLayout({ children }) {
 
                     <SectionLabel text="Akun" />
                     <div className="space-y-1">
+                        <MenuItem icon={Icons.Berlangganan} text="Berlangganan" active={route().current('berlangganan.*')} routeName="berlangganan.index" />
                         <SubMenuParent icon={Icons.Database} text="Kelola Data" menuKey="kelola" active={route().current('kelola.*') || route().current('kategori.*') || route().current('metode.*')} />
-                        <MenuItem icon={Icons.Settings} text="Setting" active={route().current('profile.*')} routeName="profile.edit" />
+                        <MenuItem icon={Icons.Settings} text="Pengaturan" active={route().current('profile.*')} routeName="profile.edit" />
                     </div>
                 </div>
 
@@ -169,9 +208,13 @@ export default function AuthenticatedLayout({ children }) {
                     {/* User Profile */}
                     <div className="flex items-center h-[64px] hover:bg-slate-50 transition-colors overflow-hidden">
                         <div className="w-[72px] h-full flex justify-center items-center shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
-                                {getInitials(user.name)}
-                            </div>
+                            {user.avatar ? (
+                                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                            ) : (
+                                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
+                                    {getInitials(user.name)}
+                                </div>
+                            )}
                         </div>
                         <div className={`flex items-center justify-between overflow-hidden transition-all duration-300 whitespace-nowrap ${sidebarOpen ? 'w-[160px] opacity-100' : 'w-0 opacity-0'}`}>
                             <div className="overflow-hidden pr-2">
@@ -189,9 +232,9 @@ export default function AuthenticatedLayout({ children }) {
             {/* MAIN CONTENT WRAPPER */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#fbfbfb]">
                 {/* TOP HEADER */}
-                <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 lg:px-8 shrink-0">
-                    <div className="flex items-center gap-5">
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-xl hover:bg-slate-50 transition-colors relative w-10 h-10 flex items-center justify-center group">
+                <header className="h-16 sm:h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 lg:px-8 shrink-0">
+                    <div className="flex items-center gap-3 sm:gap-5">
+                        <button onClick={toggleSidebar} className="p-2 rounded-xl hover:bg-slate-50 transition-colors relative w-10 h-10 flex items-center justify-center group">
                             {/* Pure CSS Animated Hamburger */}
                             <div className="w-[20px] h-[14px] flex flex-col justify-between items-end">
                                 <span className="w-full h-[2.5px] bg-slate-400 group-hover:bg-slate-600 rounded-full transition-all duration-300 ease-in-out"></span>
@@ -220,9 +263,13 @@ export default function AuthenticatedLayout({ children }) {
                             <Dropdown.Trigger>
                                 <button className="flex items-center gap-3 focus:outline-none text-left rounded-xl p-1 hover:bg-slate-50 transition-colors">
                                     <div className="relative">
-                                        <div className="w-10 h-10 rounded-full bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center font-bold">
-                                            {getInitials(user.name)}
-                                        </div>
+                                        {user.avatar ? (
+                                            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center font-bold">
+                                                {getInitials(user.name)}
+                                            </div>
+                                        )}
                                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-[2px] shadow-sm">
                                             <span className="text-[10px] leading-none block">👋</span>
                                         </div>
@@ -235,7 +282,7 @@ export default function AuthenticatedLayout({ children }) {
                                 </button>
                             </Dropdown.Trigger>
                             <Dropdown.Content>
-                                <Dropdown.Link href={route('profile.edit')}>Profile</Dropdown.Link>
+                                <Dropdown.Link href={route('profile.edit')}>Pengaturan</Dropdown.Link>
                                 <Dropdown.Link href={route('logout')} method="post" as="button">Log Out</Dropdown.Link>
                             </Dropdown.Content>
                         </Dropdown>

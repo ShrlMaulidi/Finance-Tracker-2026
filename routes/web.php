@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan', [\App\Http\Controllers\ReportController::class, 'index'])->name('laporan.index');
     Route::get('/berita', [\App\Http\Controllers\NewsController::class, 'index'])->name('news.index');
     Route::get('/ai-agent', [\App\Http\Controllers\AIAgentController::class, 'index'])->name('ai-agent.index');
+    Route::get('/berlangganan', [\App\Http\Controllers\SubscriptionController::class, 'index'])->name('berlangganan.index');
     
     Route::get('/kategori', [\App\Http\Controllers\CategoryController::class, 'index'])->name('kategori.index');
     Route::post('/kategori', [\App\Http\Controllers\CategoryController::class, 'store'])->name('kategori.store');
@@ -62,7 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/metode/{paymentMethod}', [\App\Http\Controllers\PaymentMethodController::class, 'update'])->name('metode.update');
     Route::delete('/metode/{paymentMethod}', [\App\Http\Controllers\PaymentMethodController::class, 'destroy'])->name('metode.destroy');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::match(['patch', 'post'], '/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

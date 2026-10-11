@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 
-export default function Welcome({ auth }) {
+export default function Welcome({ auth, canRegister = true }) {
     return (
         <div 
             className="min-h-screen relative flex flex-col font-sans" 
@@ -23,16 +23,18 @@ export default function Welcome({ auth }) {
                         <>
                             <Link 
                                 href={route('login')} 
-                                className="hidden sm:inline-block px-5 py-2.5 text-slate-600 font-bold hover:text-[#009bd2] transition-colors"
+                                className="px-5 py-2.5 text-slate-600 font-bold hover:text-[#009bd2] transition-colors"
                             >
                                 Log in
                             </Link>
-                            <Link 
-                                href={route('register')} 
-                                className="px-6 py-2 border-2 border-[#009bd2] text-[#009bd2] font-bold rounded-lg hover:bg-[#009bd2]/10 transition-colors shadow-sm text-sm"
-                            >
-                                Sign Up
-                            </Link>
+                            {canRegister && (
+                                <Link 
+                                    href={route('register')} 
+                                    className="px-6 py-2 border-2 border-[#009bd2] text-[#009bd2] font-bold rounded-lg hover:bg-[#009bd2]/10 transition-colors shadow-sm text-sm"
+                                >
+                                    Sign Up
+                                </Link>
+                            )}
                         </>
                     )}
                 </div>
@@ -67,7 +69,7 @@ export default function Welcome({ auth }) {
                             Buka Dashboard Utama
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                         </Link>
-                    ) : (
+                    ) : canRegister ? (
                         <>
                             <Link 
                                 href={route('register')} 
@@ -82,6 +84,14 @@ export default function Welcome({ auth }) {
                                 Masuk
                             </Link>
                         </>
+                    ) : (
+                        <Link 
+                            href={route('login')} 
+                            className="w-full bg-[#009bd2] hover:bg-[#0089ba] text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex justify-center items-center gap-2"
+                        >
+                            Masuk ke Akun Anda
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                        </Link>
                     )}
                 </div>
 

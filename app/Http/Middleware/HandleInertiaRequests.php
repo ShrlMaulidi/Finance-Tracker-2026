@@ -34,6 +34,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'flash' => [
+                'show_subscription_offer' => $request->session()->get('show_subscription_offer', false),
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+            ],
+            'pricing' => \App\Http\Controllers\Admin\AdminSettingController::getPricingSettings(),
         ];
     }
 }

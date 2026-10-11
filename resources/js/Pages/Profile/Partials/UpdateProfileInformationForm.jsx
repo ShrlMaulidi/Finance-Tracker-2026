@@ -89,7 +89,8 @@ export default function UpdateProfileInformation({
                             {avatarPreview ? (
                                 <img
                                     src={avatarPreview}
-                                    alt={user.name}
+                                    alt=""
+                                    onError={() => setAvatarPreview(null)}
                                     className="w-20 h-20 rounded-2xl object-cover shadow-sm border-2 border-white ring-2 ring-[#009bd2]/20"
                                 />
                             ) : (

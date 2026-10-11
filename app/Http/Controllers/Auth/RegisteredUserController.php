@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -19,8 +20,12 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(): Response|RedirectResponse
     {
+        if (!AdminSettingController::isRegistrationAllowed()) {
+            return redirect()->route('login')->with('error', 'Pendaftaran akun baru saat ini sedang ditutup oleh administrator.');
+        }
+
         return Inertia::render('Auth/Register');
     }
 
@@ -31,6 +36,9 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if (!AdminSettingController::isRegistrationAllowed()) {
+            return redirect()->route('login')->with('error', 'Pendaftaran akun baru saat ini sedang ditutup oleh administrator.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
@@ -46,6 +54,7 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+        $request->session()->flash('show_subscription_offer', true);
 
         return redirect(route('dashboard', absolute: false));
     }

@@ -48,63 +48,99 @@ export default function Laporan({ auth, filters, availableYears, summary, transa
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
-                        {/* Filter Segment Buttons */}
-                        <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
-                            <button 
-                                onClick={() => handleFilterChange('month')}
-                                className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'month' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                Per Bulan
-                            </button>
-                            <button 
-                                onClick={() => handleFilterChange('year')}
-                                className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'year' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                Per Tahun
-                            </button>
-                            <button 
-                                onClick={() => handleFilterChange('all')}
-                                className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'all' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                Semua
-                            </button>
+                    <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center">
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center">
+                            {/* Filter Segment Buttons */}
+                            <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                                <button 
+                                    onClick={() => handleFilterChange('month')}
+                                    className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'month' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    Per Bulan
+                                </button>
+                                <button 
+                                    onClick={() => handleFilterChange('year')}
+                                    className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'year' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    Per Tahun
+                                </button>
+                                <button 
+                                    onClick={() => handleFilterChange('all')}
+                                    className={`py-1.5 px-3 sm:px-4 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-200 text-center ${filters.type === 'all' ? 'bg-white text-[#009bd2] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    Semua
+                                </button>
+                            </div>
+
+                            {/* Month Picker */}
+                            {filters.type === 'month' && (
+                                <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-xs w-full sm:w-auto">
+                                    <div className="flex items-center gap-1.5 text-slate-400 mr-2 shrink-0">
+                                        <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <span className="text-xs font-bold text-slate-500">Bulan:</span>
+                                    </div>
+                                    <input 
+                                        type="month" 
+                                        value={monthInputValue}
+                                        onChange={handleMonthChange}
+                                        className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer text-right sm:text-left"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Year Picker */}
+                            {filters.type === 'year' && (
+                                <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-xs w-full sm:w-auto">
+                                    <div className="flex items-center gap-1.5 text-slate-400 mr-2 shrink-0">
+                                        <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <span className="text-xs font-bold text-slate-500">Tahun:</span>
+                                    </div>
+                                    <select 
+                                        value={filters.year || new Date().getFullYear()}
+                                        onChange={handleYearChange}
+                                        className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-6"
+                                    >
+                                        {availableYears.map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Month Picker */}
-                        {filters.type === 'month' && (
-                            <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-xs w-full sm:w-auto">
-                                <div className="flex items-center gap-1.5 text-slate-400 mr-2 shrink-0">
-                                    <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className="text-xs font-bold text-slate-500">Bulan:</span>
-                                </div>
-                                <input 
-                                    type="month" 
-                                    value={monthInputValue}
-                                    onChange={handleMonthChange}
-                                    className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer text-right sm:text-left"
-                                />
-                            </div>
-                        )}
-
-                        {/* Year Picker */}
-                        {filters.type === 'year' && (
-                            <div className="flex items-center justify-between sm:justify-start bg-white border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-xs w-full sm:w-auto">
-                                <div className="flex items-center gap-1.5 text-slate-400 mr-2 shrink-0">
-                                    <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className="text-xs font-bold text-slate-500">Tahun:</span>
-                                </div>
-                                <select 
-                                    value={filters.year || new Date().getFullYear()}
-                                    onChange={handleYearChange}
-                                    className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-6"
-                                >
-                                    {availableYears.map(y => (
-                                        <option key={y} value={y}>{y}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        {/* Export Buttons */}
+                        <div className="grid grid-cols-2 sm:flex items-center gap-2 pt-1 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                            <a
+                                href={route('laporan.export.pdf', {
+                                    filter_type: filters.type,
+                                    filter_month: filters.month,
+                                    filter_year: filters.year,
+                                })}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/70 font-black text-xs transition-all shadow-xs active:scale-95 text-center group cursor-pointer"
+                                title="Unduh Laporan Keuangan format PDF"
+                            >
+                                <svg className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                                <span>Export PDF</span>
+                            </a>
+                            <a
+                                href={route('laporan.export.excel', {
+                                    filter_type: filters.type,
+                                    filter_month: filters.month,
+                                    filter_year: filters.year,
+                                })}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/70 font-black text-xs transition-all shadow-xs active:scale-95 text-center group cursor-pointer"
+                                title="Unduh Laporan Keuangan format Excel (.xlsx)"
+                            >
+                                <svg className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Export Excel</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
 

@@ -4,7 +4,6 @@ import { Head, router } from '@inertiajs/react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import OfferModal from '@/Components/OfferModal';
 
 export default function Dashboard({ auth, summary, chartData, currentFilter, selectedMonth, selectedYear }) {
     const [chartType, setChartType] = useState('area'); // 'area' | 'bar'
@@ -118,7 +117,6 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
-            <OfferModal />
 
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
                 

@@ -7,10 +7,11 @@ use Inertia\Inertia;
 
 class SubscriptionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         return Inertia::render('Berlangganan/Index', [
-            'currentPlan' => 'free',
+            'currentPlan' => $request->user()->subscription_tier ?? 'free',
+            'pricing' => \App\Http\Controllers\Admin\AdminSettingController::getPricingSettings(),
         ]);
     }
 }

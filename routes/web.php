@@ -8,7 +8,7 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
+        'canRegister' => Route::has('register') && \App\Http\Controllers\Admin\AdminSettingController::isRegistrationAllowed(),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
@@ -49,6 +49,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/transaksi/{transaction}', [\App\Http\Controllers\TransactionController::class, 'destroy'])->name('transaksi.destroy');
     Route::get('/transaksi/history/{type?}', [\App\Http\Controllers\TransactionHistoryController::class, 'index'])->name('transaksi.history');
     Route::get('/laporan', [\App\Http\Controllers\ReportController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/export/pdf', [\App\Http\Controllers\ReportController::class, 'exportPdf'])->name('laporan.export.pdf');
+    Route::get('/laporan/export/excel', [\App\Http\Controllers\ReportController::class, 'exportExcel'])->name('laporan.export.excel');
     Route::get('/berita', [\App\Http\Controllers\NewsController::class, 'index'])->name('news.index');
     Route::get('/ai-agent', [\App\Http\Controllers\AIAgentController::class, 'index'])->name('ai-agent.index');
     Route::get('/berlangganan', [\App\Http\Controllers\SubscriptionController::class, 'index'])->name('berlangganan.index');
@@ -65,6 +67,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::match(['patch', 'post'], '/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::middleware(['auth', 'superadmin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/users', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}/toggle-status', [\App\Http\Controllers\Admin\AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::patch('/users/{user}/tier', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateTier'])->name('users.update-tier');
+    Route::delete('/users/{user}', [\App\Http\Controllers\Admin\AdminUserController::class, 'destroy'])->name('users.destroy');
+    Route::get('/settings', [\App\Http\Controllers\Admin\AdminSettingController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [\App\Http\Controllers\Admin\AdminSettingController::class, 'update'])->name('settings.update');
 });
 
 require __DIR__.'/auth.php';

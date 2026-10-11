@@ -4,6 +4,7 @@ import { Head, usePage } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
+import UserAvatar from '@/Components/UserAvatar';
 
 export default function Edit({ mustVerifyEmail, status }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
@@ -86,17 +87,7 @@ export default function Edit({ mustVerifyEmail, status }) {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-[#009bd2]/5 rounded-full blur-2xl pointer-events-none"></div>
                             
                             <div className="flex lg:flex-col items-center lg:text-center gap-4 lg:gap-3">
-                                {user.avatar ? (
-                                    <img 
-                                        src={user.avatar} 
-                                        alt={user.name} 
-                                        className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover shadow-md sm:shadow-lg border-2 border-white ring-2 ring-[#009bd2]/20 shrink-0" 
-                                    />
-                                ) : (
-                                    <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-[#009bd2] to-sky-400 text-white font-black text-xl sm:text-2xl flex items-center justify-center shadow-md sm:shadow-lg shadow-[#009bd2]/25 shrink-0">
-                                        {getInitials(user.name)}
-                                    </div>
-                                )}
+                                <UserAvatar user={user} size="xl" rounded="rounded-2xl sm:rounded-3xl" className="w-14 h-14 sm:w-20 sm:h-20 shadow-md sm:shadow-lg" />
                                 <div className="min-w-0 flex-1 lg:w-full">
                                     <h3 className="text-base sm:text-lg font-black text-slate-800 truncate leading-tight">
                                         {user.name}
@@ -107,7 +98,7 @@ export default function Edit({ mustVerifyEmail, status }) {
                                     <div className="mt-2.5 flex items-center lg:justify-center gap-1.5 flex-wrap">
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-black bg-blue-50 text-[#009bd2]">
                                             <span className="w-1.5 h-1.5 rounded-full bg-[#009bd2] animate-pulse"></span>
-                                            Super Admin
+                                            {user.role === 'superadmin' ? 'Super Admin' : (user.subscription_tier === 'pro_plus' ? 'Pro Plus Member' : (user.subscription_tier === 'pro' ? 'Pro Member' : 'Free Member'))}
                                         </span>
                                     </div>
                                 </div>

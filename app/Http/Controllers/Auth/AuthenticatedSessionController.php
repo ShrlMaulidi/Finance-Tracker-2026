@@ -20,6 +20,7 @@ class AuthenticatedSessionController extends Controller
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
+            'canRegister' => \App\Http\Controllers\Admin\AdminSettingController::isRegistrationAllowed(),
             'status' => session('status'),
         ]);
     }
@@ -31,7 +32,18 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        if (!$request->user()->is_active) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'Akun Anda sedang dinonaktifkan sementara oleh Super Admin. Silakan hubungi dukungan jika ada kendala.',
+            ]);
+        }
+
         $request->session()->regenerate();
+        $request->session()->flash('show_subscription_offer', true);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

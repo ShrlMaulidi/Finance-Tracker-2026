@@ -48,7 +48,9 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus target ini?')) {
-            router.delete(route('tabungan.target.destroy', id));
+            router.delete(route('tabungan.target.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 
@@ -68,6 +70,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         if (editingTarget) {
             post(route('tabungan.target.update', editingTarget.id), {
                 forceFormData: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     reset();
                     setIsModalOpen(false);
@@ -78,6 +81,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         } else {
             post(route('tabungan.target.store'), {
                 forceFormData: true,
+                preserveScroll: true,
                 onSuccess: () => {
                     reset();
                     setIsModalOpen(false);

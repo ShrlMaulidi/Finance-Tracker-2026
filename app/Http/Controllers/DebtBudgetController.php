@@ -65,27 +65,28 @@ class DebtBudgetController extends Controller
             ];
         });
 
-        // Calculate history for the last 6 months (excluding current month)
+        // Calculate history for the last 6 months (excluding current month) using SQL aggregation
         $historyData = [];
         
         $sixMonthsAgo = Carbon::now()->subMonths(6)->startOfMonth();
         $lastMonth = Carbon::now()->subMonths(1)->endOfMonth();
         
-        $historyTransactions = Transaction::where('user_id', Auth::id())
+        $historySummary = Transaction::where('user_id', Auth::id())
             ->where('type', 'pengeluaran')
             ->whereBetween('date', [$sixMonthsAgo, $lastMonth])
-            ->get();
+            ->selectRaw("DATE_FORMAT(date, '%Y-%m') as ym, category, SUM(amount) as total")
+            ->groupBy('ym', 'category')
+            ->get()
+            ->groupBy('ym');
             
         for ($i = 1; $i <= 6; $i++) {
             $date = Carbon::now()->subMonths($i);
             $month = $date->month;
             $year = $date->year;
+            $monthKey = $date->format('Y-m');
             $monthName = $date->translatedFormat('F Y');
 
-            $monthTransactions = $historyTransactions->filter(function($t) use ($month, $year) {
-                $d = Carbon::parse($t->date);
-                return $d->month === $month && $d->year === $year;
-            });
+            $monthMap = $historySummary->get($monthKey, collect())->pluck('total', 'category');
 
             foreach ($budgets as $budget) {
                 if (!$budget->is_recurring && ($month !== $currentMonth || $year !== $currentYear)) {
@@ -98,12 +99,12 @@ class DebtBudgetController extends Controller
                     continue;
                 }
                 
-                $used = $monthTransactions->where('category', $budget->name)->sum('amount');
+                $used = (float) ($monthMap->get($budget->name, 0));
                 $historyData[] = [
                     'month' => $monthName,
                     'name' => $budget->name,
                     'target' => (float)$budget->target_amount,
-                    'used' => (float)$used,
+                    'used' => $used,
                 ];
             }
         }

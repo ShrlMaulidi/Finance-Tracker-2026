@@ -34,6 +34,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
     const submit = (e) => {
         e.preventDefault();
         post(route('anggaran.pengeluaran.store'), {
+            preserveScroll: true,
             onSuccess: () => reset(),
         });
     };
@@ -52,6 +53,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('anggaran.pengeluaran.update', editingBudget.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingBudget(null);
@@ -62,7 +64,9 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus anggaran ini?')) {
-            router.delete(route('anggaran.pengeluaran.destroy', id));
+            router.delete(route('anggaran.pengeluaran.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

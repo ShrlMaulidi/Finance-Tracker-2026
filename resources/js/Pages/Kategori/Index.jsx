@@ -26,6 +26,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
             return;
         }
         post(route('kategori.store'), {
+            preserveScroll: true,
             onSuccess: () => reset('name'),
         });
     };
@@ -43,6 +44,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('kategori.update', editingCategory.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingCategory(null);
@@ -53,7 +55,9 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus kategori ini?')) {
-            router.delete(route('kategori.destroy', id));
+            router.delete(route('kategori.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

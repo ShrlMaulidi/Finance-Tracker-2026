@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
@@ -82,6 +82,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
         const currentType = data.type;
 
         post(route('transaksi.store'), {
+            preserveScroll: true,
             onSuccess: () => {
                 reset('amount', 'category', 'title', 'description', 'payment_method');
                 if (typeof window !== 'undefined' && window.innerWidth < 640) {
@@ -117,6 +118,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('transaksi.update', editingTx.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingTx(null);
@@ -134,6 +136,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
             router.delete(route('transaksi.destroy', id), {
+                preserveScroll: true,
                 onSuccess: () => {
                     setPopupNotification({
                         show: true,
@@ -495,6 +498,20 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     </div>
                                 )}
                             </div>
+
+                            {transactions.length > 0 && (
+                                <div className="mt-3 pt-2.5 border-t border-slate-100 shrink-0">
+                                    <Link
+                                        href={route('transaksi.history')}
+                                        className="text-xs font-bold text-[#009bd2] hover:text-[#0086b6] hover:bg-sky-50/70 p-2 rounded-xl flex items-center justify-center gap-1.5 transition text-center"
+                                    >
+                                        <span>Lihat Semua Riwayat & Filter Lengkap</span>
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                        </svg>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

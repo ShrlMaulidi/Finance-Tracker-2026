@@ -36,6 +36,7 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
     const submit = (e) => {
         e.preventDefault();
         post(route('anggaran.investasi.store'), {
+            preserveScroll: true,
             onSuccess: () => reset(),
         });
     };
@@ -55,6 +56,7 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('anggaran.investasi.update', editingBudget.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingBudget(null);
@@ -65,7 +67,9 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus anggaran ini?')) {
-            router.delete(route('anggaran.investasi.destroy', id));
+            router.delete(route('anggaran.investasi.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

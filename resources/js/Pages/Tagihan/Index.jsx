@@ -99,6 +99,7 @@ export default function TagihanIndex({
         e.preventDefault();
         if (editingBill) {
             billForm.put(route('tagihan.update', editingBill.id), {
+                preserveScroll: true,
                 onSuccess: () => {
                     setIsBillModalOpen(false);
                     setEditingBill(null);
@@ -107,6 +108,7 @@ export default function TagihanIndex({
             });
         } else {
             billForm.post(route('tagihan.store'), {
+                preserveScroll: true,
                 onSuccess: () => {
                     setIsBillModalOpen(false);
                     billForm.reset();
@@ -117,7 +119,9 @@ export default function TagihanIndex({
 
     const handleDeleteBill = (bill) => {
         if (confirm(`Apakah Anda yakin ingin menghapus tagihan '${bill.name}'?`)) {
-            router.delete(route('tagihan.destroy', bill.id));
+            router.delete(route('tagihan.destroy', bill.id), {
+                preserveScroll: true,
+            });
         }
     };
 
@@ -140,6 +144,7 @@ export default function TagihanIndex({
         if (!payingBill) return;
 
         payForm.post(route('tagihan.pay', payingBill.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsPayModalOpen(false);
                 setPayingBill(null);

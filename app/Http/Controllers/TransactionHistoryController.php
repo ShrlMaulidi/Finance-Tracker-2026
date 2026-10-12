@@ -40,7 +40,7 @@ class TransactionHistoryController extends Controller
             $query->whereYear('date', $filterYear);
         }
 
-        $transactions = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->get()->map(function ($t) {
+        $transactions = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->limit(500)->get()->map(function ($t) {
             return [
                 'id' => $t->id,
                 'type' => $t->type,

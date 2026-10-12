@@ -18,7 +18,7 @@ class TransactionController extends Controller
         $transactions = Transaction::where('user_id', Auth::id())
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->limit(300) // Prevent loading thousands of records into memory at once
+            ->limit(30) // Optimal payload for fast input/edit/delete feedback; full history in /transaksi/history
             ->get()
             ->map(function ($t) {
                 return [
@@ -54,9 +54,14 @@ class TransactionController extends Controller
         $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
         $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
 
-        // Inject active Debts/Receivables into categories
-        $activeHutang = \App\Models\Debt::where('user_id', Auth::id())->where('type', 'hutang')->where('status', 'belum_lunas')->get()->map(fn($d) => ['id' => $d->name, 'label' => 'Hutang: ' . $d->name])->toArray();
-        $activePiutang = \App\Models\Debt::where('user_id', Auth::id())->where('type', 'piutang')->where('status', 'belum_lunas')->get()->map(fn($d) => ['id' => $d->name, 'label' => 'Piutang: ' . $d->name])->toArray();
+        // Inject active Debts/Receivables into categories in 1 efficient query
+        $activeDebts = \App\Models\Debt::where('user_id', Auth::id())
+            ->whereIn('type', ['hutang', 'piutang'])
+            ->where('status', 'belum_lunas')
+            ->get(['name', 'type']);
+
+        $activeHutang = $activeDebts->where('type', 'hutang')->map(fn($d) => ['id' => $d->name, 'label' => 'Hutang: ' . $d->name])->toArray();
+        $activePiutang = $activeDebts->where('type', 'piutang')->map(fn($d) => ['id' => $d->name, 'label' => 'Piutang: ' . $d->name])->toArray();
 
         $pengeluaranCategories = collect(array_merge($pengeluaranCategories, $activeHutang))->unique('id')->values()->toArray();
         $pemasukanCategories = collect(array_merge($pemasukanCategories, $activePiutang))->unique('id')->values()->toArray();

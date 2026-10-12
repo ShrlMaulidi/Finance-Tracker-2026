@@ -41,7 +41,7 @@ class ExpenseBudgetController extends Controller
             ->pluck('name')
             ->toArray();
 
-        // Cek dan gandakan anggaran berulang (recurring)
+        // Cek dan gandakan anggaran berulang (recurring) secara efisien
         $recurringPastBudgets = Budget::where('user_id', $user->id)
             ->where('type', 'Pengeluaran')
             ->where('is_recurring', true)
@@ -49,14 +49,14 @@ class ExpenseBudgetController extends Controller
             ->get()
             ->groupBy('name');
 
-        foreach ($recurringPastBudgets as $name => $group) {
-            $existsThisMonth = Budget::where('user_id', $user->id)
-                ->where('month', $currentMonth)
-                ->where('type', 'Pengeluaran')
-                ->where('name', $name)
-                ->exists();
+        $existingNamesThisMonth = Budget::where('user_id', $user->id)
+            ->where('month', $currentMonth)
+            ->where('type', 'Pengeluaran')
+            ->pluck('name')
+            ->toArray();
 
-            if (!$existsThisMonth) {
+        foreach ($recurringPastBudgets as $name => $group) {
+            if (!in_array($name, $existingNamesThisMonth)) {
                 $latest = $group->sortByDesc('created_at')->first();
                 Budget::create([
                     'user_id' => $user->id,
@@ -71,33 +71,27 @@ class ExpenseBudgetController extends Controller
             }
         }
 
-        // Ambil data bulan ini
+        // Ambil pengeluaran aktual dari seluruh kategori sekaligus dalam 1 query SQL
+        $actualExpenses = Transaction::where('user_id', $user->id)
+            ->where('type', 'pengeluaran')
+            ->whereMonth('date', $currentMonthNum)
+            ->whereYear('date', $currentYear)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category');
+
+        // Ambil data budget bulan ini tanpa N+1 query dan tanpa DB writes berulang
         $currentBudgets = Budget::where('user_id', $user->id)
             ->where('month', $currentMonth)
             ->where('type', 'Pengeluaran')
-            ->get()->map(function($budget) use ($user, $currentMonthNum, $currentYear) {
+            ->get()->map(function($budget) use ($actualExpenses) {
+                $actualExpense = (float) ($actualExpenses[$budget->name] ?? 0);
                 
-                // Hitung pengeluaran aktual dari transaksi
-                $actualExpense = Transaction::where('user_id', $user->id)
-                    ->where('type', 'pengeluaran')
-                    ->where('category', $budget->name)
-                    ->whereMonth('date', $currentMonthNum)
-                    ->whereYear('date', $currentYear)
-                    ->sum('amount');
-                    
-                $budget->current_amount = $actualExpense;
-                
-                // Update status
                 $status = 'Berjalan';
                 if ($actualExpense > $budget->target_amount) {
                     $status = 'Melebihi';
                 } elseif ($actualExpense == $budget->target_amount) {
                     $status = 'Terpenuhi';
-                }
-                
-                // Save updated current amount if needed, though we can just render it
-                if ($budget->current_amount != $actualExpense || $budget->status != $status) {
-                    $budget->update(['current_amount' => $actualExpense, 'status' => $status]);
                 }
 
                 return [
@@ -105,10 +99,10 @@ class ExpenseBudgetController extends Controller
                     'type' => $budget->type,
                     'name' => $budget->name,
                     'target' => (float)$budget->target_amount,
-                    'current' => (float)$budget->current_amount,
-                    'status' => $budget->status,
+                    'current' => $actualExpense,
+                    'status' => $status,
                     'is_recurring' => (bool)$budget->is_recurring,
-                    'percentage' => $budget->target_amount > 0 ? min(100, round(($budget->current_amount / $budget->target_amount) * 100)) : 0
+                    'percentage' => $budget->target_amount > 0 ? min(100, round(($actualExpense / $budget->target_amount) * 100)) : 0
                 ];
             });
 

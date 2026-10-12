@@ -20,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Vite::prefetch(concurrency: 3);
+        // Dinonaktifkan untuk mencegah lonjakan request concurrent ke PHP-FPM worker di VPS
+        // Vite::prefetch(concurrency: 3);
     }
 }

@@ -50,6 +50,7 @@ export default function Hutang({ debts }) {
         
         if (editingDebt) {
             put(route('hutang-piutang.update', editingDebt.id), {
+                preserveScroll: true,
                 onSuccess: () => {
                     setIsModalOpen(false);
                     setEditingDebt(null);
@@ -58,6 +59,7 @@ export default function Hutang({ debts }) {
             });
         } else {
             post(route('hutang-piutang.store'), {
+                preserveScroll: true,
                 onSuccess: () => {
                     setIsModalOpen(false);
                     reset();
@@ -68,7 +70,9 @@ export default function Hutang({ debts }) {
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-            router.delete(route('hutang-piutang.destroy', id));
+            router.delete(route('hutang-piutang.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

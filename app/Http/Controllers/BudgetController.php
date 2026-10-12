@@ -87,25 +87,9 @@ class BudgetController extends Controller
             ->keyBy('name');
 
         $currentBudgets = $budgets->map(function($budget) use ($actualSavings, $targetDataList) {
-                $color = 'emerald'; 
-                if ($budget->type === 'Tabungan') {
-                    $color = 'blue';
-                }
-                
+                $color = $budget->type === 'Tabungan' ? 'blue' : 'emerald';
                 $savings = (float)($actualSavings[$budget->name] ?? 0);
-                    
-                $budget->current_amount = $savings;
-                
-                $status = 'Berjalan';
-                if ($savings >= $budget->target_amount) {
-                    $status = 'Terpenuhi';
-                }
-                
-                // Update ke database jika berbeda
-                if ($budget->current_amount != $savings || $budget->status != $status) {
-                    $budget->update(['current_amount' => $savings, 'status' => $status]);
-                }
-                
+                $status = $savings >= $budget->target_amount ? 'Terpenuhi' : 'Berjalan';
                 $targetData = $targetDataList[$budget->name] ?? null;
 
                 return [
@@ -113,9 +97,9 @@ class BudgetController extends Controller
                     'type' => $budget->type,
                     'name' => $budget->name,
                     'target' => (float)$budget->target_amount,
-                    'current' => (float)$budget->current_amount,
+                    'current' => $savings,
                     'color' => $color,
-                    'status' => $budget->status,
+                    'status' => $status,
                     'is_recurring' => (bool)$budget->is_recurring,
                     'total_target' => (float)($targetData ? $targetData->target_amount : 0),
                     'total_saved' => (float)($targetData ? $targetData->current_amount : 0),
@@ -131,7 +115,6 @@ class BudgetController extends Controller
                 $status = $budget->status;
                 if ($status === 'Berjalan') {
                     $status = ($budget->current_amount >= $budget->target_amount) ? 'Terpenuhi' : 'Gagal';
-                    $budget->update(['status' => $status]);
                 }
 
                 return [

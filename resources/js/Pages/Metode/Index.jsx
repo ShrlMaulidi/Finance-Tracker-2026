@@ -22,6 +22,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
             return;
         }
         post(route('metode.store'), {
+            preserveScroll: true,
             onSuccess: () => reset('name'),
         });
     };
@@ -38,6 +39,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('metode.update', editingMethod.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingMethod(null);
@@ -48,7 +50,9 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus metode pembayaran ini?')) {
-            router.delete(route('metode.destroy', id));
+            router.delete(route('metode.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

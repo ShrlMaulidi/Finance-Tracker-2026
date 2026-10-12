@@ -34,6 +34,7 @@ export default function AnggaranHutang({ currentMonth, currentBudgets, historyDa
     const submit = (e) => {
         e.preventDefault();
         post(route('anggaran.hutang.store'), {
+            preserveScroll: true,
             onSuccess: () => reset(),
         });
     };
@@ -52,6 +53,7 @@ export default function AnggaranHutang({ currentMonth, currentBudgets, historyDa
     const submitEdit = (e) => {
         e.preventDefault();
         putEdit(route('anggaran.hutang.update', editingBudget.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setEditingBudget(null);
@@ -62,7 +64,9 @@ export default function AnggaranHutang({ currentMonth, currentBudgets, historyDa
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus anggaran ini?')) {
-            router.delete(route('anggaran.hutang.destroy', id));
+            router.delete(route('anggaran.hutang.destroy', id), {
+                preserveScroll: true
+            });
         }
     };
 

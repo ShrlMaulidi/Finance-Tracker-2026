@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
+import { ActionButtons, Modal, Button } from '@/Components/UI';
 
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods }) {
+    const { flash } = usePage().props;
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     const tabunganCategories = targets && targets.length > 0 
@@ -23,7 +25,37 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTx, setEditingTx] = useState(null);
-    const [hoveredIcon, setHoveredIcon] = useState(null);
+    const [mobileTab, setMobileTab] = useState('catat'); // 'catat' | 'riwayat'
+
+    // Pop-up Notification State
+    const [popupNotification, setPopupNotification] = useState({
+        show: false,
+        title: '',
+        message: '',
+        type: 'success',
+    });
+
+    // Auto dismiss notification after 4.5 seconds
+    useEffect(() => {
+        if (popupNotification.show) {
+            const timer = setTimeout(() => {
+                setPopupNotification(prev => ({ ...prev, show: false }));
+            }, 4500);
+            return () => clearTimeout(timer);
+        }
+    }, [popupNotification.show]);
+
+    // Listen to flash messages from Inertia
+    useEffect(() => {
+        if (flash?.success) {
+            setPopupNotification({
+                show: true,
+                title: 'Transaksi Berhasil!',
+                message: flash.success,
+                type: 'success',
+            });
+        }
+    }, [flash?.success]);
 
     const { 
         data: editData, 
@@ -45,8 +77,25 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     const submit = (e) => {
         e.preventDefault();
+        const currentTitle = data.title;
+        const currentAmount = data.amount;
+        const currentType = data.type;
+
         post(route('transaksi.store'), {
-            onSuccess: () => reset('amount', 'category', 'title', 'description', 'payment_method'),
+            onSuccess: () => {
+                reset('amount', 'category', 'title', 'description', 'payment_method');
+                if (typeof window !== 'undefined' && window.innerWidth < 640) {
+                    setMobileTab('riwayat');
+                }
+                setPopupNotification({
+                    show: true,
+                    title: 'Transaksi Berhasil Dicatat! 🎉',
+                    message: currentTitle 
+                        ? `${currentType === 'pengeluaran' ? 'Pengeluaran' : currentType === 'pemasukan' ? 'Pemasukan' : 'Tabungan'} "${currentTitle}" sebesar ${formatRp(currentAmount)} telah tersimpan.`
+                        : 'Catatan transaksi telah berhasil disimpan ke pembukuan.',
+                    type: 'success',
+                });
+            },
         });
     };
 
@@ -72,13 +121,28 @@ export default function Index({ transactions, summary, currentMonthName, targets
                 setIsEditModalOpen(false);
                 setEditingTx(null);
                 resetEdit();
+                setPopupNotification({
+                    show: true,
+                    title: 'Perubahan Disimpan!',
+                    message: 'Data transaksi berhasil diperbarui.',
+                    type: 'success',
+                });
             }
         });
     };
 
     const handleDelete = (id) => {
         if (confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
-            router.delete(route('transaksi.destroy', id));
+            router.delete(route('transaksi.destroy', id), {
+                onSuccess: () => {
+                    setPopupNotification({
+                        show: true,
+                        title: 'Transaksi Dihapus',
+                        message: 'Catatan transaksi telah berhasil dihapus.',
+                        type: 'info',
+                    });
+                }
+            });
         }
     };
 
@@ -86,6 +150,37 @@ export default function Index({ transactions, summary, currentMonthName, targets
         <AuthenticatedLayout>
             <Head title="Pengeluaran & Pemasukan" />
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
+                
+                {/* Pop-up Notification (Toast Banner Pop-up) */}
+                {popupNotification.show && (
+                    <div className="fixed top-4 inset-x-3 sm:inset-x-auto sm:right-6 sm:top-6 z-50 max-w-sm sm:max-w-md mx-auto sm:mx-0 animate-bounce-in">
+                        <div className="bg-white/95 backdrop-blur-md border border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] flex items-start gap-3">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0 pr-1">
+                                <h4 className="text-xs sm:text-sm font-extrabold text-slate-800 leading-snug">
+                                    {popupNotification.title}
+                                </h4>
+                                <p className="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">
+                                    {popupNotification.message}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPopupNotification(prev => ({ ...prev, show: false }))}
+                                className="w-7 h-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center shrink-0 transition"
+                                aria-label="Tutup notifikasi"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-2 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
@@ -97,8 +192,43 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     </div>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
+                {/* Mobile Tab Switcher (Catat Transaksi vs Riwayat) */}
+                <div className="sm:hidden">
+                    <div className="bg-slate-100/90 p-1 rounded-xl flex items-center gap-1 shadow-2xs">
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('catat')}
+                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                mobileTab === 'catat'
+                                    ? 'bg-white text-slate-800 shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Catat Transaksi</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('riwayat')}
+                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                mobileTab === 'riwayat'
+                                    ? 'bg-white text-slate-800 shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                            <span>Riwayat ({transactions.length})</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Summary Cards - Hidden on Mobile (already shown on Home/Dashboard) */}
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                     <div className="bg-emerald-500 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white shadow-md shadow-emerald-500/15 flex flex-col justify-between min-h-[86px] sm:min-h-[110px] relative overflow-hidden group">
                         <div className="flex items-center justify-between gap-1 mb-1">
                             <p className="text-emerald-100 font-bold text-[10px] sm:text-xs tracking-wide uppercase truncate">Pemasukan {currentMonthName}</p>
@@ -150,7 +280,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                     
                     {/* Form Kiri */}
-                    <div className="lg:col-span-1">
+                    <div className={`${mobileTab === 'catat' ? 'block' : 'hidden'} sm:block lg:col-span-1`}>
                         <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col">
                             <h2 className="text-base sm:text-xl font-extrabold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2.5 sm:gap-3 shrink-0">
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
@@ -270,18 +400,33 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     </div>
 
                     {/* List Kanan */}
-                    <div className="desktop-col-span-2">
+                    <div className={`${mobileTab === 'riwayat' ? 'block' : 'hidden'} sm:block desktop-col-span-2`}>
                         <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 h-full lg:h-[760px] flex flex-col">
-                            <div className="flex items-center justify-between mb-3.5 sm:mb-6 shrink-0">
-                                <h2 className="text-base sm:text-xl font-extrabold text-slate-800 flex items-center gap-2.5 sm:gap-3">
+                            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-6 shrink-0">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
                                         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                                     </div>
-                                    Riwayat Transaksi
-                                </h2>
-                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-                                    {transactions.length} Data
-                                </span>
+                                    <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                                        <h2 className="text-sm sm:text-xl font-extrabold text-slate-800 truncate">
+                                            Riwayat Transaksi
+                                        </h2>
+                                        <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                                            {transactions.length} Data
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setMobileTab('catat')}
+                                    className="sm:hidden px-3 py-1.5 rounded-xl bg-[#009bd2] hover:bg-[#0086b6] text-white font-bold text-xs flex items-center gap-1.5 active:scale-95 shadow-xs shrink-0 transition"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    <span>Catat Baru</span>
+                                </button>
                             </div>
                             
                             <div className="space-y-2.5 sm:space-y-3.5 overflow-y-auto pr-0 sm:pr-2 flex-1 min-h-0">
@@ -331,49 +476,10 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                         </button>
                                                     </Dropdown.Trigger>
                                                     <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
-                                                        <div className="relative">
-                                                            <button 
-                                                                onClick={() => openEditModal(item)} 
-                                                                onMouseEnter={() => setHoveredIcon(`edit-${item.id}`)}
-                                                                onMouseLeave={() => setHoveredIcon(null)}
-                                                                className="w-8 h-8 bg-transparent hover:bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center transition-colors focus:outline-none"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                                                            </button>
-                                                            <div 
-                                                                className="absolute bottom-full right-1/2 translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-800 text-white text-[11px] font-bold rounded pointer-events-none z-30 transition-all duration-200 shadow-sm whitespace-nowrap"
-                                                                style={{ 
-                                                                    opacity: hoveredIcon === `edit-${item.id}` ? 1 : 0,
-                                                                    visibility: hoveredIcon === `edit-${item.id}` ? 'visible' : 'hidden',
-                                                                    transform: hoveredIcon === `edit-${item.id}` ? 'translate(50%, 0)' : 'translate(50%, 4px)'
-                                                                }}
-                                                            >
-                                                                Edit
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="w-px h-4 bg-slate-100 mx-0.5"></div>
-
-                                                        <div className="relative">
-                                                            <button 
-                                                                onClick={() => handleDelete(item.id)} 
-                                                                onMouseEnter={() => setHoveredIcon(`hapus-${item.id}`)}
-                                                                onMouseLeave={() => setHoveredIcon(null)}
-                                                                className="w-8 h-8 bg-transparent hover:bg-red-50 text-red-500 rounded-lg flex items-center justify-center transition-colors focus:outline-none"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                            </button>
-                                                            <div 
-                                                                className="absolute bottom-full right-1/2 translate-x-1/2 mb-1.5 px-2 py-1 bg-red-600 text-white text-[11px] font-bold rounded pointer-events-none z-30 transition-all duration-200 shadow-sm whitespace-nowrap"
-                                                                style={{ 
-                                                                    opacity: hoveredIcon === `hapus-${item.id}` ? 1 : 0,
-                                                                    visibility: hoveredIcon === `hapus-${item.id}` ? 'visible' : 'hidden',
-                                                                    transform: hoveredIcon === `hapus-${item.id}` ? 'translate(50%, 0)' : 'translate(50%, 4px)'
-                                                                }}
-                                                            >
-                                                                Hapus
-                                                            </div>
-                                                        </div>
+                                                        <ActionButtons
+                                                            onEdit={() => openEditModal(item)}
+                                                            onDelete={() => handleDelete(item.id)}
+                                                        />
                                                     </Dropdown.Content>
                                                 </Dropdown>
                                             </div>
@@ -395,24 +501,14 @@ export default function Index({ transactions, summary, currentMonthName, targets
             </div>
 
             {/* Modal Edit Transaksi */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setIsEditModalOpen(false); setEditingTx(null); }}></div>
-                    <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-100 max-h-[92vh] overflow-y-auto z-10 animate-fade-in">
-                        <form onSubmit={submitEdit} className="p-4 sm:p-6 md:p-8">
-                            <div className="flex items-start justify-between mb-4 sm:mb-6">
-                                <div>
-                                    <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900">Edit Transaksi</h2>
-                                    <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">Perbarui catatan keuangan Anda.</p>
-                                </div>
-                                <button 
-                                    type="button" 
-                                    onClick={() => { resetEdit(); setIsEditModalOpen(false); setEditingTx(null); }}
-                                    className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center -mr-1 -mt-1 transition-colors"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => { resetEdit(); setIsEditModalOpen(false); setEditingTx(null); }}
+                title="Edit Transaksi"
+                subtitle="Perbarui catatan keuangan Anda."
+                maxWidth="md"
+            >
+                <form onSubmit={submitEdit}>
                             
                             <div className="space-y-3 sm:space-y-4">
                                 <div>
@@ -512,25 +608,23 @@ export default function Index({ transactions, summary, currentMonthName, targets
                             </div>
 
                             <div className="mt-6 sm:mt-8 flex gap-2.5 sm:gap-3">
-                                <button 
-                                    type="button" 
+                                <Button 
+                                    variant="secondary"
                                     onClick={() => { resetEdit(); setIsEditModalOpen(false); setEditingTx(null); }} 
-                                    className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-2.5 sm:py-3 rounded-xl transition-colors text-xs sm:text-sm"
+                                    className="flex-1 !py-2.5 sm:!py-3"
                                 >
                                     Batal
-                                </button>
-                                <button 
+                                </Button>
+                                <Button 
                                     type="submit" 
-                                    disabled={editProcessing}
-                                    className={`flex-1 ${editData.type === 'pengeluaran' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white font-bold py-2.5 sm:py-3 rounded-xl transition-colors text-xs sm:text-sm ${editProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    loading={editProcessing}
+                                    className={`flex-1 !py-2.5 sm:!py-3 ${editData.type === 'pengeluaran' ? '!bg-rose-500 hover:!bg-rose-600' : '!bg-emerald-500 hover:!bg-emerald-600'}`}
                                 >
-                                    {editProcessing ? 'Menyimpan...' : 'Simpan Perubahan'}
-                                </button>
+                                    Simpan Perubahan
+                                </Button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
+            </Modal>
             
             {/* Simple animation keyframes */}
             <style jsx>{`

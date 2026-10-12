@@ -55,6 +55,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
         $request->session()->flash('show_subscription_offer', true);
+        $request->session()->flash('just_logged_in', true);
 
         return redirect(route('dashboard', absolute: false));
     }

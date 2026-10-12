@@ -1,0 +1,25 @@
+{
+  "name": "FinanceTrack - Smart Personal Finance",
+  "short_name": "FinanceTrack",
+  "description": "Kelola keuangan pribadi, anggaran, dan tagihan dengan mudah dan rapi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#009bd2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

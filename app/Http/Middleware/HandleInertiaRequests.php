@@ -36,6 +36,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'show_subscription_offer' => $request->session()->get('show_subscription_offer', false),
+                'just_logged_in' => $request->session()->get('just_logged_in', false),
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
             ],

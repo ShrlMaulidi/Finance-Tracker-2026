@@ -1,8 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Dropdown from '@/Components/Dropdown';
 import OfferModal from '@/Components/OfferModal';
 import UserAvatar from '@/Components/UserAvatar';
+import MobileBottomNav from '@/Components/UI/MobileBottomNav';
+import PwaInstallBanner from '@/Components/UI/PwaInstallBanner';
 
 const Icons = {
     Dashboard: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
@@ -20,6 +22,7 @@ const Icons = {
     CollapseLeft: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
     AIAgent: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>,
     Berlangganan: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4l3 6 5-4-2 12H6L4 6l5 4 3-6z" /></svg>,
+    Tagihan: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h6m-6 4h4" /></svg>,
     SuperAdmin: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
 };
 
@@ -38,6 +41,60 @@ export default function AuthenticatedLayout({ children }) {
     });
 
     const currentUrl = usePage().url;
+    const sidebarNavRef = useRef(null);
+
+    // Mobile Navigation Mode: 'bottom' (App bottom nav bar) | 'sidebar' (Classic sidebar drawer)
+    const [mobileNavMode, setMobileNavMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('mobileNavMode');
+            return saved !== null ? saved : 'bottom';
+        }
+        return 'bottom';
+    });
+
+    const [modeNotice, setModeNotice] = useState(null);
+
+    const toggleMobileNavMode = () => {
+        setMobileNavMode(prev => {
+            const next = prev === 'bottom' ? 'sidebar' : 'bottom';
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('mobileNavMode', next);
+            }
+            setModeNotice(next === 'bottom' ? 'Beralih ke Navigasi Bawah' : 'Beralih ke Navigasi Samping');
+            setTimeout(() => setModeNotice(null), 2200);
+            return next;
+        });
+    };
+
+    // Save sidebar scroll position helper
+    const saveSidebarScroll = () => {
+        if (sidebarNavRef.current) {
+            sessionStorage.setItem('sidebar_scroll_top', String(sidebarNavRef.current.scrollTop));
+        }
+    };
+
+    const handleSidebarScroll = (e) => {
+        sessionStorage.setItem('sidebar_scroll_top', String(e.currentTarget.scrollTop));
+    };
+
+    // Restore sidebar scroll position on navigation or sidebar toggle
+    useEffect(() => {
+        const restoreScroll = () => {
+            const savedScroll = sessionStorage.getItem('sidebar_scroll_top');
+            if (savedScroll !== null && sidebarNavRef.current) {
+                sidebarNavRef.current.scrollTop = Number(savedScroll);
+            }
+        };
+
+        restoreScroll();
+        const t1 = setTimeout(restoreScroll, 50);
+        const t2 = setTimeout(restoreScroll, 150);
+
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
+    }, [currentUrl, sidebarOpen]);
 
     // Automatically ensure sidebar stays closed on mobile when navigating
     useEffect(() => {
@@ -71,14 +128,36 @@ export default function AuthenticatedLayout({ children }) {
         });
     };
 
-    const [openMenus, setOpenMenus] = useState({
-        anggaran: route().current('anggaran.*') || route().current('anggaran.investasi'),
-        kelola: route().current('kelola.*') || route().current('kategori.*') || route().current('metode.*')
+    const [openMenus, setOpenMenus] = useState(() => {
+        const isAnggaranRoute = route().current('anggaran.*') || route().current('anggaran.investasi');
+        const isKelolaRoute = route().current('kelola.*') || route().current('kategori.*') || route().current('metode.*');
+
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem('sidebar_open_menus') || '{}');
+                return {
+                    anggaran: isAnggaranRoute || Boolean(saved.anggaran),
+                    kelola: isKelolaRoute || Boolean(saved.kelola),
+                };
+            } catch (e) {
+                // fallback
+            }
+        }
+        return {
+            anggaran: isAnggaranRoute,
+            kelola: isKelolaRoute,
+        };
     });
 
     const toggleMenu = (menu) => {
         if (!sidebarOpen) setSidebarOpen(true);
-        setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
+        setOpenMenus(prev => {
+            const next = { ...prev, [menu]: !prev[menu] };
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('sidebar_open_menus', JSON.stringify(next));
+            }
+            return next;
+        });
     };
 
     const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -100,6 +179,7 @@ export default function AuthenticatedLayout({ children }) {
         <Link 
             href={routeName === '#' ? '#' : route(routeName)} 
             onClick={() => {
+                saveSidebarScroll();
                 if (typeof window !== 'undefined' && window.innerWidth < 768) {
                     setSidebarOpen(false);
                 }
@@ -117,7 +197,11 @@ export default function AuthenticatedLayout({ children }) {
 
     const SubMenuParent = ({ icon, text, menuKey, active = false }) => (
         <div className="relative">
-            <button onClick={() => toggleMenu(menuKey)} className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}>
+            <button 
+                type="button"
+                onClick={() => toggleMenu(menuKey)} 
+                className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}
+            >
                 <div className={`w-10 h-10 flex justify-center items-center shrink-0 transition-all duration-300 ease-out group-hover:scale-[1.1] group-hover:-rotate-[12deg] ${active ? 'text-white' : 'group-hover:text-[#009bd2]'}`}>
                     {icon}
                 </div>
@@ -133,15 +217,15 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.investasi')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Tabungan & Target</Link>
-                            <Link href={route('anggaran.hutang')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Hutang</Link>
-                            <Link href={route('anggaran.pengeluaran')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pengeluaran Bulanan</Link>
+                            <Link href={route('anggaran.investasi')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Tabungan & Target</Link>
+                            <Link href={route('anggaran.hutang')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Anggaran Hutang</Link>
+                            <Link href={route('anggaran.pengeluaran')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Pengeluaran Bulanan</Link>
                         </>
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>
@@ -161,7 +245,7 @@ export default function AuthenticatedLayout({ children }) {
             )}
 
             {/* SIDEBAR */}
-            <aside className={`fixed inset-y-0 left-0 md:relative bg-white border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out z-50 h-full ${sidebarOpen ? 'w-[240px] translate-x-0' : 'w-[240px] md:w-[72px] -translate-x-full md:translate-x-0'}`}>
+            <aside className={`fixed inset-y-0 left-0 md:relative bg-white border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out z-50 h-full ${mobileNavMode === 'bottom' ? 'pb-16 md:pb-0' : ''} ${sidebarOpen ? 'w-[240px] translate-x-0' : 'w-[240px] md:w-[72px] -translate-x-full md:translate-x-0'}`}>
 
                 {/* Logo Area - Fixed Icon Width */}
                 <div className="h-20 md:h-24 flex items-center shrink-0 overflow-hidden">
@@ -175,19 +259,20 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
 
                 {/* Navigation Menu */}
-                <div className="flex-1 overflow-y-auto pb-4 sidebar-scroll">
+                <div ref={sidebarNavRef} onScroll={handleSidebarScroll} className="flex-1 overflow-y-auto pb-4 sidebar-scroll">
 
-                    <SectionLabel text="Persiapan" />
+                    <SectionLabel text="Utama" />
                     <div className="space-y-1">
                         <MenuItem icon={Icons.Dashboard} text="Dashboard" active={route().current('dashboard')} routeName="dashboard" />
                         <MenuItem icon={Icons.Target} text="Tabungan & Target" active={route().current('tabungan.*')} routeName="tabungan.target" />
                         <MenuItem icon={Icons.Hutang} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
+                        <MenuItem icon={Icons.Tagihan} text="Tagihan Rutin" active={route().current('tagihan.*')} routeName="tagihan.index" />
                         <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} />
                         <MenuItem icon={Icons.Pengeluaran} text="Pengeluaran & Pemasukan" active={route().current('transaksi.index')} routeName="transaksi.index" />
                         <MenuItem icon={Icons.Transaksi} text="Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
                     </div>
 
-                    <SectionLabel text="Inspirasi" />
+                    <SectionLabel text="Laporan" />
                     <div className="space-y-1">
                         <MenuItem icon={Icons.News} text="Berita Hari Ini" active={route().current('news.*')} routeName="news.index" />
                         <MenuItem icon={Icons.Laporan} text="Laporan Keuangan" active={route().current('laporan.*')} routeName="laporan.index" />
@@ -215,6 +300,28 @@ export default function AuthenticatedLayout({ children }) {
                     )}
                 </div>
 
+                {/* Switcher option inside mobile sidebar drawer */}
+                <div className="md:hidden px-3 py-2 border-t border-slate-100 bg-slate-50/60 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            toggleMobileNavMode();
+                            setSidebarOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200/80 text-slate-700 text-xs font-bold shadow-2xs hover:bg-slate-50 transition-colors"
+                    >
+                        <span className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span>Gaya Navigasi HP</span>
+                        </span>
+                        <span className="text-[10px] text-[#009bd2] bg-sky-50 px-2 py-0.5 rounded-md font-extrabold">
+                            {mobileNavMode === 'bottom' ? 'Bawah (App)' : 'Samping'}
+                        </span>
+                    </button>
+                </div>
+
                 {/* Sidebar Footer */}
                 <div className="mt-auto shrink-0 border-t border-slate-100 bg-white">
                     {/* User Profile */}
@@ -240,7 +347,11 @@ export default function AuthenticatedLayout({ children }) {
                 {/* TOP HEADER - FIXED ON MOBILE, STICKY ON DESKTOP */}
                 <header className="fixed top-0 left-0 right-0 md:static z-30 h-16 sm:h-20 bg-white/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 lg:px-8 shrink-0 shadow-xs md:shadow-none">
                     <div className="flex items-center gap-2.5 sm:gap-5">
-                        <button onClick={toggleSidebar} aria-label="Menu" className="p-2 rounded-xl hover:bg-slate-50 transition-colors relative w-10 h-10 flex items-center justify-center group shrink-0">
+                        <button
+                            onClick={toggleSidebar}
+                            aria-label="Menu"
+                            className={`p-2 rounded-xl hover:bg-slate-50 transition-colors relative w-10 h-10 items-center justify-center group shrink-0 ${mobileNavMode === 'bottom' ? 'hidden md:flex' : 'flex'}`}
+                        >
                             {/* Pure CSS Animated Hamburger */}
                             <div className="w-[20px] h-[14px] flex flex-col justify-between items-end">
                                 <span className="w-full h-[2.5px] bg-slate-500 group-hover:bg-slate-700 rounded-full transition-all duration-300 ease-in-out"></span>
@@ -250,9 +361,9 @@ export default function AuthenticatedLayout({ children }) {
                         </button>
 
                         {/* Mobile Brand Title */}
-                        <div className="sm:hidden flex items-center gap-1.5">
-                            <img src="/logo.png" alt="FinanceTrack Logo" className="w-6 h-6 object-contain" />
-                            <span className="font-extrabold text-slate-800 text-[15px] tracking-tight">FinanceTrack</span>
+                        <div className="sm:hidden flex items-center gap-1.5 shrink-0">
+                            <img src="/logo.png" alt="FinanceTrack Logo" className="w-6 h-6 object-contain shrink-0" />
+                            <span className="font-extrabold text-slate-800 text-[15px] tracking-tight whitespace-nowrap">FinanceTrack</span>
                         </div>
 
                         {/* Desktop Overview */}
@@ -262,7 +373,29 @@ export default function AuthenticatedLayout({ children }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-5 sm:gap-6">
+                    <div className="flex items-center gap-2 sm:gap-6">
+                        {/* Mobile Nav Switcher (Bottom Nav vs Sidebar) - Sleek 36x36 Icon Button */}
+                        <button
+                            type="button"
+                            onClick={toggleMobileNavMode}
+                            title={`Mode Navigasi: ${mobileNavMode === 'bottom' ? 'Bawah (App)' : 'Samping (Sidebar)'}. Klik untuk beralih.`}
+                            aria-label={`Mode Navigasi HP: ${mobileNavMode === 'bottom' ? 'Nav Bawah' : 'Nav Samping'}`}
+                            className="md:hidden relative w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200/90 text-slate-600 hover:text-slate-900 transition-all duration-200 active:scale-90 flex items-center justify-center shrink-0 border border-slate-200/70"
+                        >
+                            {mobileNavMode === 'bottom' ? (
+                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="4.5" y="3" width="15" height="18" rx="2.5" strokeWidth="1.8" />
+                                    <path d="M4.5 16.5h15" stroke="#009bd2" strokeWidth="2.2" strokeLinecap="round" />
+                                    <circle cx="12" cy="19.5" r="0.75" fill="#009bd2" />
+                                </svg>
+                            ) : (
+                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="4.5" y="3" width="15" height="18" rx="2.5" strokeWidth="1.8" />
+                                    <path d="M9.5 3v18" stroke="#009bd2" strokeWidth="2.2" strokeLinecap="round" />
+                                    <path d="M6.5 7h1.5M6.5 10.5h1.5M6.5 14h1.5" stroke="#009bd2" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                            )}
+                        </button>
 
                         <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
 
@@ -299,17 +432,48 @@ export default function AuthenticatedLayout({ children }) {
                                     </Dropdown.Link>
                                 )}
                                 <Dropdown.Link href={route('profile.edit')}>Pengaturan</Dropdown.Link>
+
+                                {/* Switcher in Dropdown */}
+                                <button
+                                    type="button"
+                                    onClick={toggleMobileNavMode}
+                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-between transition-colors border-t border-slate-100 md:hidden"
+                                >
+                                    <span>Gaya Navigasi HP</span>
+                                    <span className="text-[10px] font-bold text-[#009bd2] bg-sky-50 px-2 py-0.5 rounded-md">
+                                        {mobileNavMode === 'bottom' ? 'Bawah (App)' : 'Samping'}
+                                    </span>
+                                </button>
+
                                 <Dropdown.Link href={route('logout')} method="post" as="button">Log Out</Dropdown.Link>
                             </Dropdown.Content>
                         </Dropdown>
                     </div>
                 </header>
 
+                {/* Floating Navigation Mode Feedback Toast on Mobile */}
+                {modeNotice && (
+                    <div className="md:hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white text-[11px] font-bold px-4 py-2 rounded-full shadow-xl border border-white/10 flex items-center gap-2 animate-fadeIn pointer-events-none">
+                        <span className="w-2 h-2 rounded-full bg-[#009bd2] animate-pulse"></span>
+                        <span>{modeNotice}</span>
+                    </div>
+                )}
+
                 {/* DYNAMIC PAGE CONTENT */}
-                <main className="flex-1 overflow-y-auto pt-16 md:pt-0">
+                <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${mobileNavMode === 'bottom' ? 'pb-20 md:pb-0' : 'pb-0'}`}>
                     <OfferModal />
+                    <PwaInstallBanner />
                     {children}
                 </main>
+
+                {/* Mobile Bottom Navigation Bar (Rendered when in 'bottom' mode) */}
+                {mobileNavMode === 'bottom' && (
+                    <MobileBottomNav
+                        onOpenMenu={toggleSidebar}
+                        onToggleMenu={toggleSidebar}
+                        isMenuOpen={sidebarOpen}
+                    />
+                )}
             </div>
         </div>
     );

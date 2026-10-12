@@ -7,6 +7,8 @@ use Inertia\Inertia;
 use App\Models\Transaction;
 use App\Models\Debt;
 use App\Models\Target;
+use App\Models\Bill;
+use App\Models\BillPayment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -83,12 +85,65 @@ class ReportController extends Controller
             $saldoByMethod[$method] = $in - $out - $tab;
         }
 
-        // 4. Total Hutang & Piutang (All Time Active)
+        // 4. Breakdown by Category (Filtered)
+        $pengeluaranByCat = $transactions->where('type', 'pengeluaran')
+            ->groupBy('category')
+            ->map(function ($items, $cat) use ($totalPengeluaran) {
+                $sum = (float) $items->sum('amount');
+                return [
+                    'category' => $cat ?: 'Lainnya',
+                    'amount' => $sum,
+                    'count' => $items->count(),
+                    'percentage' => $totalPengeluaran > 0 ? round(($sum / $totalPengeluaran) * 100, 1) : 0,
+                ];
+            })
+            ->sortByDesc('amount')
+            ->values()
+            ->take(6);
+
+        $pemasukanByCat = $transactions->where('type', 'pemasukan')
+            ->groupBy('category')
+            ->map(function ($items, $cat) use ($totalPemasukan) {
+                $sum = (float) $items->sum('amount');
+                return [
+                    'category' => $cat ?: 'Lainnya',
+                    'amount' => $sum,
+                    'count' => $items->count(),
+                    'percentage' => $totalPemasukan > 0 ? round(($sum / $totalPemasukan) * 100, 1) : 0,
+                ];
+            })
+            ->sortByDesc('amount')
+            ->values()
+            ->take(6);
+
+        // 5. Total Hutang & Piutang (All Time Active)
         $totalHutang = (float) Debt::where('user_id', $user_id)->where('type', 'hutang')->where('status', 'belum_lunas')->sum('remaining_amount');
         $totalPiutang = (float) Debt::where('user_id', $user_id)->where('type', 'piutang')->where('status', 'belum_lunas')->sum('remaining_amount');
 
-        // 5. Total Tabungan & Target (All Time)
+        // 6. Total Tabungan & Target (All Time)
         $totalTabunganTarget = (float) Target::where('user_id', $user_id)->sum('current_amount');
+
+        // 7. Tagihan Rutin Summary (Bills) for this period
+        $monthStr = sprintf('%04d-%02d', $filterYear, $filterMonth);
+        $activeBills = Bill::where('user_id', $user_id)->where('is_active', true)->get();
+        $totalBillsCount = $activeBills->count();
+        $totalBillsAmount = (float) $activeBills->sum('amount');
+        $paidBillsQuery = BillPayment::where('user_id', $user_id);
+        if ($filterType === 'month') {
+            $paidBillsQuery->where('month', $monthStr);
+        } elseif ($filterType === 'year') {
+            $paidBillsQuery->where('month', 'like', "{$filterYear}-%");
+        }
+        $paidBillsCount = (int) $paidBillsQuery->count();
+        $paidBillsAmount = (float) $paidBillsQuery->sum('amount');
+        $unpaidBillsAmount = max(0, $totalBillsAmount - $paidBillsAmount);
+
+        // 8. Financial Health Metrics & Net Worth
+        $savingsRate = $totalPemasukan > 0 ? round((($totalPemasukan - $totalPengeluaran) / $totalPemasukan) * 100, 1) : 0;
+        $expenseRatio = $totalPemasukan > 0 ? min(100, round(($totalPengeluaran / $totalPemasukan) * 100, 1)) : 0;
+        $totalAssets = $totalSaldoAktif + $totalTabunganTarget + $totalPiutang;
+        $totalLiabilities = $totalHutang;
+        $netWorth = $totalAssets - $totalLiabilities;
 
         // Available options for filter
         $availableYears = Transaction::where('user_id', $user_id)
@@ -116,6 +171,21 @@ class ReportController extends Controller
                 'pengeluaran' => $totalPengeluaran,
                 'tabungan_trx' => $totalTabunganTrx,
                 'net' => $netCashflow,
+                'savings_rate' => $savingsRate,
+                'expense_ratio' => $expenseRatio,
+                'is_surplus' => $netCashflow >= 0,
+                'total_assets' => $totalAssets,
+                'total_liabilities' => $totalLiabilities,
+                'net_worth' => $netWorth,
+                'top_pengeluaran_categories' => $pengeluaranByCat,
+                'top_pemasukan_categories' => $pemasukanByCat,
+                'bills' => [
+                    'total_count' => $totalBillsCount,
+                    'total_amount' => $totalBillsAmount,
+                    'paid_count' => $paidBillsCount,
+                    'paid_amount' => $paidBillsAmount,
+                    'unpaid_amount' => $unpaidBillsAmount,
+                ],
                 'pemasukan_by_method' => $pemasukanByMethod,
                 'pengeluaran_by_method' => $pengeluaranByMethod,
                 'saldo_aktif' => $totalSaldoAktif,
@@ -138,9 +208,11 @@ class ReportController extends Controller
                 'month' => $data['filterMonth'],
                 'year' => $data['filterYear'],
             ],
+            'periodLabel' => $data['periodLabel'],
             'availableYears' => $data['availableYears'],
             'summary' => $data['summary'],
-            'transactions' => $data['transactions']->values()->take(50),
+            'transactions' => $data['transactions']->values()->take(100),
+            'totalTransactionsCount' => $data['transactions']->count(),
         ]);
     }
 

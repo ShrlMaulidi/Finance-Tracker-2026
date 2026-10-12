@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
+import { Button, ActionButtons, EmptyState, Modal } from '@/Components/UI';
 
 export default function Index({ methods }) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -87,14 +88,14 @@ export default function Index({ methods }) {
                                     {errors.name && <p className="text-red-500 text-xs font-bold mt-1">{errors.name}</p>}
                                 </div>
 
-                                <button 
+                                <Button 
                                     type="submit" 
-                                    disabled={processing}
-                                    className={`w-full py-3.5 rounded-2xl font-extrabold transition-all shadow-lg hover:-translate-y-0.5 mt-2 shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                    style={{ backgroundColor: '#6366f1', color: '#ffffff' }}
+                                    loading={processing}
+                                    size="lg"
+                                    className="w-full !rounded-2xl mt-2 !bg-[#6366f1] hover:!bg-[#4f46e5] text-white shadow-lg shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] hover:-translate-y-0.5"
                                 >
-                                    {processing ? 'Menyimpan...' : 'Simpan Metode'}
-                                </button>
+                                    Simpan Metode
+                                </Button>
                             </form>
                         </div>
                     </div>
@@ -112,23 +113,21 @@ export default function Index({ methods }) {
                                             <h3 className="text-lg font-extrabold text-slate-800">{method.name}</h3>
                                         </div>
                                         
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openEditModal(method)} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                                            </button>
-                                            <button onClick={() => handleDelete(method.id)} className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            </button>
-                                        </div>
+                                        <ActionButtons
+                                            variant="soft"
+                                            onEdit={() => openEditModal(method)}
+                                            onDelete={() => handleDelete(method.id)}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        />
                                     </div>
                                 ))
                             ) : (
-                                <div className="col-span-1 sm:col-span-2 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-16 text-center">
-                                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm mb-6">
-                                        <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                                    </div>
-                                    <p className="text-slate-500 font-extrabold text-lg">Belum ada metode pembayaran.</p>
-                                    <p className="text-slate-400 text-sm mt-2 font-medium">Tambahkan metode pembayaran pertama Anda (seperti Cash, BCA, OVO).</p>
+                                <div className="col-span-1 sm:col-span-2">
+                                    <EmptyState
+                                        title="Belum ada metode pembayaran."
+                                        description="Tambahkan metode pembayaran pertama Anda (seperti Cash, BCA, OVO)."
+                                        icon={<svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -137,48 +136,45 @@ export default function Index({ methods }) {
             </div>
 
             {/* Modal Edit */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setIsEditModalOpen(false); setEditingMethod(null); resetEdit(); }}></div>
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-100 z-10 animate-fade-in">
-                        <form onSubmit={submitEdit} className="p-6 md:p-8">
-                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Edit Metode</h2>
-                            <p className="text-sm font-medium text-slate-500 mb-6">Ubah nama metode pembayaran Anda.</p>
-                            
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-bold text-slate-700 block mb-2">Nama Metode</label>
-                                    <input 
-                                        type="text" 
-                                        value={editData.name}
-                                        onChange={e => setEditData('name', e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 font-bold focus:border-[#6366f1] focus:ring-[#6366f1]" 
-                                    />
-                                    {editErrors.name && <p className="text-red-500 text-xs mt-1">{editErrors.name}</p>}
-                                </div>
-                            </div>
-
-                            <div className="mt-8 flex gap-3">
-                                <button 
-                                    type="button" 
-                                    onClick={() => { setIsEditModalOpen(false); setEditingMethod(null); resetEdit(); }} 
-                                    className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-colors"
-                                >
-                                    Batal
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    disabled={editProcessing}
-                                    className={`flex-1 font-bold py-3 rounded-xl transition-all shadow-md ${editProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
-                                    style={{ backgroundColor: '#6366f1', color: '#ffffff' }}
-                                >
-                                    {editProcessing ? 'Menyimpan...' : 'Simpan'}
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => { setIsEditModalOpen(false); setEditingMethod(null); resetEdit(); }}
+                title="Edit Metode"
+                subtitle="Ubah nama metode pembayaran Anda."
+                maxWidth="md"
+            >
+                <form onSubmit={submitEdit}>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm font-bold text-slate-700 block mb-2">Nama Metode</label>
+                            <input 
+                                type="text" 
+                                value={editData.name}
+                                onChange={e => setEditData('name', e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 font-bold focus:border-[#6366f1] focus:ring-[#6366f1]" 
+                            />
+                            {editErrors.name && <p className="text-red-500 text-xs mt-1">{editErrors.name}</p>}
+                        </div>
                     </div>
-                </div>
-            )}
+
+                    <div className="mt-8 flex gap-3">
+                        <Button 
+                            variant="secondary"
+                            onClick={() => { setIsEditModalOpen(false); setEditingMethod(null); resetEdit(); }} 
+                            className="flex-1 !py-3"
+                        >
+                            Batal
+                        </Button>
+                        <Button 
+                            type="submit" 
+                            loading={editProcessing}
+                            className="flex-1 !py-3 !bg-[#6366f1] hover:!bg-[#4f46e5] text-white"
+                        >
+                            Simpan
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </AuthenticatedLayout>
     );
 }

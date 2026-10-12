@@ -44,6 +44,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
         $request->session()->flash('show_subscription_offer', true);
+        $request->session()->flash('just_logged_in', true);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

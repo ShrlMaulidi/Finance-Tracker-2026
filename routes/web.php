@@ -43,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::put('/hutang-piutang/{debt}', [\App\Http\Controllers\DebtController::class, 'update'])->name('hutang-piutang.update');
     Route::delete('/hutang-piutang/{debt}', [\App\Http\Controllers\DebtController::class, 'destroy'])->name('hutang-piutang.destroy');
     
+    Route::get('/tagihan', [\App\Http\Controllers\BillController::class, 'index'])->name('tagihan.index');
+    Route::post('/tagihan', [\App\Http\Controllers\BillController::class, 'store'])->name('tagihan.store');
+    Route::put('/tagihan/{bill}', [\App\Http\Controllers\BillController::class, 'update'])->name('tagihan.update');
+    Route::delete('/tagihan/{bill}', [\App\Http\Controllers\BillController::class, 'destroy'])->name('tagihan.destroy');
+    Route::post('/tagihan/{bill}/pay', [\App\Http\Controllers\BillController::class, 'pay'])->name('tagihan.pay');
+    
     Route::get('/transaksi', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transaksi.index');
     Route::post('/transaksi', [\App\Http\Controllers\TransactionController::class, 'store'])->name('transaksi.store');
     Route::put('/transaksi/{transaction}', [\App\Http\Controllers\TransactionController::class, 'update'])->name('transaksi.update');

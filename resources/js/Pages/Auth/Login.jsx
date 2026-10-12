@@ -17,6 +17,7 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem('hasSeenOffer');
             sessionStorage.setItem('justLoggedIn', 'true');
+            sessionStorage.setItem('justLoggedInForPwa', 'true');
         }
         post(route('login'), {
             onFinish: () => reset('password'),
@@ -34,11 +35,7 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
             <header className="w-full">
                 <nav className="max-w-7xl mx-auto flex justify-between items-center py-4 px-4 sm:px-8">
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#009bd2] to-cyan-400 flex items-center justify-center text-white shadow-md shadow-[#009bd2]/20">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
+                        <img src="/logo.png" alt="FinanceTrack Logo" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
                         <span className="text-xl sm:text-2xl font-black text-[#009bd2] tracking-tight">FinanceTrack</span>
                     </Link>
                     {canRegister ? (
@@ -76,10 +73,15 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
                         </div>
                     )}
 
-                    {flash?.error && (
-                        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs sm:text-sm font-medium text-rose-700 text-center flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            <span>{flash.error}</span>
+                    {/* Notification Alert Box */}
+                    {(flash?.error || (errors.email && (errors.email.toLowerCase().includes('salah') || errors.email.toLowerCase().includes('credentials') || errors.email.toLowerCase().includes('match') || errors.email.toLowerCase().includes('percobaan') || errors.email.toLowerCase().includes('dinonaktifkan')))) && (
+                        <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs sm:text-sm font-medium text-rose-700 flex items-start gap-2.5 shadow-xs">
+                            <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            </div>
+                            <span className="flex-1 leading-relaxed text-left">
+                                {flash?.error || (errors.email && (errors.email.toLowerCase().includes('credentials') || errors.email.toLowerCase().includes('match') ? 'Email atau kata sandi yang Anda masukkan salah. Silakan periksa kembali.' : errors.email))}
+                            </span>
                         </div>
                     )}
 
@@ -110,7 +112,9 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
                                         autoComplete="email"
                                     />
                                 </div>
-                                {errors.email && <p className="text-red-500 text-xs mt-1 font-medium">{errors.email}</p>}
+                                {errors.email && !errors.email.toLowerCase().includes('salah') && !errors.email.toLowerCase().includes('credentials') && !errors.email.toLowerCase().includes('match') && !errors.email.toLowerCase().includes('dinonaktifkan') && !errors.email.toLowerCase().includes('percobaan') && (
+                                    <p className="text-red-500 text-xs mt-1 font-medium">{errors.email}</p>
+                                )}
                             </div>
 
                             {/* Password Input */}
@@ -278,6 +282,7 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
                                     if (typeof window !== 'undefined') {
                                         sessionStorage.removeItem('hasSeenOffer');
                                         sessionStorage.setItem('justLoggedIn', 'true');
+                                        sessionStorage.setItem('justLoggedInForPwa', 'true');
                                     }
                                 }}
                                 className="w-full flex items-center justify-center gap-2.5 bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold py-2.5 sm:py-3 text-xs sm:text-sm rounded-xl transition-all shadow-sm"

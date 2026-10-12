@@ -41,6 +41,7 @@ class GoogleAuthController extends Controller
             
             Auth::login($user, true);
             session()->flash('show_subscription_offer', true);
+            session()->flash('just_logged_in', true);
             
             return redirect()->intended(route('dashboard', absolute: false));
             

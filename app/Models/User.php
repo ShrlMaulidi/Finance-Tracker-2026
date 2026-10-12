@@ -107,13 +107,19 @@ class User extends Authenticatable
         return 'free';
     }
 
+    protected ?array $memoizedTierRules = null;
+
     /**
      * Get tier rules for this user.
      */
     public function getTierRules(): array
     {
+        if ($this->memoizedTierRules !== null) {
+            return $this->memoizedTierRules;
+        }
+
         if ($this->isSuperAdmin()) {
-            return [
+            return $this->memoizedTierRules = [
                 'target_limit' => -1,
                 'bill_limit' => -1,
                 'category_limit' => -1,
@@ -128,7 +134,7 @@ class User extends Authenticatable
 
         $allRules = Setting::getTierRules();
         $tier = $this->getActiveTier();
-        return $allRules[$tier] ?? $allRules['free'];
+        return $this->memoizedTierRules = ($allRules[$tier] ?? $allRules['free']);
     }
 
     /**

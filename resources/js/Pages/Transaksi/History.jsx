@@ -37,11 +37,21 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
         return route('transaksi.history', params);
     };
 
-    // Aggregate statistics
-    const totalCount = transactions.length;
-    const totalPemasukan = transactions.filter(t => t.type === 'pemasukan').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalPengeluaran = transactions.filter(t => t.type === 'pengeluaran').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalTabungan = transactions.filter(t => t.type === 'tabungan').reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    // Aggregate statistics with single-pass memoization
+    const { totalCount, totalPemasukan, totalPengeluaran, totalTabungan } = React.useMemo(() => {
+        let count = transactions.length;
+        let masuk = 0;
+        let keluar = 0;
+        let tabung = 0;
+        for (let i = 0; i < count; i++) {
+            const t = transactions[i];
+            const amt = Number(t.amount) || 0;
+            if (t.type === 'pemasukan') masuk += amt;
+            else if (t.type === 'pengeluaran') keluar += amt;
+            else if (t.type === 'tabungan') tabung += amt;
+        }
+        return { totalCount: count, totalPemasukan: masuk, totalPengeluaran: keluar, totalTabungan: tabung };
+    }, [transactions]);
 
     return (
         <AuthenticatedLayout>

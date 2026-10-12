@@ -5,6 +5,68 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
+const monthNames = [
+    '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const ChartTooltipContent = React.memo(({ active, payload, label, currentFilter, selectedMonth, selectedYear, formatRp }) => {
+    if (!active || !payload || !payload.length) return null;
+
+    const pemasukan = payload.find(p => p.dataKey === 'pemasukan')?.value || 0;
+    const pengeluaran = payload.find(p => p.dataKey === 'pengeluaran')?.value || 0;
+    const tabungan = payload.find(p => p.dataKey === 'tabungan')?.value || 0;
+    const net = pemasukan - pengeluaran - tabungan;
+
+    let periodTitle = '';
+    if (currentFilter === 'bulan') {
+        periodTitle = `Tanggal ${label} ${monthNames[selectedMonth] || ''} ${selectedYear || ''}`;
+    } else if (currentFilter === 'tahun') {
+        periodTitle = `Bulan ${label} ${selectedYear || ''}`;
+    } else {
+        periodTitle = `Tahun ${label}`;
+    }
+
+    return (
+        <div className="bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 text-xs min-w-[210px] space-y-2.5">
+            <div className="border-b border-slate-100 pb-1.5">
+                <p className="font-black text-slate-800 text-[13px]">{periodTitle}</p>
+            </div>
+            <div className="space-y-1.5 font-bold">
+                <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                        Pemasukan:
+                    </span>
+                    <span className="font-black text-emerald-600">{formatRp(pemasukan)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                        Pengeluaran:
+                    </span>
+                    <span className="font-black text-rose-600">{formatRp(pengeluaran)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#009bd2] shrink-0"></span>
+                        Tabungan:
+                    </span>
+                    <span className="font-black text-[#009bd2]">{formatRp(tabungan)}</span>
+                </div>
+            </div>
+            {(pemasukan > 0 || pengeluaran > 0 || tabungan > 0) && (
+                <div className="border-t border-slate-100 pt-2 flex items-center justify-between font-bold">
+                    <span className="text-slate-400 text-[11px]">Arus Kas Bersih:</span>
+                    <span className={`font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {net >= 0 ? `+${formatRp(net)}` : formatRp(net)}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+});
+
 export default function Dashboard({ auth, summary, chartData = [], currentFilter, selectedMonth, selectedYear }) {
     const pageUser = usePage().props.auth?.user;
     const user = auth?.user || pageUser;
@@ -27,10 +89,19 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
     ] : chartData;
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 640);
-        checkMobile();
+        let timer;
+        const checkMobile = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                setIsMobile(window.innerWidth < 640);
+            }, 100);
+        };
+        setIsMobile(window.innerWidth < 640);
         window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', checkMobile);
+        };
     }, []);
 
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
@@ -67,69 +138,6 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
         : '';
 
     const availableYears = Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i);
-
-    const monthNames = [
-        '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload && payload.length) {
-            const pemasukan = payload.find(p => p.dataKey === 'pemasukan')?.value || 0;
-            const pengeluaran = payload.find(p => p.dataKey === 'pengeluaran')?.value || 0;
-            const tabungan = payload.find(p => p.dataKey === 'tabungan')?.value || 0;
-            const net = pemasukan - pengeluaran - tabungan;
-
-            let periodTitle = '';
-            if (currentFilter === 'bulan') {
-                periodTitle = `Tanggal ${label} ${monthNames[selectedMonth] || ''} ${selectedYear || ''}`;
-            } else if (currentFilter === 'tahun') {
-                periodTitle = `Bulan ${label} ${selectedYear || ''}`;
-            } else {
-                periodTitle = `Tahun ${label}`;
-            }
-
-            return (
-                <div className="bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 text-xs min-w-[210px] space-y-2.5">
-                    <div className="border-b border-slate-100 pb-1.5">
-                        <p className="font-black text-slate-800 text-[13px]">{periodTitle}</p>
-                    </div>
-                    <div className="space-y-1.5 font-bold">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                Pemasukan:
-                            </span>
-                            <span className="font-black text-emerald-600">{formatRp(pemasukan)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
-                                Pengeluaran:
-                            </span>
-                            <span className="font-black text-rose-600">{formatRp(pengeluaran)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                                <span className="w-2.5 h-2.5 rounded-full bg-[#009bd2] shrink-0"></span>
-                                Tabungan:
-                            </span>
-                            <span className="font-black text-[#009bd2]">{formatRp(tabungan)}</span>
-                        </div>
-                    </div>
-                    {(pemasukan > 0 || pengeluaran > 0 || tabungan > 0) && (
-                        <div className="border-t border-slate-100 pt-2 flex items-center justify-between font-bold">
-                            <span className="text-slate-400 text-[11px]">Arus Kas Bersih:</span>
-                            <span className={`font-black ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                {net >= 0 ? `+${formatRp(net)}` : formatRp(net)}
-                            </span>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
         <AuthenticatedLayout>
@@ -347,7 +355,7 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
                                                 tickFormatter={formatYAxis}
                                                 width={isMobile ? 48 : 58}
                                             />
-                                            <Tooltip content={<CustomTooltip />} />
+                                            <Tooltip content={<ChartTooltipContent currentFilter={currentFilter} selectedMonth={selectedMonth} selectedYear={selectedYear} formatRp={formatRp} />} />
                                             <Legend 
                                                 iconType="circle"
                                                 wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
@@ -407,7 +415,7 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
                                                 tickFormatter={formatYAxis}
                                                 width={isMobile ? 48 : 58}
                                             />
-                                            <Tooltip content={<CustomTooltip />} />
+                                            <Tooltip content={<ChartTooltipContent currentFilter={currentFilter} selectedMonth={selectedMonth} selectedYear={selectedYear} formatRp={formatRp} />} />
                                             <Legend 
                                                 iconType="circle"
                                                 wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}

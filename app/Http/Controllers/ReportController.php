@@ -68,20 +68,29 @@ class ReportController extends Controller
         $pemasukanByMethod = $transactions->where('type', 'pemasukan')->groupBy('payment_method')->map->sum('amount');
         $pengeluaranByMethod = $transactions->where('type', 'pengeluaran')->groupBy('payment_method')->map->sum('amount');
 
-        // 3. All-time Balance & Balance by Method (All Time)
-        $allTransactions = Transaction::where('user_id', $user_id)->get();
-        $allPemasukan = (float) $allTransactions->where('type', 'pemasukan')->sum('amount');
-        $allPengeluaran = (float) $allTransactions->where('type', 'pengeluaran')->sum('amount');
-        $allTabungan = (float) $allTransactions->where('type', 'tabungan')->sum('amount');
-        
+        // 3. All-time Balance & Balance by Method (All Time) - dioptimasi via SQL Agregasi
+        $methodTotals = Transaction::where('user_id', $user_id)
+            ->whereNotNull('payment_method')
+            ->selectRaw('payment_method, type, SUM(amount) as total')
+            ->groupBy('payment_method', 'type')
+            ->get();
+
+        $typeTotals = Transaction::where('user_id', $user_id)
+            ->selectRaw('type, SUM(amount) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        $allPemasukan = (float) $typeTotals->get('pemasukan', 0);
+        $allPengeluaran = (float) $typeTotals->get('pengeluaran', 0);
+        $allTabungan = (float) $typeTotals->get('tabungan', 0);
         $totalSaldoAktif = $allPemasukan - $allPengeluaran - $allTabungan;
-        
-        $methods = $allTransactions->pluck('payment_method')->filter()->unique()->values();
+
+        $uniqueMethods = $methodTotals->pluck('payment_method')->unique()->values();
         $saldoByMethod = [];
-        foreach ($methods as $method) {
-            $in = (float) $allTransactions->where('payment_method', $method)->where('type', 'pemasukan')->sum('amount');
-            $out = (float) $allTransactions->where('payment_method', $method)->where('type', 'pengeluaran')->sum('amount');
-            $tab = (float) $allTransactions->where('payment_method', $method)->where('type', 'tabungan')->sum('amount');
+        foreach ($uniqueMethods as $method) {
+            $in = (float) $methodTotals->where('payment_method', $method)->where('type', 'pemasukan')->sum('total');
+            $out = (float) $methodTotals->where('payment_method', $method)->where('type', 'pengeluaran')->sum('total');
+            $tab = (float) $methodTotals->where('payment_method', $method)->where('type', 'tabungan')->sum('total');
             $saldoByMethod[$method] = $in - $out - $tab;
         }
 
@@ -136,23 +145,27 @@ class ReportController extends Controller
             ];
         });
 
-        // Cek jika ada transaksi tabungan di luar nama target
+        // Cek jika ada transaksi tabungan di luar nama target via SQL aggregate
         $targetNames = $targets->pluck('name')->toArray();
-        $extraTabungan = $allTransactions->where('type', 'tabungan')
-            ->whereNotIn('category', $targetNames)
+        $extraTabunganQuery = Transaction::where('user_id', $user_id)->where('type', 'tabungan');
+        if (!empty($targetNames)) {
+            $extraTabunganQuery->whereNotIn('category', $targetNames);
+        }
+        $extraTabungan = $extraTabunganQuery->selectRaw('category, SUM(amount) as current')
             ->groupBy('category')
-            ->map(function ($items, $cat) {
-                $sum = (float) $items->sum('amount');
+            ->get()
+            ->map(function ($row) {
+                $sum = (float) $row->current;
                 return [
                     'id' => null,
-                    'name' => $cat ?: 'Tabungan Lainnya',
+                    'name' => $row->category ?: 'Tabungan Lainnya',
                     'category' => 'Tabungan',
                     'current' => $sum,
                     'target' => $sum,
                     'status' => 'Berjalan',
                     'percentage' => 100,
                 ];
-            })->values();
+            });
 
         $allTabunganList = $tabunganItems->concat($extraTabungan)->sortByDesc('current')->values();
         $totalDanaTabungan = (float) $allTabunganList->sum('current');
@@ -172,7 +185,7 @@ class ReportController extends Controller
 
         // 7. Tagihan Rutin Summary (Bills) for this period
         $monthStr = sprintf('%04d-%02d', $filterYear, $filterMonth);
-        $activeBills = Bill::where('user_id', $user_id)->where('is_active', true)->get();
+        $activeBills = Bill::where('user_id', $user_id)->where('is_active', true);
         $totalBillsCount = $activeBills->count();
         $totalBillsAmount = (float) $activeBills->sum('amount');
         $paidBillsQuery = BillPayment::where('user_id', $user_id);

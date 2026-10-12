@@ -36,13 +36,15 @@ class TargetController extends Controller
             });
 
         $userTargetsCount = Target::where('user_id', $user->id)->count();
-        $isFree = $user->isFree();
+        $targetLimit = $user->getLimit('target');
+        $isUnlimited = $targetLimit < 0;
+        $canAdd = $isUnlimited || $userTargetsCount < $targetLimit;
 
         return Inertia::render('Tabungan/Target', [
             'dbTargets' => $targets,
-            'isFree' => $isFree,
-            'canAdd' => !$isFree || $userTargetsCount < 1,
-            'maxLimit' => $isFree ? 1 : null,
+            'isFree' => $user->isFree(),
+            'canAdd' => $canAdd,
+            'maxLimit' => $isUnlimited ? null : $targetLimit,
             'currentCount' => $userTargetsCount,
         ]);
     }
@@ -50,13 +52,12 @@ class TargetController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        if ($user->isFree()) {
-            $count = Target::where('user_id', $user->id)->count();
-            if ($count >= 1) {
-                return redirect()->back()->withErrors([
-                    'name' => 'Akun Gratis dibatasi maksimal 1 Tabungan & Target. Silakan upgrade ke paket Pro untuk menambah tanpa batas.'
-                ]);
-            }
+        $userTargetsCount = Target::where('user_id', $user->id)->count();
+        if ($user->hasReachedLimit('target', $userTargetsCount)) {
+            $limit = $user->getLimit('target');
+            return redirect()->back()->withErrors([
+                'name' => "Batas maksimal Tabungan & Target untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah tanpa batas."
+            ]);
         }
 
         $request->validate([

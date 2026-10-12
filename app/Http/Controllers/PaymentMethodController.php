@@ -22,13 +22,15 @@ class PaymentMethodController extends Controller
 
         $user = auth()->user();
         $userMethodsCount = PaymentMethod::where('user_id', $user->id)->count();
-        $isFree = $user->isFree();
+        $methodLimit = $user->getLimit('payment_method');
+        $isUnlimited = $methodLimit < 0;
+        $canAdd = $isUnlimited || $userMethodsCount < $methodLimit;
 
         return Inertia::render('Metode/Index', [
             'methods' => $methods,
-            'isFree' => $isFree,
-            'canAdd' => !$isFree || $userMethodsCount < 3,
-            'maxLimit' => $isFree ? 3 : null,
+            'isFree' => $user->isFree(),
+            'canAdd' => $canAdd,
+            'maxLimit' => $isUnlimited ? null : $methodLimit,
             'currentCount' => $userMethodsCount,
         ]);
     }
@@ -36,13 +38,12 @@ class PaymentMethodController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        if ($user->isFree()) {
-            $count = PaymentMethod::where('user_id', $user->id)->count();
-            if ($count >= 3) {
-                return redirect()->back()->withErrors([
-                    'name' => 'Akun Gratis dibatasi maksimal 3 metode pembayaran. Silakan upgrade ke paket Pro untuk menambah metode pembayaran tanpa batas.'
-                ]);
-            }
+        $count = PaymentMethod::where('user_id', $user->id)->count();
+        if ($user->hasReachedLimit('payment_method', $count)) {
+            $limit = $user->getLimit('payment_method');
+            return redirect()->back()->withErrors([
+                'name' => "Batas maksimal metode pembayaran untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah metode pembayaran tanpa batas."
+            ]);
         }
 
         $request->validate([

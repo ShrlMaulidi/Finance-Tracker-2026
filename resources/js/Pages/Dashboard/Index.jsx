@@ -9,13 +9,14 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
     const pageUser = usePage().props.auth?.user;
     const user = auth?.user || pageUser;
     const isPro = Boolean(user?.is_pro ?? (user?.role === 'superadmin' || user?.subscription_tier === 'pro' || user?.subscription_tier === 'pro_plus'));
+    const canAccessChart = Boolean(user?.permissions?.dashboard_chart ?? isPro);
 
     const [chartType, setChartType] = useState('area'); // 'area' | 'bar'
     const [isMobile, setIsMobile] = useState(false);
 
-    // Dummy preview wave for free users without transactions, to show an attractive blurred teaser
+    // Dummy preview wave for users with locked chart and without transactions, to show an attractive teaser
     const hasActualData = chartData && chartData.some(d => (d.pemasukan || 0) > 0 || (d.pengeluaran || 0) > 0 || (d.tabungan || 0) > 0);
-    const displayChartData = !isPro && !hasActualData ? [
+    const displayChartData = !canAccessChart && !hasActualData ? [
         { name: '1', pemasukan: 3200000, pengeluaran: 1800000, tabungan: 500000 },
         { name: '5', pemasukan: 2500000, pengeluaran: 1200000, tabungan: 400000 },
         { name: '10', pemasukan: 4800000, pengeluaran: 2900000, tabungan: 800000 },
@@ -263,7 +264,7 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#009bd2]"></div>
                                 <h3 className="text-base sm:text-lg font-extrabold text-slate-800">Grafik Arus Kas</h3>
-                                {!isPro && (
+                                {!canAccessChart && (
                                     <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200/80 shadow-2xs">
                                         PRO
                                     </span>
@@ -305,9 +306,9 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
                     
                     {displayChartData.length > 0 ? (
                         <div className="relative overflow-hidden rounded-xl sm:rounded-2xl">
-                            {/* Chart Canvas (Blurred when !isPro) */}
+                            {/* Chart Canvas (Blurred when !canAccessChart) */}
                             <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${
-                                !isPro ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
+                                !canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
                             }`}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     {chartType === 'area' ? (
@@ -420,7 +421,7 @@ export default function Dashboard({ auth, summary, chartData = [], currentFilter
                             </div>
 
                             {/* Glassmorphism Lock Overlay for Non-Pro Users */}
-                            {!isPro && (
+                            {!canAccessChart && (
                                 <div className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-6 bg-slate-900/5 backdrop-blur-[1px]">
                                     <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full text-center border border-slate-100 shadow-xl shadow-slate-900/10 space-y-2.5 sm:space-y-3.5 animate-scale-up">
                                         {/* Lock Badge */}

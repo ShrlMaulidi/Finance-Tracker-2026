@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,11 +15,11 @@ use Inertia\Response;
 class AdminSettingController extends Controller
 {
     /**
-     * Get the system pricing settings from cache with default fallbacks.
+     * Get the system pricing settings from setting model / cache with default fallbacks.
      */
     public static function getPricingSettings(): array
     {
-        return Cache::get('admin_pricing_settings', [
+        return Setting::get('pricing_settings', [
             'pro_monthly_price' => 14999,
             'pro_yearly_price' => 149000,
             'pro_plus_monthly_price' => 29999,
@@ -49,7 +50,7 @@ class AdminSettingController extends Controller
     }
 
     /**
-     * Display Super Admin settings and system status.
+     * Display Super Admin settings, tier rules matrix, and system status.
      */
     public function index(): Response
     {
@@ -77,15 +78,17 @@ class AdminSettingController extends Controller
         ];
 
         $pricingSettings = self::getPricingSettings();
+        $tierRules = Setting::getTierRules();
 
         return Inertia::render('Admin/Settings', [
             'systemInfo' => $systemInfo,
             'pricingSettings' => $pricingSettings,
+            'tierRules' => $tierRules,
         ]);
     }
 
     /**
-     * Update settings.
+     * Update pricing settings and tier rules matrix.
      */
     public function update(Request $request): RedirectResponse
     {
@@ -98,13 +101,36 @@ class AdminSettingController extends Controller
             'maintenance_mode' => 'nullable',
             'support_email' => 'required|email',
             'support_wa' => 'required|string',
+            'tier_rules' => 'nullable|array',
         ]);
 
-        $validated['allow_registration'] = $request->boolean('allow_registration');
-        $validated['maintenance_mode'] = $request->boolean('maintenance_mode');
+        $pricingData = [
+            'pro_monthly_price' => (float) $validated['pro_monthly_price'],
+            'pro_yearly_price' => (float) $validated['pro_yearly_price'],
+            'pro_plus_monthly_price' => (float) $validated['pro_plus_monthly_price'],
+            'pro_plus_yearly_price' => (float) $validated['pro_plus_yearly_price'],
+            'allow_registration' => $request->boolean('allow_registration'),
+            'maintenance_mode' => $request->boolean('maintenance_mode'),
+            'support_email' => $validated['support_email'],
+            'support_wa' => $validated['support_wa'],
+        ];
 
-        Cache::forever('admin_pricing_settings', $validated);
+        Setting::set('pricing_settings', $pricingData);
+        Cache::forever('admin_pricing_settings', $pricingData);
 
-        return back()->with('success', 'Pengaturan sistem & kontrol akses berhasil diperbarui.');
+        if ($request->has('tier_rules') && is_array($request->input('tier_rules'))) {
+            Setting::setTierRules($request->input('tier_rules'));
+        }
+
+        return back()->with('success', 'Pengaturan sistem & matriks hak akses berhasil diperbarui.');
+    }
+
+    /**
+     * Reset tier rules to defaults.
+     */
+    public function resetTierRules(): RedirectResponse
+    {
+        Setting::resetTierRules();
+        return back()->with('success', 'Matriks aturan hak akses berhasil di-reset ke setelan awal default.');
     }
 }

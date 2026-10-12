@@ -1,11 +1,50 @@
-import React from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import UserAvatar from '@/Components/UserAvatar';
 
-export default function Settings({ systemInfo, pricingSettings }) {
+export default function Settings({ systemInfo, pricingSettings, tierRules }) {
     const { auth } = usePage().props;
     const user = auth?.user || {};
+
+    const [activeTierTab, setActiveTierTab] = useState('free');
+    const [resettingTier, setResettingTier] = useState(false);
+
+    const defaultTierConfig = {
+        free: {
+            target_limit: 1,
+            bill_limit: 2,
+            category_limit: 3,
+            payment_method_limit: 3,
+            access_budget: false,
+            access_report: false,
+            access_report_export: false,
+            access_ai_agent: false,
+            access_dashboard_chart: false,
+        },
+        pro: {
+            target_limit: -1,
+            bill_limit: -1,
+            category_limit: -1,
+            payment_method_limit: -1,
+            access_budget: true,
+            access_report: true,
+            access_report_export: true,
+            access_ai_agent: false,
+            access_dashboard_chart: true,
+        },
+        pro_plus: {
+            target_limit: -1,
+            bill_limit: -1,
+            category_limit: -1,
+            payment_method_limit: -1,
+            access_budget: true,
+            access_report: true,
+            access_report_export: true,
+            access_ai_agent: true,
+            access_dashboard_chart: true,
+        },
+    };
 
     const { data, setData, post, processing, errors } = useForm({
         pro_monthly_price: pricingSettings?.pro_monthly_price ?? 14999,
@@ -16,13 +55,49 @@ export default function Settings({ systemInfo, pricingSettings }) {
         maintenance_mode: pricingSettings?.maintenance_mode ?? false,
         support_email: pricingSettings?.support_email ?? 'support@financetrack.com',
         support_wa: pricingSettings?.support_wa ?? '6281234567890',
+        tier_rules: {
+            free: { ...defaultTierConfig.free, ...(tierRules?.free || {}) },
+            pro: { ...defaultTierConfig.pro, ...(tierRules?.pro || {}) },
+            pro_plus: { ...defaultTierConfig.pro_plus, ...(tierRules?.pro_plus || {}) },
+        },
     });
+
+    const handleTierLimitChange = (tier, field, value) => {
+        const intVal = value === '' ? -1 : parseInt(value, 10);
+        setData('tier_rules', {
+            ...data.tier_rules,
+            [tier]: {
+                ...data.tier_rules[tier],
+                [field]: isNaN(intVal) ? -1 : intVal,
+            },
+        });
+    };
+
+    const handleTierAccessToggle = (tier, field) => {
+        setData('tier_rules', {
+            ...data.tier_rules,
+            [tier]: {
+                ...data.tier_rules[tier],
+                [field]: !data.tier_rules[tier][field],
+            },
+        });
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('admin.settings.update'), {
             preserveScroll: true,
         });
+    };
+
+    const handleResetDefaults = () => {
+        if (confirm('Apakah Anda yakin ingin mereset seluruh batasan dan hak akses ke setelan default awal?')) {
+            setResettingTier(true);
+            router.post(route('admin.settings.reset-tier-rules'), {}, {
+                preserveScroll: true,
+                onFinish: () => setResettingTier(false),
+            });
+        }
     };
 
     return (
@@ -32,25 +107,294 @@ export default function Settings({ systemInfo, pricingSettings }) {
             <div className="space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto">
                 
                 {/* HEADER */}
-                <div>
-                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-tight">
-                        Pengaturan & Konfigurasi Sistem
-                    </h1>
-                    <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5">
-                        Kelola parameter paket berlangganan, diagnostik server, dan kontrol akses website
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-tight">
+                            Pengaturan & Konfigurasi Sistem
+                        </h1>
+                        <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5">
+                            Kelola matriks hak akses paket, batas data, tarif langganan, dan diagnostik server
+                        </p>
+                    </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                         
-                        {/* PRICING & ACCESS CONFIGURATION (2 COLS) */}
-                        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+                        {/* MAIN COLUMN (2 COLS) */}
+                        <div className="lg:col-span-2 space-y-6">
                             
-                            {/* PRICING CARD */}
-                            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 lg:p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-4 sm:space-y-6">
+                            {/* 1. TIER RULES & ACCESS CONTROL CARD */}
+                            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-5">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-base sm:text-lg font-black text-slate-800">Matriks Hak Akses & Batasan Paket</h2>
+                                            <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Atur kuota data dan kontrol menu terkunci secara dinamis tanpa sentuh kode</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetDefaults}
+                                        disabled={resettingTier}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-bold transition-all self-start sm:self-center"
+                                        title="Kembalikan semua aturan ke rekomendasi default"
+                                    >
+                                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        <span>Reset ke Default</span>
+                                    </button>
+                                </div>
+
+                                {/* TIER SELECTOR TABS */}
+                                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-1.5 bg-slate-100/80 rounded-2xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTierTab('free')}
+                                        className={`py-2 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                                            activeTierTab === 'free'
+                                                ? 'bg-white text-slate-900 shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        }`}
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                        <span>Gratis</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTierTab('pro')}
+                                        className={`py-2 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                                            activeTierTab === 'pro'
+                                                ? 'bg-white text-[#009bd2] shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        }`}
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-[#009bd2]"></span>
+                                        <span>Paket Pro</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTierTab('pro_plus')}
+                                        className={`py-2 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                                            activeTierTab === 'pro_plus'
+                                                ? 'bg-white text-purple-700 shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        }`}
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                                        <span>Pro Plus</span>
+                                    </button>
+                                </div>
+
+                                {/* ACTIVE TIER CONFIGURATION PANEL */}
+                                {['free', 'pro', 'pro_plus'].map((tierKey) => {
+                                    if (activeTierTab !== tierKey) return null;
+                                    const currentTierRules = data.tier_rules[tierKey] || {};
+                                    const tierBadge = {
+                                        free: { label: 'Akun Standar Gratis', bg: 'bg-slate-100 text-slate-700 border-slate-200' },
+                                        pro: { label: 'Paket Pro (Modul Penuh & Ekspor)', bg: 'bg-blue-50 text-[#009bd2] border-blue-200' },
+                                        pro_plus: { label: 'Paket Pro Plus (Lengkap + AI WhatsApp Bot)', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+                                    }[tierKey];
+
+                                    return (
+                                        <div key={tierKey} className="space-y-5 animate-fade-in">
+                                            
+                                            {/* Tier Info Card */}
+                                            <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                                <div>
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${tierBadge.bg}`}>
+                                                        {tierBadge.label}
+                                                    </span>
+                                                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">
+                                                        Ketik <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-700 font-mono">-1</code> pada batas data untuk menjadikannya <strong>Unlimited (Tanpa Batas)</strong>.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* 1. LIMIT DATA INPUTS */}
+                                            <div>
+                                                <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                                    <span>Batasan Jumlah Data (Data Quotas)</span>
+                                                </h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                                    
+                                                    {/* Target Limit */}
+                                                    <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white border border-slate-200 space-y-1.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] sm:text-xs font-bold text-slate-700">Maksimal Tabungan & Target</label>
+                                                            <span className="text-[10px] font-bold text-slate-400">{currentTierRules.target_limit < 0 ? 'Unlimited' : `${currentTierRules.target_limit} data`}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={currentTierRules.target_limit ?? -1}
+                                                            onChange={(e) => handleTierLimitChange(tierKey, 'target_limit', e.target.value)}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-[#009bd2]"
+                                                        />
+                                                    </div>
+
+                                                    {/* Bill Limit */}
+                                                    <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white border border-slate-200 space-y-1.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] sm:text-xs font-bold text-slate-700">Maksimal Tagihan Rutin</label>
+                                                            <span className="text-[10px] font-bold text-slate-400">{currentTierRules.bill_limit < 0 ? 'Unlimited' : `${currentTierRules.bill_limit} data`}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={currentTierRules.bill_limit ?? -1}
+                                                            onChange={(e) => handleTierLimitChange(tierKey, 'bill_limit', e.target.value)}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-[#009bd2]"
+                                                        />
+                                                    </div>
+
+                                                    {/* Category Limit */}
+                                                    <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white border border-slate-200 space-y-1.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] sm:text-xs font-bold text-slate-700">Maksimal Kelola Kategori</label>
+                                                            <span className="text-[10px] font-bold text-slate-400">{currentTierRules.category_limit < 0 ? 'Unlimited' : `${currentTierRules.category_limit} data`}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={currentTierRules.category_limit ?? -1}
+                                                            onChange={(e) => handleTierLimitChange(tierKey, 'category_limit', e.target.value)}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-[#009bd2]"
+                                                        />
+                                                    </div>
+
+                                                    {/* Payment Method Limit */}
+                                                    <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white border border-slate-200 space-y-1.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] sm:text-xs font-bold text-slate-700">Maksimal Kelola Metode Bayar</label>
+                                                            <span className="text-[10px] font-bold text-slate-400">{currentTierRules.payment_method_limit < 0 ? 'Unlimited' : `${currentTierRules.payment_method_limit} data`}</span>
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={currentTierRules.payment_method_limit ?? -1}
+                                                            onChange={(e) => handleTierLimitChange(tierKey, 'payment_method_limit', e.target.value)}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-[#009bd2]"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 2. FEATURE PERMISSION TOGGLES */}
+                                            <div className="pt-2">
+                                                <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                                    <span>Hak Akses Fitur & Menu Platform</span>
+                                                </h4>
+
+                                                <div className="space-y-2.5">
+                                                    
+                                                    {/* Toggle: Menu Anggaran */}
+                                                    <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-xs sm:text-sm font-bold text-slate-800">Modul Anggaran Keuangan</p>
+                                                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium">Buka akses anggaran tabungan, hutang, dan batas belanja bulanan</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={Boolean(currentTierRules.access_budget)}
+                                                            onClick={() => handleTierAccessToggle(tierKey, 'access_budget')}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                                currentTierRules.access_budget ? 'bg-emerald-500' : 'bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${currentTierRules.access_budget ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Toggle: Menu Laporan */}
+                                                    <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-xs sm:text-sm font-bold text-slate-800">Modul Laporan Keuangan</p>
+                                                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium">Akses analisis arus kas, neraca aset vs liabilitas & saldo riil</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={Boolean(currentTierRules.access_report)}
+                                                            onClick={() => handleTierAccessToggle(tierKey, 'access_report')}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                                currentTierRules.access_report ? 'bg-emerald-500' : 'bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${currentTierRules.access_report ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Toggle: Ekspor PDF & Excel */}
+                                                    <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-xs sm:text-sm font-bold text-slate-800">Ekspor Laporan (PDF & Excel)</p>
+                                                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium">Izin unduh dokumen cetak PDF dan spreadsheet Excel</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={Boolean(currentTierRules.access_report_export)}
+                                                            onClick={() => handleTierAccessToggle(tierKey, 'access_report_export')}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                                currentTierRules.access_report_export ? 'bg-emerald-500' : 'bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${currentTierRules.access_report_export ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Toggle: Grafik Arus Kas Dashboard */}
+                                                    <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-xs sm:text-sm font-bold text-slate-800">Grafik Arus Kas Dashboard (Visual)</p>
+                                                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium">Jika dinonaktifkan, grafik di Dashboard akan terkunci dan diblur sebagai teaser</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={Boolean(currentTierRules.access_dashboard_chart)}
+                                                            onClick={() => handleTierAccessToggle(tierKey, 'access_dashboard_chart')}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                                currentTierRules.access_dashboard_chart ? 'bg-emerald-500' : 'bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${currentTierRules.access_dashboard_chart ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Toggle: Integrasi AI Agent WhatsApp */}
+                                                    <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-xs sm:text-sm font-bold text-slate-800">Integrasi Agent AI (WhatsApp & OCR)</p>
+                                                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium">Akses bot WhatsApp otomatis dan fitur OCR foto nota belanja</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={Boolean(currentTierRules.access_ai_agent)}
+                                                            onClick={() => handleTierAccessToggle(tierKey, 'access_ai_agent')}
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                                currentTierRules.access_ai_agent ? 'bg-purple-600' : 'bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${currentTierRules.access_ai_agent ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* 2. PRICING CARD */}
+                            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-4 sm:space-y-6">
                                 <div className="flex items-center gap-3 pb-3 sm:pb-4 border-b border-slate-100">
-                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-blue-50 text-[#009bd2] flex items-center justify-center shrink-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#009bd2] flex items-center justify-center shrink-0">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </div>
                                     <div>
@@ -64,7 +408,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs sm:text-sm font-black text-[#009bd2] flex items-center gap-1.5 sm:gap-2">
                                             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                            Paket Pro (Unlimited & Ekspor)
+                                            Paket Pro
                                         </span>
                                         <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">IDR</span>
                                     </div>
@@ -76,7 +420,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                 type="number"
                                                 value={data.pro_monthly_price}
                                                 onChange={(e) => setData('pro_monthly_price', e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-semibold shadow-xs"
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] font-semibold shadow-xs"
                                             />
                                             {errors.pro_monthly_price && <p className="text-rose-500 text-xs mt-1">{errors.pro_monthly_price}</p>}
                                         </div>
@@ -86,7 +430,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                 type="number"
                                                 value={data.pro_yearly_price}
                                                 onChange={(e) => setData('pro_yearly_price', e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-semibold shadow-xs"
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] font-semibold shadow-xs"
                                             />
                                             {errors.pro_yearly_price && <p className="text-rose-500 text-xs mt-1">{errors.pro_yearly_price}</p>}
                                         </div>
@@ -110,7 +454,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                 type="number"
                                                 value={data.pro_plus_monthly_price}
                                                 onChange={(e) => setData('pro_plus_monthly_price', e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-semibold shadow-xs"
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 font-semibold shadow-xs"
                                             />
                                             {errors.pro_plus_monthly_price && <p className="text-rose-500 text-xs mt-1">{errors.pro_plus_monthly_price}</p>}
                                         </div>
@@ -120,7 +464,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                 type="number"
                                                 value={data.pro_plus_yearly_price}
                                                 onChange={(e) => setData('pro_plus_yearly_price', e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-semibold shadow-xs"
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-purple-500 font-semibold shadow-xs"
                                             />
                                             {errors.pro_plus_yearly_price && <p className="text-rose-500 text-xs mt-1">{errors.pro_plus_yearly_price}</p>}
                                         </div>
@@ -135,7 +479,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                             type="email"
                                             value={data.support_email}
                                             onChange={(e) => setData('support_email', e.target.value)}
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] shadow-xs"
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] shadow-xs"
                                         />
                                         {errors.support_email && <p className="text-rose-500 text-xs mt-1">{errors.support_email}</p>}
                                     </div>
@@ -145,18 +489,18 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                             type="text"
                                             value={data.support_wa}
                                             onChange={(e) => setData('support_wa', e.target.value)}
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] shadow-xs"
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#009bd2] shadow-xs"
                                         />
                                         {errors.support_wa && <p className="text-rose-500 text-xs mt-1">{errors.support_wa}</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* ACCESS & SYSTEM CONTROL */}
-                            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 lg:p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-4 sm:space-y-6">
+                            {/* 3. ACCESS & SYSTEM CONTROL */}
+                            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-4">
                                 <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 flex-wrap gap-2.5">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                                        <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                         </div>
                                         <div>
@@ -179,7 +523,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                 </div>
 
                                 <div className="space-y-3 sm:space-y-4">
-                                    {/* TOGGLE 1: ALLOW REGISTRATION */}
+                                    {/* TOGGLE: ALLOW REGISTRATION */}
                                     <div className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl border transition-all ${
                                         data.allow_registration 
                                             ? 'bg-slate-50/70 border-slate-200/80' 
@@ -200,13 +544,10 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                     )}
                                                 </div>
                                                 <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed">
-                                                    {data.allow_registration
-                                                        ? 'Pengunjung dapat mendaftar akun baru melalui form registrasi maupun autentikasi Google.'
-                                                        : 'Pendaftaran akun baru ditutup. Pengunjung diarahkan ke form masuk dengan pesan pemberitahuan.'}
+                                                    Jika dinonaktifkan, tombol registrasi dan form pendaftaran di <code>/register</code> akan dialihkan.
                                                 </p>
                                             </div>
 
-                                            {/* Modern Switch */}
                                             <button
                                                 type="button"
                                                 role="switch"
@@ -225,7 +566,7 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                         </div>
                                     </div>
 
-                                    {/* TOGGLE 2: MAINTENANCE MODE */}
+                                    {/* TOGGLE: MAINTENANCE MODE */}
                                     <div className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl border transition-all ${
                                         data.maintenance_mode 
                                             ? 'bg-amber-50/50 border-amber-200 shadow-xs' 
@@ -246,13 +587,10 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                     )}
                                                 </div>
                                                 <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed">
-                                                    {data.maintenance_mode
-                                                        ? 'Pengguna biasa dan pengunjung akan melihat layar Maintenance (HTTP 503). Super Admin tetap memiliki akses penuh.'
-                                                        : 'Sistem beroperasi normal untuk seluruh pengguna terdaftar dan pengunjung publik.'}
+                                                    Pengguna biasa dan publik akan melihat layar Maintenance (HTTP 503). Super Admin tetap memiliki akses penuh.
                                                 </p>
                                             </div>
 
-                                            {/* Modern Switch */}
                                             <button
                                                 type="button"
                                                 role="switch"
@@ -269,35 +607,24 @@ export default function Settings({ systemInfo, pricingSettings }) {
                                                 />
                                             </button>
                                         </div>
-
-                                        {data.maintenance_mode && (
-                                            <div className="mt-3.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] sm:text-xs flex items-start sm:items-center gap-2">
-                                                <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                </svg>
-                                                <span>
-                                                    <strong>Pemberitahuan Super Admin:</strong> Anda tidak akan terkunci. Anda tetap bisa masuk melalui <code>/login</code> dan membuka dashboard admin kapan saja.
-                                                </span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* SUBMIT BUTTON - Full-width on mobile */}
+                            {/* SUBMIT BUTTON */}
                             <div className="flex justify-end pt-1">
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="w-full sm:w-auto px-6 py-3 rounded-xl sm:rounded-2xl bg-[#009bd2] hover:bg-[#0089ba] font-bold text-xs sm:text-sm text-white shadow-sm transition-all transform active:scale-95 flex items-center justify-center gap-2 text-center"
+                                    className="w-full sm:w-auto px-7 py-3.5 rounded-xl sm:rounded-2xl bg-[#009bd2] hover:bg-[#0089ba] font-black text-xs sm:text-sm text-white shadow-md shadow-[#009bd2]/25 transition-all transform active:scale-95 flex items-center justify-center gap-2"
                                 >
-                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                    <span>{processing ? 'Menyimpan...' : 'Simpan Semua Pengaturan'}</span>
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                    <span>{processing ? 'Menyimpan Pengaturan...' : 'Simpan Seluruh Pengaturan'}</span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* SYSTEM DIAGNOSTICS & ADMIN PROFILE (1 COL) */}
+                        {/* SIDEBAR COLUMN (1 COL) */}
                         <div className="space-y-4 sm:space-y-6">
                             
                             {/* SUPER ADMIN PROFILE CARD */}

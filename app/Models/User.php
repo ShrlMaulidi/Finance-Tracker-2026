@@ -34,7 +34,7 @@ class User extends Authenticatable
         ];
     }
 
-    protected $appends = ['is_pro', 'is_pro_plus'];
+    protected $appends = ['is_pro', 'is_pro_plus', 'permissions', 'tier_limits', 'active_tier'];
 
     /**
      * Check if user is Super Admin.
@@ -91,6 +91,85 @@ class User extends Authenticatable
     }
 
     /**
+     * Get active tier name ('superadmin', 'pro_plus', 'pro', or 'free').
+     */
+    public function getActiveTier(): string
+    {
+        if ($this->isSuperAdmin()) {
+            return 'superadmin';
+        }
+        if ($this->isProPlus()) {
+            return 'pro_plus';
+        }
+        if ($this->isPro()) {
+            return 'pro';
+        }
+        return 'free';
+    }
+
+    /**
+     * Get tier rules for this user.
+     */
+    public function getTierRules(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return [
+                'target_limit' => -1,
+                'bill_limit' => -1,
+                'category_limit' => -1,
+                'payment_method_limit' => -1,
+                'access_budget' => true,
+                'access_report' => true,
+                'access_report_export' => true,
+                'access_ai_agent' => true,
+                'access_dashboard_chart' => true,
+            ];
+        }
+
+        $allRules = Setting::getTierRules();
+        $tier = $this->getActiveTier();
+        return $allRules[$tier] ?? $allRules['free'];
+    }
+
+    /**
+     * Check if user can access a specific feature.
+     */
+    public function canAccess(string $feature): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        $rules = $this->getTierRules();
+        $key = str_starts_with($feature, 'access_') ? $feature : "access_{$feature}";
+        return (bool) ($rules[$key] ?? false);
+    }
+
+    /**
+     * Get limit for a specific entity. Returns -1 if unlimited.
+     */
+    public function getLimit(string $entity): int
+    {
+        if ($this->isSuperAdmin()) {
+            return -1;
+        }
+        $rules = $this->getTierRules();
+        $key = str_ends_with($entity, '_limit') ? $entity : "{$entity}_limit";
+        return (int) ($rules[$key] ?? -1);
+    }
+
+    /**
+     * Check if user has reached limit for an entity.
+     */
+    public function hasReachedLimit(string $entity, int $currentCount): bool
+    {
+        $limit = $this->getLimit($entity);
+        if ($limit < 0) {
+            return false;
+        }
+        return $currentCount >= $limit;
+    }
+
+    /**
      * Accessor for is_pro attribute in frontend serialization.
      */
     public function getIsProAttribute(): bool
@@ -104,6 +183,43 @@ class User extends Authenticatable
     public function getIsProPlusAttribute(): bool
     {
         return $this->isProPlus();
+    }
+
+    /**
+     * Accessor for permissions attribute in frontend serialization.
+     */
+    public function getPermissionsAttribute(): array
+    {
+        $rules = $this->getTierRules();
+        return [
+            'budget' => (bool) ($rules['access_budget'] ?? false),
+            'report' => (bool) ($rules['access_report'] ?? false),
+            'report_export' => (bool) ($rules['access_report_export'] ?? false),
+            'ai_agent' => (bool) ($rules['access_ai_agent'] ?? false),
+            'dashboard_chart' => (bool) ($rules['access_dashboard_chart'] ?? false),
+        ];
+    }
+
+    /**
+     * Accessor for tier_limits attribute in frontend serialization.
+     */
+    public function getTierLimitsAttribute(): array
+    {
+        $rules = $this->getTierRules();
+        return [
+            'target_limit' => (int) ($rules['target_limit'] ?? -1),
+            'bill_limit' => (int) ($rules['bill_limit'] ?? -1),
+            'category_limit' => (int) ($rules['category_limit'] ?? -1),
+            'payment_method_limit' => (int) ($rules['payment_method_limit'] ?? -1),
+        ];
+    }
+
+    /**
+     * Accessor for active_tier attribute in frontend serialization.
+     */
+    public function getActiveTierAttribute(): string
+    {
+        return $this->getActiveTier();
     }
 
     /**

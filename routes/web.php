@@ -83,6 +83,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/users/{user}', [\App\Http\Controllers\Admin\AdminUserController::class, 'destroy'])->name('users.destroy');
     Route::get('/settings', [\App\Http\Controllers\Admin\AdminSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\Admin\AdminSettingController::class, 'update'])->name('settings.update');
+    Route::post('/settings/reset-tier-rules', [\App\Http\Controllers\Admin\AdminSettingController::class, 'resetTierRules'])->name('settings.reset-tier-rules');
 });
 
 require __DIR__.'/auth.php';

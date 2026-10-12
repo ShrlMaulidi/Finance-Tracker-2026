@@ -176,6 +176,9 @@ export default function AuthenticatedLayout({ children }) {
 
     const isPro = Boolean(user?.is_pro ?? (user?.role === 'superadmin' || user?.subscription_tier === 'pro' || user?.subscription_tier === 'pro_plus'));
     const isProPlus = Boolean(user?.is_pro_plus ?? (user?.role === 'superadmin' || user?.subscription_tier === 'pro_plus'));
+    const isBudgetLocked = user?.permissions ? !user.permissions.budget : !isPro;
+    const isReportLocked = user?.permissions ? !user.permissions.report : !isPro;
+    const isAIAgentLocked = user?.permissions ? !user.permissions.ai_agent : !isProPlus;
 
     // Helper for Menu Items that anchor icons so they never move during width transitions
     const MenuItem = ({ icon, text, active = false, routeName = "#", isProLocked = false, badgeText = "PRO" }) => (
@@ -238,15 +241,15 @@ export default function AuthenticatedLayout({ children }) {
                         <>
                             <Link href={route('anggaran.investasi')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
-                                {!isPro && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
+                                {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
                             <Link href={route('anggaran.hutang')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Hutang</span>
-                                {!isPro && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
+                                {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
                             <Link href={route('anggaran.pengeluaran')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Pengeluaran Bulanan</span>
-                                {!isPro && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
+                                {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
                         </>
                     )}
@@ -295,7 +298,7 @@ export default function AuthenticatedLayout({ children }) {
                         <MenuItem icon={Icons.Target} text="Tabungan & Target" active={route().current('tabungan.*')} routeName="tabungan.target" />
                         <MenuItem icon={Icons.Hutang} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
                         <MenuItem icon={Icons.Tagihan} text="Tagihan Rutin" active={route().current('tagihan.*')} routeName="tagihan.index" />
-                        <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} isProLocked={!isPro} />
+                        <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} isProLocked={isBudgetLocked} />
                         <MenuItem icon={Icons.Pengeluaran} text="Pengeluaran & Pemasukan" active={route().current('transaksi.index')} routeName="transaksi.index" />
                         <MenuItem icon={Icons.Transaksi} text="Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
                     </div>
@@ -303,12 +306,12 @@ export default function AuthenticatedLayout({ children }) {
                     <SectionLabel text="Laporan" />
                     <div className="space-y-1">
                         <MenuItem icon={Icons.News} text="Berita Hari Ini" active={route().current('news.*')} routeName="news.index" />
-                        <MenuItem icon={Icons.Laporan} text="Laporan Keuangan" active={route().current('laporan.*')} routeName="laporan.index" isProLocked={!isPro} />
+                        <MenuItem icon={Icons.Laporan} text="Laporan Keuangan" active={route().current('laporan.*')} routeName="laporan.index" isProLocked={isReportLocked} />
                     </div>
 
                     <SectionLabel text="Unggulan" />
                     <div className="space-y-1">
-                        <MenuItem icon={Icons.AIAgent} text="Integrasi Agent AI" active={route().current('ai-agent.*')} routeName="ai-agent.index" isProLocked={!isProPlus} badgeText="PRO+" />
+                        <MenuItem icon={Icons.AIAgent} text="Integrasi Agent AI" active={route().current('ai-agent.*')} routeName="ai-agent.index" isProLocked={isAIAgentLocked} badgeText="PRO+" />
                     </div>
 
                     <SectionLabel text="Akun" />

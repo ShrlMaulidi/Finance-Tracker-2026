@@ -9,7 +9,7 @@ class AIAgentController extends Controller
 {
     public function index()
     {
-        if (!auth()->user()->isProPlus()) {
+        if (!auth()->user()->canAccess('ai_agent')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'ai_agent',
                 'title' => 'Integrasi Agent AI WhatsApp Terkunci',

@@ -173,13 +173,15 @@ class BillController extends Controller
         }
 
         $userBillsCount = Bill::where('user_id', Auth::id())->where('is_active', true)->count();
-        $isFree = Auth::user()->isFree();
+        $billLimit = Auth::user()->getLimit('bill');
+        $isUnlimited = $billLimit < 0;
+        $canAdd = $isUnlimited || $userBillsCount < $billLimit;
 
         return Inertia::render('Tagihan/Index', [
             'bills' => $bills,
-            'isFree' => $isFree,
-            'canAdd' => !$isFree || $userBillsCount < 2,
-            'maxLimit' => $isFree ? 2 : null,
+            'isFree' => Auth::user()->isFree(),
+            'canAdd' => $canAdd,
+            'maxLimit' => $isUnlimited ? null : $billLimit,
             'currentCount' => $userBillsCount,
             'summary' => [
                 'total_tagihan' => (float) $totalTagihan,
@@ -206,13 +208,12 @@ class BillController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if ($user->isFree()) {
-            $count = Bill::where('user_id', $user->id)->where('is_active', true)->count();
-            if ($count >= 2) {
-                return redirect()->back()->withErrors([
-                    'name' => 'Akun Gratis dibatasi maksimal 2 Tagihan Rutin. Silakan upgrade ke paket Pro untuk menambah tanpa batas.'
-                ]);
-            }
+        $count = Bill::where('user_id', $user->id)->where('is_active', true)->count();
+        if ($user->hasReachedLimit('bill', $count)) {
+            $limit = $user->getLimit('bill');
+            return redirect()->back()->withErrors([
+                'name' => "Batas maksimal Tagihan Rutin untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah tanpa batas."
+            ]);
         }
 
         $validated = $request->validate([

@@ -24,13 +24,15 @@ class CategoryController extends Controller
 
         $user = auth()->user();
         $userCategoriesCount = Category::where('user_id', $user->id)->count();
-        $isFree = $user->isFree();
+        $categoryLimit = $user->getLimit('category');
+        $isUnlimited = $categoryLimit < 0;
+        $canAdd = $isUnlimited || $userCategoriesCount < $categoryLimit;
 
         return Inertia::render('Kategori/Index', [
             'categories' => $categories,
-            'isFree' => $isFree,
-            'canAdd' => !$isFree || $userCategoriesCount < 3,
-            'maxLimit' => $isFree ? 3 : null,
+            'isFree' => $user->isFree(),
+            'canAdd' => $canAdd,
+            'maxLimit' => $isUnlimited ? null : $categoryLimit,
             'currentCount' => $userCategoriesCount,
         ]);
     }
@@ -38,13 +40,12 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        if ($user->isFree()) {
-            $count = Category::where('user_id', $user->id)->count();
-            if ($count >= 3) {
-                return redirect()->back()->withErrors([
-                    'name' => 'Akun Gratis dibatasi maksimal 3 kategori. Silakan upgrade ke paket Pro untuk menambah kategori tanpa batas.'
-                ]);
-            }
+        $count = Category::where('user_id', $user->id)->count();
+        if ($user->hasReachedLimit('category', $count)) {
+            $limit = $user->getLimit('category');
+            return redirect()->back()->withErrors([
+                'name' => "Batas maksimal kategori untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah kategori tanpa batas."
+            ]);
         }
 
         $request->validate([

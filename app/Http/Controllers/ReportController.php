@@ -251,7 +251,7 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('report')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'laporan',
                 'title' => 'Menu Laporan Keuangan Terkunci',
@@ -286,7 +286,7 @@ class ReportController extends Controller
 
     public function exportPdf(Request $request)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('report_export')) {
             abort(403, 'Fitur ekspor PDF hanya tersedia untuk member Pro.');
         }
 
@@ -302,7 +302,7 @@ class ReportController extends Controller
 
     public function exportExcel(Request $request)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('report_export')) {
             abort(403, 'Fitur ekspor Excel hanya tersedia untuk member Pro.');
         }
 

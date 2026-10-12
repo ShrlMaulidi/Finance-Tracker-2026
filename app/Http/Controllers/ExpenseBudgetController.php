@@ -14,7 +14,7 @@ class ExpenseBudgetController extends Controller
     public function index()
     {
         $user = Auth::user();
-        if ($user->isFree()) {
+        if (!$user->canAccess('budget')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'anggaran',
                 'title' => 'Menu Pengeluaran Bulanan Terkunci',
@@ -146,7 +146,7 @@ class ExpenseBudgetController extends Controller
 
     public function store(Request $request)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
@@ -186,7 +186,7 @@ class ExpenseBudgetController extends Controller
 
     public function update(Request $request, Budget $budget)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
@@ -220,7 +220,7 @@ class ExpenseBudgetController extends Controller
 
     public function destroy(Budget $budget)
     {
-        if (Auth::user()->isFree()) {
+        if (!Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 

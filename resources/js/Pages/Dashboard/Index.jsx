@@ -1,13 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-export default function Dashboard({ auth, summary, chartData, currentFilter, selectedMonth, selectedYear }) {
+export default function Dashboard({ auth, summary, chartData = [], currentFilter, selectedMonth, selectedYear }) {
+    const pageUser = usePage().props.auth?.user;
+    const user = auth?.user || pageUser;
+    const isPro = Boolean(user?.is_pro ?? (user?.role === 'superadmin' || user?.subscription_tier === 'pro' || user?.subscription_tier === 'pro_plus'));
+
     const [chartType, setChartType] = useState('area'); // 'area' | 'bar'
     const [isMobile, setIsMobile] = useState(false);
+
+    // Dummy preview wave for free users without transactions, to show an attractive blurred teaser
+    const hasActualData = chartData && chartData.some(d => (d.pemasukan || 0) > 0 || (d.pengeluaran || 0) > 0 || (d.tabungan || 0) > 0);
+    const displayChartData = !isPro && !hasActualData ? [
+        { name: '1', pemasukan: 3200000, pengeluaran: 1800000, tabungan: 500000 },
+        { name: '5', pemasukan: 2500000, pengeluaran: 1200000, tabungan: 400000 },
+        { name: '10', pemasukan: 4800000, pengeluaran: 2900000, tabungan: 800000 },
+        { name: '15', pemasukan: 3600000, pengeluaran: 2100000, tabungan: 600000 },
+        { name: '20', pemasukan: 5100000, pengeluaran: 3400000, tabungan: 900000 },
+        { name: '25', pemasukan: 4200000, pengeluaran: 2700000, tabungan: 700000 },
+        { name: '30', pemasukan: 6000000, pengeluaran: 3100000, tabungan: 1200000 },
+    ] : chartData;
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -247,6 +263,11 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
                             <div className="flex items-center gap-2">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#009bd2]"></div>
                                 <h3 className="text-base sm:text-lg font-extrabold text-slate-800">Grafik Arus Kas</h3>
+                                {!isPro && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200/80 shadow-2xs">
+                                        PRO
+                                    </span>
+                                )}
                             </div>
                             <p className="text-xs font-medium text-slate-400 mt-0.5">
                                 Perbandingan pemasukan, pengeluaran, dan tabungan secara berkala.
@@ -282,116 +303,165 @@ export default function Dashboard({ auth, summary, chartData, currentFilter, sel
                         </div>
                     </div>
                     
-                    {chartData.length > 0 ? (
-                        <div className="h-[280px] sm:h-[350px] md:h-[400px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                {chartType === 'area' ? (
-                                    <AreaChart
-                                        data={chartData}
-                                        margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="gradientPemasukan" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
-                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                                            </linearGradient>
-                                            <linearGradient id="gradientPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35}/>
-                                                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
-                                            </linearGradient>
-                                            <linearGradient id="gradientTabungan" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#009bd2" stopOpacity={0.35}/>
-                                                <stop offset="95%" stopColor="#009bd2" stopOpacity={0.0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis 
-                                            dataKey="name" 
-                                            axisLine={{ stroke: '#f1f5f9' }} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
-                                            dy={8}
-                                            interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
-                                            tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
-                                        />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
-                                            tickFormatter={formatYAxis}
-                                            width={isMobile ? 48 : 58}
-                                        />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Legend 
-                                            iconType="circle"
-                                            wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="pemasukan" 
-                                            name="Pemasukan" 
-                                            stroke="#10b981" 
-                                            strokeWidth={2.5} 
-                                            fillOpacity={1} 
-                                            fill="url(#gradientPemasukan)" 
-                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#10b981' }}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="pengeluaran" 
-                                            name="Pengeluaran" 
-                                            stroke="#f43f5e" 
-                                            strokeWidth={2.5} 
-                                            fillOpacity={1} 
-                                            fill="url(#gradientPengeluaran)" 
-                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#f43f5e' }}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="tabungan" 
-                                            name="Tabungan" 
-                                            stroke="#009bd2" 
-                                            strokeWidth={2.5} 
-                                            fillOpacity={1} 
-                                            fill="url(#gradientTabungan)" 
-                                            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#009bd2' }}
-                                        />
-                                    </AreaChart>
-                                ) : (
-                                    <BarChart
-                                        data={chartData}
-                                        margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
-                                        barGap={2}
-                                        barCategoryGap={chartData.length > 20 ? '15%' : '25%'}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis 
-                                            dataKey="name" 
-                                            axisLine={{ stroke: '#f1f5f9' }} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
-                                            dy={8}
-                                            interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
-                                            tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
-                                        />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
-                                            tickFormatter={formatYAxis}
-                                            width={isMobile ? 48 : 58}
-                                        />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Legend 
-                                            iconType="circle"
-                                            wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
-                                        />
-                                        <Bar dataKey="pemasukan" name="Pemasukan" fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
-                                        <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#f43f5e" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
-                                        <Bar dataKey="tabungan" name="Tabungan" fill="#009bd2" radius={[5, 5, 0, 0]} maxBarSize={chartData.length > 20 ? 12 : 28} />
-                                    </BarChart>
-                                )}
-                            </ResponsiveContainer>
+                    {displayChartData.length > 0 ? (
+                        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl">
+                            {/* Chart Canvas (Blurred when !isPro) */}
+                            <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${
+                                !isPro ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
+                            }`}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    {chartType === 'area' ? (
+                                        <AreaChart
+                                            data={displayChartData}
+                                            margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
+                                        >
+                                            <defs>
+                                                <linearGradient id="gradientPemasukan" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                                                </linearGradient>
+                                                <linearGradient id="gradientPengeluaran" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35}/>
+                                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
+                                                </linearGradient>
+                                                <linearGradient id="gradientTabungan" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#009bd2" stopOpacity={0.35}/>
+                                                    <stop offset="95%" stopColor="#009bd2" stopOpacity={0.0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                axisLine={{ stroke: '#f1f5f9' }} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
+                                                dy={8}
+                                                interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
+                                                tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
+                                            />
+                                            <YAxis 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
+                                                tickFormatter={formatYAxis}
+                                                width={isMobile ? 48 : 58}
+                                            />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend 
+                                                iconType="circle"
+                                                wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
+                                            />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="pemasukan" 
+                                                name="Pemasukan" 
+                                                stroke="#10b981" 
+                                                strokeWidth={2.5} 
+                                                fillOpacity={1} 
+                                                fill="url(#gradientPemasukan)" 
+                                                activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#10b981' }}
+                                            />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="pengeluaran" 
+                                                name="Pengeluaran" 
+                                                stroke="#f43f5e" 
+                                                strokeWidth={2.5} 
+                                                fillOpacity={1} 
+                                                fill="url(#gradientPengeluaran)" 
+                                                activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#f43f5e' }}
+                                            />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="tabungan" 
+                                                name="Tabungan" 
+                                                stroke="#009bd2" 
+                                                strokeWidth={2.5} 
+                                                fillOpacity={1} 
+                                                fill="url(#gradientTabungan)" 
+                                                activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#009bd2' }}
+                                            />
+                                        </AreaChart>
+                                    ) : (
+                                        <BarChart
+                                            data={displayChartData}
+                                            margin={{ top: 16, right: isMobile ? 8 : 16, left: isMobile ? -5 : 5, bottom: 4 }}
+                                            barGap={2}
+                                            barCategoryGap={displayChartData.length > 20 ? '15%' : '25%'}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                axisLine={{ stroke: '#f1f5f9' }} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 11, fontWeight: 700 }}
+                                                dy={8}
+                                                interval={currentFilter === 'bulan' ? (isMobile ? 4 : 2) : 0}
+                                                tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
+                                            />
+                                            <YAxis 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#94a3b8', fontSize: isMobile ? 9 : 10, fontWeight: 700 }}
+                                                tickFormatter={formatYAxis}
+                                                width={isMobile ? 48 : 58}
+                                            />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend 
+                                                iconType="circle"
+                                                wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
+                                            />
+                                            <Bar dataKey="pemasukan" name="Pemasukan" fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={displayChartData.length > 20 ? 12 : 28} />
+                                            <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#f43f5e" radius={[5, 5, 0, 0]} maxBarSize={displayChartData.length > 20 ? 12 : 28} />
+                                            <Bar dataKey="tabungan" name="Tabungan" fill="#009bd2" radius={[5, 5, 0, 0]} maxBarSize={displayChartData.length > 20 ? 12 : 28} />
+                                        </BarChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
+
+                            {/* Glassmorphism Lock Overlay for Non-Pro Users */}
+                            {!isPro && (
+                                <div className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-6 bg-slate-900/5 backdrop-blur-[1px]">
+                                    <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full text-center border border-slate-100 shadow-xl shadow-slate-900/10 space-y-2.5 sm:space-y-3.5 animate-scale-up">
+                                        {/* Lock Badge */}
+                                        <div>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-amber-800 shadow-2xs text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                                <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                                </svg>
+                                                <span>Fitur Eksklusif Pro</span>
+                                            </span>
+                                        </div>
+
+                                        {/* Title & Description */}
+                                        <div className="space-y-1">
+                                            <h4 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight">
+                                                Grafik Arus Kas Terkunci
+                                            </h4>
+                                            <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed max-w-xs mx-auto">
+                                                Pantau tren perbandingan arus kas pemasukan, pengeluaran & tabungan Anda secara visual dan interaktif.
+                                            </p>
+                                        </div>
+
+                                        {/* Action Button */}
+                                        <div className="pt-0.5">
+                                            <Link
+                                                href={route('berlangganan.index')}
+                                                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 sm:py-3 px-4 sm:px-5 rounded-xl sm:rounded-2xl text-white font-extrabold text-xs sm:text-sm bg-gradient-to-r from-[#009bd2] to-[#0081af] hover:from-[#008bc0] hover:to-[#007099] shadow-md shadow-[#009bd2]/25 active:scale-98 transition-all"
+                                            >
+                                                <svg className="w-4 h-4 text-amber-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 2a1 1 0 01.894.553l2.991 5.982 6.602.96a1 1 0 01.554 1.705l-4.777 4.656 1.127 6.575a1 1 0 01-1.451 1.054L10 16.347l-5.94 3.138a1 1 0 01-1.451-1.054l1.127-6.575-4.777-4.656a1 1 0 01.554-1.705l6.602-.96 2.991-5.982A1 1 0 0110 2z" clipRule="evenodd" />
+                                                </svg>
+                                                <span>Buka Akses dengan Paket Pro</span>
+                                            </Link>
+                                        </div>
+
+                                        <p className="text-[9.5px] sm:text-[10px] font-semibold text-slate-400">
+                                            Mulai dari <strong className="text-slate-600">Rp 14.999/bln</strong> • Buka semua modul & grafik
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="h-[220px] sm:h-[340px] flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-[2rem] p-6 text-center">

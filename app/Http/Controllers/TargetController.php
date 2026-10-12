@@ -26,8 +26,8 @@ class TargetController extends Controller
                     'id' => $target->id,
                     'name' => $target->name,
                     'category' => $target->category,
-                    'target' => $target->target_amount,
-                    'current' => $target->current_amount,
+                    'target' => (float)$target->target_amount,
+                    'current' => (float)$target->current_amount,
                     'status' => $target->status,
                     'date' => $target->target_date ? \Carbon\Carbon::parse($target->target_date)->translatedFormat('d F Y') : '-',
                     'raw_date' => $target->target_date,
@@ -35,13 +35,30 @@ class TargetController extends Controller
                 ];
             });
 
+        $userTargetsCount = Target::where('user_id', $user->id)->count();
+        $isFree = $user->isFree();
+
         return Inertia::render('Tabungan/Target', [
-            'dbTargets' => $targets
+            'dbTargets' => $targets,
+            'isFree' => $isFree,
+            'canAdd' => !$isFree || $userTargetsCount < 1,
+            'maxLimit' => $isFree ? 1 : null,
+            'currentCount' => $userTargetsCount,
         ]);
     }
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        if ($user->isFree()) {
+            $count = Target::where('user_id', $user->id)->count();
+            if ($count >= 1) {
+                return redirect()->back()->withErrors([
+                    'name' => 'Akun Gratis dibatasi maksimal 1 Tabungan & Target. Silakan upgrade ke paket Pro untuk menambah tanpa batas.'
+                ]);
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'category' => 'required|string|max:255',

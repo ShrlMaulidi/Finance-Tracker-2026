@@ -22,13 +22,31 @@ class CategoryController extends Controller
                 ];
             });
 
+        $user = auth()->user();
+        $userCategoriesCount = Category::where('user_id', $user->id)->count();
+        $isFree = $user->isFree();
+
         return Inertia::render('Kategori/Index', [
-            'categories' => $categories
+            'categories' => $categories,
+            'isFree' => $isFree,
+            'canAdd' => !$isFree || $userCategoriesCount < 3,
+            'maxLimit' => $isFree ? 3 : null,
+            'currentCount' => $userCategoriesCount,
         ]);
     }
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        if ($user->isFree()) {
+            $count = Category::where('user_id', $user->id)->count();
+            if ($count >= 3) {
+                return redirect()->back()->withErrors([
+                    'name' => 'Akun Gratis dibatasi maksimal 3 kategori. Silakan upgrade ke paket Pro untuk menambah kategori tanpa batas.'
+                ]);
+            }
+        }
+
         $request->validate([
             'type' => 'required|in:pemasukan,pengeluaran',
             'name' => 'required|string|max:255'

@@ -13,9 +13,24 @@ class ExpenseBudgetController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
+        if ($user->isFree()) {
+            return Inertia::render('LockedFeature', [
+                'feature' => 'anggaran',
+                'title' => 'Menu Pengeluaran Bulanan Terkunci',
+                'subtitle' => 'Fitur Perencanaan & Batas Belanja Eksklusif Member Pro',
+                'description' => 'Kendalikan keuangan Anda dengan menentukan batas anggaran pengeluaran bulanan per kategori agar tidak boros atau boncos.',
+                'benefits' => [
+                    'Tetapkan batas anggaran pengeluaran bulanan per kategori belanja',
+                    'Sistem anggaran berulang (recurring) otomatis setiap awal bulan',
+                    'Visual bar real-time sisa saldo budget & peringatan batas pengeluaran',
+                    'Evaluasi efisiensi pos belanja dan riwayat per bulan',
+                ],
+            ]);
+        }
+
         Carbon::setLocale('id');
         $currentMonth = ucfirst(Carbon::now()->translatedFormat('F Y'));
-        $user = Auth::user();
         $currentMonthNum = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 
@@ -89,10 +104,10 @@ class ExpenseBudgetController extends Controller
                     'id' => $budget->id,
                     'type' => $budget->type,
                     'name' => $budget->name,
-                    'target' => $budget->target_amount,
-                    'current' => $budget->current_amount,
+                    'target' => (float)$budget->target_amount,
+                    'current' => (float)$budget->current_amount,
                     'status' => $budget->status,
-                    'is_recurring' => $budget->is_recurring,
+                    'is_recurring' => (bool)$budget->is_recurring,
                     'percentage' => $budget->target_amount > 0 ? min(100, round(($budget->current_amount / $budget->target_amount) * 100)) : 0
                 ];
             });
@@ -108,8 +123,8 @@ class ExpenseBudgetController extends Controller
             return [
                 'id' => $budget->id,
                 'name' => $budget->name,
-                'target' => $budget->target_amount,
-                'used' => $budget->current_amount,
+                'target' => (float)$budget->target_amount,
+                'used' => (float)$budget->current_amount,
                 'month' => $budget->month
             ];
         });
@@ -131,6 +146,10 @@ class ExpenseBudgetController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
@@ -167,6 +186,10 @@ class ExpenseBudgetController extends Controller
 
     public function update(Request $request, Budget $budget)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') abort(403);
 
         $request->validate([
@@ -197,6 +220,10 @@ class ExpenseBudgetController extends Controller
 
     public function destroy(Budget $budget)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') abort(403);
 
         $budget->delete();

@@ -16,4 +16,12 @@ class Debt extends Model
         'status',
         'description',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'float',
+            'remaining_amount' => 'float',
+        ];
+    }
 }

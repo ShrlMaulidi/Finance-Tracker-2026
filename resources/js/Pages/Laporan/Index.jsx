@@ -14,6 +14,7 @@ export default function Laporan({
     const [trxTab, setTrxTab] = useState('semua'); // 'semua' | 'pemasukan' | 'pengeluaran' | 'tabungan'
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryTab, setCategoryTab] = useState('pengeluaran'); // 'pengeluaran' | 'pemasukan'
+    const [showSavingsDetail, setShowSavingsDetail] = useState(true);
 
     const formatRp = (num) =>
         new Intl.NumberFormat('id-ID', {
@@ -76,28 +77,28 @@ export default function Laporan({
         <AuthenticatedLayout>
             <Head title="Laporan Keuangan" />
 
-            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-3.5 sm:space-y-6">
                 {/* 1. TOP HEADER & FILTER BAR */}
-                <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-100 shadow-xs space-y-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3 sm:space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#009bd2]/10 text-[#009bd2]">
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-wider bg-[#009bd2]/10 text-[#009bd2]">
                                     Laporan Komprehensif
                                 </span>
                                 <span className="text-slate-300">•</span>
-                                <span className="text-xs font-bold text-slate-500">{periodLabel}</span>
+                                <span className="text-[11px] sm:text-xs font-bold text-slate-500">{periodLabel}</span>
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">
+                            <h1 className="text-xl sm:text-3xl font-black text-slate-800 tracking-tight">
                                 Laporan Keuangan
                             </h1>
-                            <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5">
-                                Pantau arus kas masuk-keluar, alokasi pengeluaran, tagihan rutin, dan posisi kekayaan bersih.
+                            <p className="text-slate-500 font-medium text-[11px] sm:text-sm mt-0.5">
+                                Pantau arus kas masuk-keluar, alokasi pengeluaran, tagihan, dan kekayaan bersih.
                             </p>
                         </div>
 
                         {/* Export Buttons */}
-                        <div className="flex items-center gap-2 self-start lg:self-center">
+                        <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-center shrink-0">
                             <a
                                 href={route('laporan.export.pdf', {
                                     filter_type: filters.type,
@@ -106,13 +107,13 @@ export default function Laporan({
                                 })}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 font-extrabold text-xs transition shadow-xs active:scale-95"
+                                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 font-extrabold text-[11px] sm:text-xs transition shadow-2xs active:scale-95"
                                 title="Unduh format PDF resmi"
                             >
-                                <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                 </svg>
-                                <span>Export PDF</span>
+                                <span><span className="hidden sm:inline">Export </span>PDF</span>
                             </a>
                             <a
                                 href={route('laporan.export.excel', {
@@ -120,49 +121,51 @@ export default function Laporan({
                                     filter_month: filters.month,
                                     filter_year: filters.year,
                                 })}
-                                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 font-extrabold text-xs transition shadow-xs active:scale-95"
+                                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 font-extrabold text-[11px] sm:text-xs transition shadow-2xs active:scale-95"
                                 title="Unduh format Spreadsheet Excel"
                             >
-                                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <span>Export Excel</span>
+                                <span><span className="hidden sm:inline">Export </span>Excel</span>
                             </a>
                         </div>
                     </div>
 
                     {/* Filter Controls Row */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2.5 sm:pt-3 border-t border-slate-100">
                         {/* Period Type Buttons */}
-                        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                        <div className="grid grid-cols-3 sm:flex bg-slate-100 p-0.5 rounded-xl gap-0.5 text-center">
                             <button
                                 onClick={() => handleFilterChange('month')}
-                                className={`px-4 py-1.5 rounded-xl font-extrabold text-xs transition ${filters.type === 'month' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs transition ${filters.type === 'month' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
                             >
                                 Per Bulan
                             </button>
                             <button
                                 onClick={() => handleFilterChange('year')}
-                                className={`px-4 py-1.5 rounded-xl font-extrabold text-xs transition ${filters.type === 'year' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs transition ${filters.type === 'year' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
                             >
                                 Per Tahun
                             </button>
                             <button
                                 onClick={() => handleFilterChange('all')}
-                                className={`px-4 py-1.5 rounded-xl font-extrabold text-xs transition ${filters.type === 'all' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs transition ${filters.type === 'all' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
                             >
-                                Semua Waktu
+                                Semua
                             </button>
                         </div>
 
                         {/* Date Picker Input */}
                         <div className="flex items-center gap-2">
                             {filters.type === 'month' && (
-                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/90 rounded-2xl px-3.5 py-1.5 shadow-xs">
-                                    <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="text-xs font-bold text-slate-500">Pilih Bulan:</span>
+                                <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 bg-slate-50 border border-slate-200/90 rounded-xl sm:rounded-2xl px-3 py-1.5 shadow-2xs">
+                                    <div className="flex items-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span className="text-[11px] sm:text-xs font-bold text-slate-500">Bulan:</span>
+                                    </div>
                                     <input
                                         type="month"
                                         value={monthInputValue}
@@ -173,21 +176,23 @@ export default function Laporan({
                             )}
 
                             {filters.type === 'year' && (
-                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/90 rounded-2xl px-3.5 py-1.5 shadow-xs">
-                                    <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="text-xs font-bold text-slate-500">Pilih Tahun:</span>
+                                <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 bg-slate-50 border border-slate-200/90 rounded-xl sm:rounded-2xl px-3 py-1.5 shadow-2xs">
+                                    <div className="flex items-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span className="text-[11px] sm:text-xs font-bold text-slate-500">Tahun:</span>
+                                    </div>
                                     <select
                                         value={filters.year || new Date().getFullYear()}
                                         onChange={handleYearChange}
                                         className="border-none bg-transparent text-xs sm:text-sm font-extrabold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-6"
                                     >
                                         {availableYears.map((y) => (
-                                            <option key={y} value={y}>
-                                                {y}
-                                            </option>
-                                        ))}
+                                             <option key={y} value={y}>
+                                                 {y}
+                                             </option>
+                                         ))}
                                     </select>
                                 </div>
                             )}
@@ -196,50 +201,50 @@ export default function Laporan({
                 </div>
 
                 {/* 2. EXECUTIVE SUMMARY CARDS (4 Cards) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     <KpiCard
-                        title="Total Pemasukan"
+                        title="Pemasukan"
                         value={formatRp(summary.pemasukan)}
-                        subtitle="Uang masuk pada periode ini"
+                        subtitle="Uang masuk periode ini"
                         variant="success"
                         icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>}
                     />
                     <KpiCard
-                        title="Total Pengeluaran"
+                        title="Pengeluaran"
                         value={formatRp(summary.pengeluaran)}
-                        subtitle={`Rasio belanja: ${summary.expense_ratio || 0}% dari pemasukan`}
+                        subtitle={`Rasio: ${summary.expense_ratio || 0}%`}
                         variant="danger"
                         icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>}
                     />
                     <KpiCard
                         title={summary.is_surplus ? 'Surplus Kas' : 'Defisit Kas'}
                         value={formatRp(summary.net)}
-                        subtitle={summary.is_surplus ? `Tingkat tabung: ${summary.savings_rate}%` : 'Pengeluaran melebihi pemasukan'}
+                        subtitle={summary.is_surplus ? `Tabung: ${summary.savings_rate}%` : 'Defisit operasional'}
                         variant={summary.is_surplus ? 'primary' : 'danger'}
                         icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                     />
                     <KpiCard
                         title="Kekayaan Bersih"
                         value={formatRp(summary.net_worth)}
-                        subtitle="Total Aset dikurangi Hutang"
+                        subtitle="Aset dikurangi hutang"
                         variant="default"
                         icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>}
                     />
                 </div>
 
                 {/* 3. VISUAL HEALTH BAR: KESEIMBANGAN PEMASUKAN VS PENGELUARAN */}
-                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-slate-100 shadow-xs space-y-2.5 sm:space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-1 text-[11px] sm:text-xs">
                         <span className="font-extrabold text-slate-800">
                             Efisiensi Pengeluaran Periode Ini
                         </span>
-                        <span className="text-slate-500 font-medium">
-                            Pengeluaran {formatRp(summary.pengeluaran)} dari Total Pemasukan {formatRp(summary.pemasukan)}
+                        <span className="text-slate-400 font-medium text-[10px] sm:text-xs">
+                            Pengeluaran {formatRp(summary.pengeluaran)} dari Pemasukan {formatRp(summary.pemasukan)}
                         </span>
                     </div>
 
                     {/* Progress Bar Container */}
-                    <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden flex">
+                    <div className="w-full bg-slate-100 rounded-full h-2 sm:h-3 overflow-hidden flex">
                         <div
                             style={{ width: `${Math.min(100, summary.expense_ratio || 0)}%` }}
                             className={`h-full transition-all duration-500 ${summary.expense_ratio > 90 ? 'bg-rose-500' : summary.expense_ratio > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
@@ -254,37 +259,37 @@ export default function Laporan({
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 pt-1">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-slate-500 pt-0.5">
                         <div className="flex items-center gap-1.5">
-                            <span className={`w-2.5 h-2.5 rounded-full ${summary.expense_ratio > 90 ? 'bg-rose-500' : summary.expense_ratio > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                            <span className={`w-2 h-2 rounded-full ${summary.expense_ratio > 90 ? 'bg-rose-500' : summary.expense_ratio > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                             <span>Belanja: <strong>{summary.expense_ratio || 0}%</strong></span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#009bd2]"></span>
-                            <span>Sisa Surplus / Tabungan: <strong>{Math.max(0, summary.savings_rate || 0)}%</strong></span>
+                            <span className="w-2 h-2 rounded-full bg-[#009bd2]"></span>
+                            <span>Surplus / Tabungan: <strong>{Math.max(0, summary.savings_rate || 0)}%</strong></span>
                         </div>
                     </div>
                 </div>
 
                 {/* 4. DUA KOLOM DETAIL: TOP KATEGORI & (SALDO + TAGIHAN RUTIN) */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-6 items-start">
                     {/* KOLOM KIRI: ALOKASI KATEGORI TERBESAR */}
-                    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3 sm:space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 sm:pb-3">
                             <div>
-                                <h3 className="text-base font-black text-slate-800">Alokasi per Kategori</h3>
-                                <p className="text-xs text-slate-400 font-medium">Pos paling signifikan pada periode ini</p>
+                                <h3 className="text-sm sm:text-base font-black text-slate-800">Alokasi per Kategori</h3>
+                                <p className="text-[10px] sm:text-xs text-slate-400 font-medium">Pos transaksi paling signifikan</p>
                             </div>
-                            <div className="flex bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
+                            <div className="flex bg-slate-100 p-0.5 rounded-xl text-[11px] sm:text-xs font-bold">
                                 <button
                                     onClick={() => setCategoryTab('pengeluaran')}
-                                    className={`px-3 py-1 rounded-lg transition ${categoryTab === 'pengeluaran' ? 'bg-white text-rose-600 shadow-xs' : 'text-slate-500'}`}
+                                    className={`px-2.5 py-1 rounded-lg transition ${categoryTab === 'pengeluaran' ? 'bg-white text-rose-600 shadow-2xs' : 'text-slate-500'}`}
                                 >
                                     Pengeluaran
                                 </button>
                                 <button
                                     onClick={() => setCategoryTab('pemasukan')}
-                                    className={`px-3 py-1 rounded-lg transition ${categoryTab === 'pemasukan' ? 'bg-white text-emerald-600 shadow-xs' : 'text-slate-500'}`}
+                                    className={`px-2.5 py-1 rounded-lg transition ${categoryTab === 'pemasukan' ? 'bg-white text-emerald-600 shadow-2xs' : 'text-slate-500'}`}
                                 >
                                     Pemasukan
                                 </button>
@@ -292,29 +297,29 @@ export default function Laporan({
                         </div>
 
                         {topCategories.length === 0 ? (
-                            <div className="text-center py-8 text-slate-400 text-xs font-semibold">
+                            <div className="text-center py-6 text-slate-400 text-xs font-semibold">
                                 Tidak ada data kategori untuk ditampilkan pada periode ini.
                             </div>
                         ) : (
-                            <div className="space-y-3.5">
+                            <div className="space-y-2.5 sm:space-y-3.5">
                                 {topCategories.map((item, idx) => (
-                                    <div key={idx} className="space-y-1.5">
-                                        <div className="flex items-center justify-between text-xs font-bold">
-                                            <span className="text-slate-700 flex items-center gap-2">
-                                                <span className="w-5 h-5 rounded-full bg-slate-100 text-[10px] font-black text-slate-500 flex items-center justify-center">
+                                    <div key={idx} className="space-y-1 sm:space-y-1.5">
+                                        <div className="flex items-center justify-between text-[11px] sm:text-xs font-bold">
+                                            <span className="text-slate-700 flex items-center gap-1.5 truncate">
+                                                <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-100 text-[9px] sm:text-[10px] font-black text-slate-500 flex items-center justify-center shrink-0">
                                                     {idx + 1}
                                                 </span>
-                                                {item.category}
-                                                <span className="text-[10px] font-medium text-slate-400">({item.count} trx)</span>
+                                                <span className="truncate">{item.category}</span>
+                                                <span className="text-[9.5px] sm:text-[10px] font-medium text-slate-400 shrink-0">({item.count} trx)</span>
                                             </span>
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0 ml-2">
                                                 <span className={`font-black ${categoryTab === 'pengeluaran' ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                     {formatRp(item.amount)}
                                                 </span>
-                                                <span className="text-slate-400 ml-1.5 text-[11px] font-semibold">({item.percentage}%)</span>
+                                                <span className="text-slate-400 ml-1 text-[10px] sm:text-[11px] font-semibold">({item.percentage}%)</span>
                                             </div>
                                         </div>
-                                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                        <div className="w-full bg-slate-100 rounded-full h-1.5 sm:h-2 overflow-hidden">
                                             <div
                                                 style={{ width: `${Math.min(100, item.percentage)}%` }}
                                                 className={`h-full rounded-full ${categoryTab === 'pengeluaran' ? 'bg-rose-500' : 'bg-emerald-500'}`}
@@ -327,32 +332,32 @@ export default function Laporan({
                     </div>
 
                     {/* KOLOM KANAN: SALDO PER DOMPET & TAGIHAN RUTIN */}
-                    <div className="space-y-5">
+                    <div className="space-y-3.5 sm:space-y-5">
                         {/* Box 1: Saldo per Metode Pembayaran (Dompet / Rekening) */}
-                        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs space-y-3.5">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3 sm:space-y-3.5">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 sm:pb-3">
                                 <div>
-                                    <h3 className="text-base font-black text-slate-800">Saldo Dompet & Rekening</h3>
-                                    <p className="text-xs text-slate-400 font-medium">Saldo riil di setiap rekening/metode bayar</p>
+                                    <h3 className="text-sm sm:text-base font-black text-slate-800">Saldo Dompet & Rekening</h3>
+                                    <p className="text-[10px] sm:text-xs text-slate-400 font-medium">Saldo riil di setiap rekening</p>
                                 </div>
-                                <span className="text-xs font-black text-slate-800 bg-slate-100 px-2.5 py-1 rounded-xl">
+                                <span className="text-[10.5px] sm:text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg">
                                     Total: {formatRp(summary.saldo_aktif)}
                                 </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                                 {Object.entries(summary.saldo_by_method || {}).map(([method, amount]) => (
                                     <div
                                         key={method}
-                                        className="bg-slate-50/90 p-3 rounded-2xl border border-slate-100 flex items-center justify-between"
+                                        className="bg-slate-50/90 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-100 flex items-center justify-between"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-xl bg-white text-slate-600 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-100">
+                                            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-white text-slate-600 flex items-center justify-center font-bold text-xs shadow-2xs border border-slate-100">
                                                 💳
                                             </div>
-                                            <span className="text-xs font-extrabold text-slate-700">{method}</span>
+                                            <span className="text-[11.5px] sm:text-xs font-extrabold text-slate-700">{method}</span>
                                         </div>
-                                        <span className={`text-xs font-black ${amount < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                        <span className={`text-[11.5px] sm:text-xs font-black ${amount < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
                                             {formatRp(amount)}
                                         </span>
                                     </div>
@@ -362,29 +367,29 @@ export default function Laporan({
 
                         {/* Box 2: Ringkasan Tagihan Rutin Periode Ini */}
                         {summary.bills && summary.bills.total_count > 0 && (
-                            <div className="bg-white rounded-3xl p-5 border border-sky-100 bg-linear-to-b from-white to-sky-50/20 shadow-xs space-y-3">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-sky-100 bg-linear-to-b from-white to-sky-50/20 shadow-xs space-y-2.5 sm:space-y-3">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-sky-100 text-[#009bd2] flex items-center justify-center font-bold">
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-sky-100 text-[#009bd2] flex items-center justify-center font-bold text-xs sm:text-base">
                                             🗓️
                                         </div>
                                         <div>
                                             <h4 className="text-xs sm:text-sm font-black text-slate-800">Tagihan Rutin Periode Ini</h4>
-                                            <p className="text-[11px] text-slate-400">{summary.bills.total_count} tagihan bulanan terdaftar</p>
+                                            <p className="text-[10px] sm:text-[11px] text-slate-400">{summary.bills.total_count} tagihan bulanan terdaftar</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs font-bold text-slate-600">
+                                    <span className="text-[11.5px] sm:text-xs font-bold text-slate-600">
                                         {formatRp(summary.bills.total_amount)}
                                     </span>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="bg-white p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between">
-                                        <span className="text-emerald-700 font-bold">✓ Sudah Bayar:</span>
+                                <div className="grid grid-cols-2 gap-2 text-[11px] sm:text-xs">
+                                    <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                                        <span className="text-emerald-700 font-bold text-[10px] sm:text-xs">✓ Sudah Bayar:</span>
                                         <span className="font-black text-emerald-700">{formatRp(summary.bills.paid_amount)}</span>
                                     </div>
-                                    <div className="bg-white p-2.5 rounded-xl border border-amber-100 flex items-center justify-between">
-                                        <span className="text-amber-700 font-bold">⏱️ Sisa Tagihan:</span>
+                                    <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                                        <span className="text-amber-700 font-bold text-[10px] sm:text-xs">⏱️ Sisa Tagihan:</span>
                                         <span className="font-black text-amber-700">{formatRp(summary.bills.unpaid_amount)}</span>
                                     </div>
                                 </div>
@@ -393,89 +398,272 @@ export default function Laporan({
                     </div>
                 </div>
 
-                {/* 5. NERACA KEUANGAN (ASSETS VS LIABILITIES) */}
-                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-100 pb-3">
+                {/* 5. STRUKTUR SALDO & ALOKASI TABUNGAN (3 PILAR SALDO & RINCIAN POS TABUNGAN) */}
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3.5 sm:space-y-5">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5 sm:pb-3">
                         <div>
-                            <h3 className="text-base font-black text-slate-800">Neraca Keuangan & Kekayaan Bersih</h3>
-                            <p className="text-xs text-slate-400 font-medium">Perbandingan aset cair versus kewajiban hutang berjalan</p>
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5">
+                                <span className="px-2 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-600 border border-indigo-100/60">
+                                    Likuiditas Kas & Tabungan
+                                </span>
+                                <span className="text-slate-300 hidden sm:inline">•</span>
+                                <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Posisi Dana Riil</span>
+                            </div>
+                            <h3 className="text-sm sm:text-lg font-black text-slate-800 tracking-tight">
+                                Struktur Saldo & Alokasi Tabungan
+                            </h3>
+                            <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5 hidden sm:block">
+                                Transparansi pemisahan antara uang operasional harian dan simpanan target impian.
+                            </p>
+                        </div>
+
+                        {summary.rincian_tabungan && summary.rincian_tabungan.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowSavingsDetail(!showSavingsDetail)}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-[10.5px] sm:text-xs transition border border-slate-200/90 shadow-2xs shrink-0 active:scale-95 cursor-pointer"
+                            >
+                                <span>{showSavingsDetail ? 'Sembunyikan' : 'Rincian Tabungan'}</span>
+                                <svg
+                                    className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform duration-200 ${showSavingsDetail ? 'rotate-180' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* 3 Pillar Cards Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
+                        {/* Pilar 1: Saldo Kas Siap Pakai (Bebas) */}
+                        <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-sky-50/70 border border-sky-100 flex flex-col justify-between space-y-2 sm:space-y-3 relative overflow-hidden shadow-2xs">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-[#009bd2] rounded-full blur-[40px] opacity-10 pointer-events-none"></div>
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10.5px] sm:text-xs font-bold text-sky-800 uppercase tracking-wider">
+                                        Saldo Kas Siap Pakai
+                                    </span>
+                                    <span className="text-[9px] sm:text-[10px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded-full bg-white text-[#009bd2] border border-sky-200/80 shadow-2xs">
+                                        Bebas Digunakan
+                                    </span>
+                                </div>
+                                <div className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
+                                    {formatRp(summary.saldo_bebas ?? summary.saldo_aktif)}
+                                </div>
+                            </div>
+                            <div className="text-[10.5px] sm:text-[11.5px] text-slate-500 font-medium pt-1.5 sm:pt-2.5 border-t border-sky-100 leading-relaxed">
+                                <strong>Sisa saldo aktif</strong> yang sudah dikurangi tabungan. Bebas dipakai operasional tanpa mengganggu simpanan.
+                            </div>
+                        </div>
+
+                        {/* Pilar 2: Total Dana Tabungan */}
+                        <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-amber-50/70 border border-amber-100 flex flex-col justify-between space-y-2 sm:space-y-3 relative overflow-hidden shadow-2xs">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500 rounded-full blur-[40px] opacity-10 pointer-events-none"></div>
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10.5px] sm:text-xs font-bold text-amber-800 uppercase tracking-wider">
+                                        Total Dana Tabungan
+                                    </span>
+                                    <span className="text-[9px] sm:text-[10px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded-full bg-white text-amber-700 border border-amber-200/80 shadow-2xs">
+                                        {summary.rincian_tabungan?.length || 0} Pos Tabungan
+                                    </span>
+                                </div>
+                                <div className="text-lg sm:text-2xl font-black text-amber-950 tracking-tight">
+                                    {formatRp(summary.total_tabungan ?? summary.tabungan)}
+                                </div>
+                            </div>
+                            <div className="text-[10.5px] sm:text-[11.5px] text-slate-500 font-medium pt-1.5 sm:pt-2.5 border-t border-amber-100 leading-relaxed">
+                                Akumulasi seluruh uang yang telah diamankan di pos tabungan & target impian Anda.
+                            </div>
+                        </div>
+
+                        {/* Pilar 3: Total Saldo Gabungan (Kas + Tabungan) */}
+                        <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col justify-between space-y-2 sm:space-y-3 relative overflow-hidden shadow-2xs">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500 rounded-full blur-[40px] opacity-10 pointer-events-none"></div>
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10.5px] sm:text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                                        Total Saldo Gabungan
+                                    </span>
+                                    <span className="text-[9px] sm:text-[10px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded-full bg-white text-emerald-700 border border-emerald-200/80 shadow-2xs">
+                                        Kas + Tabungan
+                                    </span>
+                                </div>
+                                <div className="text-lg sm:text-2xl font-black text-emerald-950 tracking-tight">
+                                    {formatRp(summary.total_saldo_gabungan)}
+                                </div>
+                            </div>
+                            <div className="text-[10.5px] sm:text-[11.5px] text-slate-500 font-medium pt-1.5 sm:pt-2.5 border-t border-emerald-100 leading-relaxed">
+                                <strong>Total seluruh dana riil</strong> yang Anda miliki saat ini (saldo kas siap pakai ditambah tabungan).
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+                    {/* Breakdown List: Rincian Pos Tabungan (Isi Tabungannya Apa Saja) */}
+                    {showSavingsDetail && (
+                        <div className="pt-1 sm:pt-2 animate-in fade-in duration-200">
+                            <div className="bg-slate-50/80 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-100 space-y-2.5 sm:space-y-3.5">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
+                                        <span className="text-sm sm:text-base">🎯</span>
+                                        <h4 className="text-[11.5px] sm:text-sm font-black text-slate-800">
+                                            Rincian Pos Tabungan & Target Impian
+                                        </h4>
+                                    </div>
+                                    <span className="text-[10.5px] sm:text-xs font-semibold text-slate-500">
+                                        Total Tersimpan: <strong className="text-slate-900">{formatRp(summary.total_tabungan ?? summary.tabungan)}</strong>
+                                    </span>
+                                </div>
+
+                                {(!summary.rincian_tabungan || summary.rincian_tabungan.length === 0) ? (
+                                    <div className="text-center py-5 text-slate-400 text-xs font-medium">
+                                        Belum ada pos tabungan terdaftar. Buka menu <strong>Tabungan & Target</strong> untuk mulai menyisihkan impian finansial Anda.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                                        {summary.rincian_tabungan.map((item, idx) => (
+                                            <div
+                                                key={item.id || idx}
+                                                className="bg-white p-2.5 sm:p-3.5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col justify-between space-y-2 hover:border-[#009bd2]/50 transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-1.5">
+                                                    <div className="min-w-0">
+                                                        <h5 className="text-[11.5px] sm:text-xs font-black text-slate-800 truncate" title={item.name}>
+                                                            {item.name}
+                                                        </h5>
+                                                        <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                                                            {item.category}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`text-[9px] sm:text-[9.5px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                                                        item.status === 'Tercapai' 
+                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            : 'bg-sky-100 text-[#009bd2]'
+                                                    }`}>
+                                                        {item.status === 'Tercapai' ? '✓ Tercapai' : 'Berjalan'}
+                                                    </span>
+                                                </div>
+
+                                                <div>
+                                                    <div className="flex items-baseline justify-between text-xs mb-1">
+                                                        <span className="text-[11.5px] sm:text-xs font-black text-slate-900">
+                                                            {formatRp(item.current)}
+                                                        </span>
+                                                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
+                                                            dari {item.target > 0 ? formatRp(item.target) : '-'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Mini Progress Bar */}
+                                                    {item.target > 0 && (
+                                                        <div className="w-full bg-slate-100 rounded-full h-1 sm:h-1.5 overflow-hidden">
+                                                            <div
+                                                                style={{ width: `${Math.min(100, item.percentage)}%` }}
+                                                                className={`h-full rounded-full transition-all duration-300 ${
+                                                                    item.status === 'Tercapai' || item.percentage >= 100 
+                                                                        ? 'bg-emerald-500' 
+                                                                        : 'bg-[#009bd2]'
+                                                                }`}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 6. NERACA KEUANGAN (ASSETS VS LIABILITIES) */}
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3 sm:space-y-4">
+                    <div className="border-b border-slate-100 pb-2.5 sm:pb-3">
+                        <h3 className="text-sm sm:text-base font-black text-slate-800">Neraca Keuangan & Kekayaan Bersih</h3>
+                        <p className="text-[10px] sm:text-xs text-slate-400 font-medium">Perbandingan aset cair versus kewajiban hutang berjalan</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
                         {/* Aset */}
-                        <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-2">
-                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Total Aset</span>
-                            <div className="text-xl sm:text-2xl font-black text-emerald-800">
+                        <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-1.5 sm:space-y-2">
+                            <span className="text-[10.5px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider">Total Aset</span>
+                            <div className="text-lg sm:text-2xl font-black text-emerald-800">
                                 {formatRp(summary.total_assets)}
                             </div>
-                            <div className="text-[11px] text-emerald-700/80 space-y-0.5 pt-1 border-t border-emerald-100">
-                                <div>• Saldo Kas/Bank: {formatRp(summary.saldo_aktif)}</div>
-                                <div>• Tabungan & Target: {formatRp(summary.tabungan)}</div>
+                            <div className="text-[10px] sm:text-[11px] text-emerald-700/80 space-y-0.5 pt-1.5 border-t border-emerald-100">
+                                <div>• Saldo Kas Siap Pakai: {formatRp(summary.saldo_bebas ?? summary.saldo_aktif)}</div>
+                                <div>• Dana Tabungan Tersimpan: {formatRp(summary.total_tabungan ?? summary.tabungan)}</div>
                                 <div>• Piutang Aktif: {formatRp(summary.piutang)}</div>
                             </div>
                         </div>
 
                         {/* Liabilitas / Hutang */}
-                        <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-2">
-                            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Total Liabilitas (Hutang)</span>
-                            <div className="text-xl sm:text-2xl font-black text-rose-800">
+                        <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-50/50 border border-rose-100 space-y-1.5 sm:space-y-2">
+                            <span className="text-[10.5px] sm:text-xs font-bold text-rose-700 uppercase tracking-wider">Total Liabilitas (Hutang)</span>
+                            <div className="text-lg sm:text-2xl font-black text-rose-800">
                                 {formatRp(summary.total_liabilities)}
                             </div>
-                            <div className="text-[11px] text-rose-700/80 space-y-0.5 pt-1 border-t border-rose-100">
+                            <div className="text-[10px] sm:text-[11px] text-rose-700/80 space-y-0.5 pt-1.5 border-t border-rose-100">
                                 <div>• Hutang Belum Lunas: {formatRp(summary.hutang)}</div>
                                 <div>• Kewajiban berjalan yang harus diselesaikan</div>
                             </div>
                         </div>
 
                         {/* Net Worth */}
-                        <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-2 shadow-sm">
-                            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Kekayaan Bersih (Net Equity)</span>
-                            <div className="text-xl sm:text-2xl font-black text-white">
+                        <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white space-y-1.5 sm:space-y-2 shadow-2xs">
+                            <span className="text-[10.5px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider">Kekayaan Bersih (Net Equity)</span>
+                            <div className="text-lg sm:text-2xl font-black text-white">
                                 {formatRp(summary.net_worth)}
                             </div>
-                            <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800">
+                            <div className="text-[10px] sm:text-[11px] text-slate-300 pt-1.5 border-t border-slate-800">
                                 Selisih Aset Bersih setelah dikurangi seluruh kewajiban hutang.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 6. RINCIAN DAFTAR TRANSAKSI (DENGAN TABS FILTER & INSTANT SEARCH) */}
-                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                {/* 7. RINCIAN DAFTAR TRANSAKSI (DENGAN TABS FILTER & INSTANT SEARCH) */}
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-100 shadow-xs space-y-3.5 sm:space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-100 pb-3">
                         <div>
-                            <h3 className="text-base sm:text-lg font-black text-slate-800">
+                            <h3 className="text-sm sm:text-lg font-black text-slate-800 tracking-tight">
                                 Rincian Transaksi Periode Ini
                             </h3>
-                            <p className="text-xs text-slate-400 font-medium">
+                            <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">
                                 Menampilkan {filteredTransactions.length} dari {totalTransactionsCount} total transaksi
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             {/* Search Box */}
                             <SearchInput
                                 size="sm"
-                                placeholder="Cari transaksi / kategori..."
+                                placeholder="Cari transaksi..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-48 sm:w-56"
+                                className="w-full sm:w-52"
                             />
 
                             {/* Type Tabs */}
-                            <TabFilter
-                                tabs={[
-                                    { key: 'semua', label: 'Semua' },
-                                    { key: 'pemasukan', label: 'Pemasukan' },
-                                    { key: 'pengeluaran', label: 'Pengeluaran' },
-                                    { key: 'tabungan', label: 'Tabungan' },
-                                ]}
-                                activeTab={trxTab}
-                                onChange={setTrxTab}
-                                activeColor="text-slate-800"
-                                className="!p-1 text-xs"
-                            />
+                            <div className="w-full sm:w-auto">
+                                <TabFilter
+                                    tabs={[
+                                        { key: 'semua', label: 'Semua', mobileLabel: 'Semua' },
+                                        { key: 'pemasukan', label: 'Pemasukan', mobileLabel: 'Masuk' },
+                                        { key: 'pengeluaran', label: 'Pengeluaran', mobileLabel: 'Keluar' },
+                                        { key: 'tabungan', label: 'Tabungan', mobileLabel: 'Tabungan' },
+                                    ]}
+                                    activeTab={trxTab}
+                                    onChange={setTrxTab}
+                                    activeColor="text-slate-800"
+                                    size="sm"
+                                    fullWidthMobile={true}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -541,49 +729,23 @@ export default function Laporan({
                     </div>
 
                     {/* Mobile View Cards */}
-                    <div className="block md:hidden space-y-2.5">
+                    <div className="block md:hidden space-y-2">
                         {filteredTransactions.length === 0 ? (
                             <div className="text-center py-6 text-slate-400 text-xs font-semibold">
                                 Tidak ada transaksi yang cocok.
                             </div>
                         ) : (
                             filteredTransactions.map((t, idx) => (
-                                <div key={idx} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 space-y-2">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="text-[11px] font-bold text-slate-400">
-                                            {new Date(t.date).toLocaleDateString('id-ID', {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                year: 'numeric',
-                                            })}
-                                        </span>
-                                        <span
-                                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                                                t.type === 'pemasukan'
-                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                    : t.type === 'pengeluaran'
-                                                    ? 'bg-rose-50 text-rose-600'
-                                                    : 'bg-sky-50 text-sky-600'
-                                            }`}
-                                        >
-                                            {t.type}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-black text-slate-800 line-clamp-1">{t.title}</h4>
-                                        {t.description && (
-                                            <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{t.description}</p>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="bg-white text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-slate-100">
-                                                {t.category}
-                                            </span>
-                                            <span className="text-slate-400 text-[10px] font-semibold">{t.payment_method}</span>
+                                <div key={idx} className="bg-slate-50/75 hover:bg-slate-100/60 transition-colors p-3 rounded-2xl border border-slate-100/80 space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="text-xs sm:text-sm font-black text-slate-800 truncate leading-snug">{t.title}</h4>
+                                            {t.description && (
+                                                <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">{t.description}</p>
+                                            )}
                                         </div>
                                         <div
-                                            className={`text-xs font-black ${
+                                            className={`text-xs sm:text-sm font-black shrink-0 ${
                                                 t.type === 'pemasukan'
                                                     ? 'text-emerald-600'
                                                     : t.type === 'pengeluaran'
@@ -593,6 +755,22 @@ export default function Laporan({
                                         >
                                             {t.type === 'pemasukan' ? '+' : '-'}{formatRp(t.amount)}
                                         </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 text-[10.5px]">
+                                        <div className="flex items-center gap-1.5 truncate mr-2">
+                                            <span className="bg-white text-slate-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-slate-200/70 shadow-2xs truncate">
+                                                {t.category}
+                                            </span>
+                                            <span className="text-slate-400 font-medium truncate">• {t.payment_method}</span>
+                                        </div>
+                                        <span className="text-slate-400 font-semibold shrink-0 text-[10px]">
+                                            {new Date(t.date).toLocaleDateString('id-ID', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                            })}
+                                        </span>
                                     </div>
                                 </div>
                             ))

@@ -20,13 +20,31 @@ class PaymentMethodController extends Controller
                 ];
             });
 
+        $user = auth()->user();
+        $userMethodsCount = PaymentMethod::where('user_id', $user->id)->count();
+        $isFree = $user->isFree();
+
         return Inertia::render('Metode/Index', [
-            'methods' => $methods
+            'methods' => $methods,
+            'isFree' => $isFree,
+            'canAdd' => !$isFree || $userMethodsCount < 3,
+            'maxLimit' => $isFree ? 3 : null,
+            'currentCount' => $userMethodsCount,
         ]);
     }
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        if ($user->isFree()) {
+            $count = PaymentMethod::where('user_id', $user->id)->count();
+            if ($count >= 3) {
+                return redirect()->back()->withErrors([
+                    'name' => 'Akun Gratis dibatasi maksimal 3 metode pembayaran. Silakan upgrade ke paket Pro untuk menambah metode pembayaran tanpa batas.'
+                ]);
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255'
         ]);

@@ -120,8 +120,55 @@ class ReportController extends Controller
         $totalHutang = (float) Debt::where('user_id', $user_id)->where('type', 'hutang')->where('status', 'belum_lunas')->sum('remaining_amount');
         $totalPiutang = (float) Debt::where('user_id', $user_id)->where('type', 'piutang')->where('status', 'belum_lunas')->sum('remaining_amount');
 
-        // 6. Total Tabungan & Target (All Time)
-        $totalTabunganTarget = (float) Target::where('user_id', $user_id)->sum('current_amount');
+        // 6. Total Tabungan & Target (All Time) + Rincian Pos Tabungan
+        $targets = Target::where('user_id', $user_id)->orderBy('current_amount', 'desc')->get();
+        $tabunganItems = $targets->map(function ($target) {
+            $curr = (float) $target->current_amount;
+            $tgt = (float) $target->target_amount;
+            return [
+                'id' => $target->id,
+                'name' => $target->name,
+                'category' => $target->category ?: 'Tabungan Impian',
+                'current' => $curr,
+                'target' => $tgt,
+                'status' => $target->status ?: 'Berjalan',
+                'percentage' => $tgt > 0 ? min(100, round(($curr / $tgt) * 100, 1)) : 0,
+            ];
+        });
+
+        // Cek jika ada transaksi tabungan di luar nama target
+        $targetNames = $targets->pluck('name')->toArray();
+        $extraTabungan = $allTransactions->where('type', 'tabungan')
+            ->whereNotIn('category', $targetNames)
+            ->groupBy('category')
+            ->map(function ($items, $cat) {
+                $sum = (float) $items->sum('amount');
+                return [
+                    'id' => null,
+                    'name' => $cat ?: 'Tabungan Lainnya',
+                    'category' => 'Tabungan',
+                    'current' => $sum,
+                    'target' => $sum,
+                    'status' => 'Berjalan',
+                    'percentage' => 100,
+                ];
+            })->values();
+
+        $allTabunganList = $tabunganItems->concat($extraTabungan)->sortByDesc('current')->values();
+        $totalDanaTabungan = (float) $allTabunganList->sum('current');
+        if ($totalDanaTabungan == 0 && $allTabungan > 0) {
+            $totalDanaTabungan = $allTabungan;
+        }
+
+        // Tiga Pilar Saldo Keuangan:
+        // 1. Sisa Saldo Kas Siap Pakai (yang sudah dikurangi tabungan)
+        $saldoKasBebas = $allPemasukan - $allPengeluaran - $totalDanaTabungan;
+
+        // 2. Total Dana Tabungan (Tersimpan)
+        // $totalDanaTabungan
+
+        // 3. Total Saldo Gabungan (Kas Siap Pakai + Tabungan) = All Pemasukan - All Pengeluaran
+        $totalSaldoGabungan = $saldoKasBebas + $totalDanaTabungan;
 
         // 7. Tagihan Rutin Summary (Bills) for this period
         $monthStr = sprintf('%04d-%02d', $filterYear, $filterMonth);
@@ -141,7 +188,7 @@ class ReportController extends Controller
         // 8. Financial Health Metrics & Net Worth
         $savingsRate = $totalPemasukan > 0 ? round((($totalPemasukan - $totalPengeluaran) / $totalPemasukan) * 100, 1) : 0;
         $expenseRatio = $totalPemasukan > 0 ? min(100, round(($totalPengeluaran / $totalPemasukan) * 100, 1)) : 0;
-        $totalAssets = $totalSaldoAktif + $totalTabunganTarget + $totalPiutang;
+        $totalAssets = $totalSaldoGabungan + $totalPiutang;
         $totalLiabilities = $totalHutang;
         $netWorth = $totalAssets - $totalLiabilities;
 
@@ -188,11 +235,15 @@ class ReportController extends Controller
                 ],
                 'pemasukan_by_method' => $pemasukanByMethod,
                 'pengeluaran_by_method' => $pengeluaranByMethod,
-                'saldo_aktif' => $totalSaldoAktif,
+                'saldo_aktif' => $saldoKasBebas, // Sisa Saldo Kas Siap Pakai (dikurangi tabungan)
+                'saldo_bebas' => $saldoKasBebas, // Alias eksplisit
+                'total_tabungan' => $totalDanaTabungan, // Total dana tabungan
+                'total_saldo_gabungan' => $totalSaldoGabungan, // Total saldo ditambah tabungan (Kas + Tabungan)
+                'rincian_tabungan' => $allTabunganList, // Rincian daftar isi tabungan
                 'saldo_by_method' => $saldoByMethod,
                 'hutang' => $totalHutang,
                 'piutang' => $totalPiutang,
-                'tabungan' => $totalTabunganTarget,
+                'tabungan' => $totalDanaTabungan,
             ],
             'transactions' => $transactions,
         ];
@@ -200,6 +251,23 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
+        if (Auth::user()->isFree()) {
+            return Inertia::render('LockedFeature', [
+                'feature' => 'laporan',
+                'title' => 'Menu Laporan Keuangan Terkunci',
+                'subtitle' => 'Analisis Finansial Komprehensif & Ekspor Resmi Khusus Member Pro',
+                'description' => 'Pantau kesehatan arus kas masuk-keluar, rasio belanja, struktur saldo siap pakai vs tabungan, neraca kekayaan bersih, serta ekspor dokumen resmi PDF & Excel.',
+                'benefits' => [
+                    'Laporan arus kas komprehensif (Per Bulan, Per Tahun, Semua Waktu)',
+                    'Indikator visual rasio belanja vs surplus tabungan',
+                    '3 Pilar Struktur Saldo (Kas Siap Pakai, Tabungan, Total Riil)',
+                    'Neraca Aset vs Liabilitas & Kekayaan Bersih (Net Worth)',
+                    'Download dokumen resmi format PDF berstandar akuntansi',
+                    'Ekspor data lengkap ke Spreadsheet Excel rapi & siap cetak',
+                ],
+            ]);
+        }
+
         $data = $this->getReportData($request);
 
         return Inertia::render('Laporan/Index', [
@@ -218,6 +286,10 @@ class ReportController extends Controller
 
     public function exportPdf(Request $request)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur ekspor PDF hanya tersedia untuk member Pro.');
+        }
+
         $data = $this->getReportData($request);
         
         $pdf = Pdf::loadView('reports.finance_pdf', $data);
@@ -230,6 +302,10 @@ class ReportController extends Controller
 
     public function exportExcel(Request $request)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur ekspor Excel hanya tersedia untuk member Pro.');
+        }
+
         $data = $this->getReportData($request);
         $summary = $data['summary'];
         $transactions = $data['transactions'];
@@ -303,30 +379,30 @@ class ReportController extends Controller
 
         // Box 2: Status Keuangan Keseluruhan (Col E:H)
         $sheet->mergeCells('E6:H6');
-        $sheet->setCellValue('E6', 'STATUS KEUANGAN KESELURUHAN (ALL-TIME)');
+        $sheet->setCellValue('E6', 'STRUKTUR SALDO & KEUANGAN (ALL-TIME)');
         $sheet->getStyle('E6')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF6B21A8'));
         $sheet->getStyle('E6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF3E8FF');
         $sheet->getStyle('E6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
 
-        $sheet->mergeCells('E7:G7'); $sheet->setCellValue('E7', 'Total Sisa Saldo Aktif');
-        $sheet->setCellValue('H7', $summary['saldo_aktif']);
+        $sheet->mergeCells('E7:G7'); $sheet->setCellValue('E7', 'Sisa Saldo Kas Siap Pakai (Bebas)');
+        $sheet->setCellValue('H7', $summary['saldo_bebas']);
         $sheet->getStyle('H7')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H7')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF7C3AED'));
+        $sheet->getStyle('H7')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'));
 
-        $sheet->mergeCells('E8:G8'); $sheet->setCellValue('E8', 'Total Hutang (Belum Lunas)');
-        $sheet->setCellValue('H8', $summary['hutang']);
+        $sheet->mergeCells('E8:G8'); $sheet->setCellValue('E8', 'Total Dana Tabungan Tersimpan');
+        $sheet->setCellValue('H8', $summary['total_tabungan']);
         $sheet->getStyle('H8')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H8')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE11D48'));
+        $sheet->getStyle('H8')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD97706'));
 
-        $sheet->mergeCells('E9:G9'); $sheet->setCellValue('E9', 'Total Piutang (Belum Lunas)');
-        $sheet->setCellValue('H9', $summary['piutang']);
+        $sheet->mergeCells('E9:G9'); $sheet->setCellValue('E9', 'Total Saldo Gabungan (Kas + Tabungan)');
+        $sheet->setCellValue('H9', $summary['total_saldo_gabungan']);
         $sheet->getStyle('H9')->getNumberFormat()->setFormatCode($currencyFormat);
         $sheet->getStyle('H9')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'));
 
-        $sheet->mergeCells('E10:G10'); $sheet->setCellValue('E10', 'Total Tabungan & Target');
-        $sheet->setCellValue('H10', $summary['tabungan']);
+        $sheet->mergeCells('E10:G10'); $sheet->setCellValue('E10', 'Kekayaan Bersih (Aset - Hutang)');
+        $sheet->setCellValue('H10', $summary['net_worth']);
         $sheet->getStyle('H10')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'));
+        $sheet->getStyle('H10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF7C3AED'));
 
         $sheet->getStyle('E7:E10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF334155'));
         $sheet->getStyle('E6:H10')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));

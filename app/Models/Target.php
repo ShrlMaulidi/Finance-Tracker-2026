@@ -24,4 +24,12 @@ class Target extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected function casts(): array
+    {
+        return [
+            'target_amount' => 'float',
+            'current_amount' => 'float',
+        ];
+    }
 }

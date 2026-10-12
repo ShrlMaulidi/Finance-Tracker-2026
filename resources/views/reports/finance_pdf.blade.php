@@ -372,14 +372,14 @@
             </td>
             <td style="width: 25%;">
                 <div class="sum-box sum-box-bal">
-                    <div class="sum-label">Sisa Saldo Aktif</div>
-                    <div class="sum-amount text-bal">{{ formatRupiah($summary['saldo_aktif']) }}</div>
+                    <div class="sum-label">Saldo Kas Siap Pakai</div>
+                    <div class="sum-amount text-bal">{{ formatRupiah($summary['saldo_bebas']) }}</div>
                 </div>
             </td>
         </tr>
     </table>
 
-    <!-- Secondary Breakdown: Metode & Kewajiban -->
+    <!-- Secondary Breakdown: Struktur Saldo, Kewajiban & Tabungan -->
     <table class="sub-tables">
         <tr>
             <td class="sub-table-col" style="padding-right: 5px;">
@@ -408,7 +408,7 @@
                 </table>
             </td>
             <td class="sub-table-col" style="padding-left: 5px;">
-                <div class="section-title" style="margin-top: 4px;">Kewajiban & Tabungan (All-Time)</div>
+                <div class="section-title" style="margin-top: 4px;">Struktur Saldo & Kewajiban (All-Time)</div>
                 <table class="bordered-table" style="margin-top: 4px;">
                     <thead>
                         <tr>
@@ -418,6 +418,18 @@
                     </thead>
                     <tbody>
                         <tr>
+                            <td>Saldo Kas Siap Pakai (Bebas)</td>
+                            <td class="text-right font-bold text-bal">{{ formatRupiah($summary['saldo_bebas']) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Dana Tabungan Tersimpan</td>
+                            <td class="text-right font-bold text-net">{{ formatRupiah($summary['total_tabungan']) }}</td>
+                        </tr>
+                        <tr style="background-color: #f8fafc;">
+                            <td class="font-bold">Total Saldo Gabungan (Kas + Tabungan)</td>
+                            <td class="text-right font-bold text-in">{{ formatRupiah($summary['total_saldo_gabungan']) }}</td>
+                        </tr>
+                        <tr>
                             <td>Total Hutang (Belum Lunas)</td>
                             <td class="text-right font-bold text-out">{{ formatRupiah($summary['hutang']) }}</td>
                         </tr>
@@ -425,15 +437,43 @@
                             <td>Total Piutang (Belum Lunas)</td>
                             <td class="text-right font-bold text-in">{{ formatRupiah($summary['piutang']) }}</td>
                         </tr>
-                        <tr>
-                            <td>Total Tabungan & Target</td>
-                            <td class="text-right font-bold text-net">{{ formatRupiah($summary['tabungan']) }}</td>
-                        </tr>
                     </tbody>
                 </table>
             </td>
         </tr>
     </table>
+
+    @if(!empty($summary['rincian_tabungan']) && count($summary['rincian_tabungan']) > 0)
+    <!-- Rincian Pos Tabungan & Target Impian -->
+    <div class="section-title" style="margin-top: 6px;">Rincian Pos Tabungan & Target Impian</div>
+    <table class="bordered-table" style="margin-top: 4px; margin-bottom: 6px;">
+        <thead>
+            <tr>
+                <th style="width: 5%;" class="text-center">No</th>
+                <th style="width: 35%;">Nama Pos Tabungan</th>
+                <th style="width: 20%;">Kategori</th>
+                <th style="width: 20%;" class="text-right">Terkumpul</th>
+                <th style="width: 20%;" class="text-right">Target</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($summary['rincian_tabungan'] as $idx => $item)
+                <tr>
+                    <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
+                    <td class="font-bold">{{ $item['name'] }}</td>
+                    <td>{{ $item['category'] }}</td>
+                    <td class="text-right font-bold text-in">{{ formatRupiah($item['current']) }}</td>
+                    <td class="text-right">{{ $item['target'] > 0 ? formatRupiah($item['target']) : '-' }}</td>
+                </tr>
+            @endforeach
+            <tr style="background-color: #f1f5f9; font-weight: bold;">
+                <td colspan="3" class="text-right">Total Akumulasi Seluruh Tabungan:</td>
+                <td class="text-right text-in">{{ formatRupiah($summary['total_tabungan']) }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    @endif
 
     <!-- Rincian Transaksi Table -->
     <div class="section-title">Rincian Transaksi ({{ $periodLabel }})</div>

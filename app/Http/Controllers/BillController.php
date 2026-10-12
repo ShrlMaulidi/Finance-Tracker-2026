@@ -172,8 +172,15 @@ class BillController extends Controller
             $paymentMethods = ['Tunai / Cash', 'Transfer Bank BCA', 'Transfer Bank Mandiri', 'GoPay', 'OVO', 'ShopeePay', 'DANA'];
         }
 
+        $userBillsCount = Bill::where('user_id', Auth::id())->where('is_active', true)->count();
+        $isFree = Auth::user()->isFree();
+
         return Inertia::render('Tagihan/Index', [
             'bills' => $bills,
+            'isFree' => $isFree,
+            'canAdd' => !$isFree || $userBillsCount < 2,
+            'maxLimit' => $isFree ? 2 : null,
+            'currentCount' => $userBillsCount,
             'summary' => [
                 'total_tagihan' => (float) $totalTagihan,
                 'total_dibayar' => (float) $totalDibayar,
@@ -198,6 +205,16 @@ class BillController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        if ($user->isFree()) {
+            $count = Bill::where('user_id', $user->id)->where('is_active', true)->count();
+            if ($count >= 2) {
+                return redirect()->back()->withErrors([
+                    'name' => 'Akun Gratis dibatasi maksimal 2 Tagihan Rutin. Silakan upgrade ke paket Pro untuk menambah tanpa batas.'
+                ]);
+            }
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'amount' => 'required|numeric|min:1',

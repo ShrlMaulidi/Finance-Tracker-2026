@@ -13,6 +13,22 @@ class DebtBudgetController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
+        if ($user->isFree()) {
+            return Inertia::render('LockedFeature', [
+                'feature' => 'anggaran',
+                'title' => 'Menu Anggaran Hutang Terkunci',
+                'subtitle' => 'Strategi Pelunasan Kewajiban Terencana Khusus Member Pro',
+                'description' => 'Tetapkan alokasi dana khusus setiap bulan untuk melunasi cicilan dan kewajiban hutang secara disiplin hingga tuntas.',
+                'benefits' => [
+                    'Tetapkan target anggaran pelunasan cicilan bulanan',
+                    'Monitoring sisa pokok hutang dan tempo pembayaran',
+                    'Integrasi otomatis dengan pencatatan pengeluaran',
+                    'Bebas dari beban hutang dengan perencanaan terstruktur',
+                ],
+            ]);
+        }
+
         Carbon::setLocale('id');
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
@@ -121,6 +137,10 @@ class DebtBudgetController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:0',
@@ -144,6 +164,10 @@ class DebtBudgetController extends Controller
 
     public function update(Request $request, DebtBudget $budget)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== Auth::id()) {
             abort(403);
         }
@@ -170,6 +194,10 @@ class DebtBudgetController extends Controller
 
     public function destroy(DebtBudget $budget)
     {
+        if (Auth::user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== Auth::id()) {
             abort(403);
         }

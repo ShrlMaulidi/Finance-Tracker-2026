@@ -51,31 +51,32 @@ export default function KpiCard({
         <div
             onClick={onClick}
             className={`
-                bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-xs relative overflow-hidden transition-all duration-200
+                bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-slate-100 shadow-xs relative overflow-hidden transition-all duration-200
                 ${style.hoverBorder}
                 ${onClick ? 'cursor-pointer hover:shadow-md' : ''}
                 ${className}
             `}
         >
-            <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-bold ${style.titleColor}`}>
+            <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+                <span className={`text-[10.5px] sm:text-xs font-bold truncate ${style.titleColor}`}>
                     {title}
                 </span>
                 {icon && (
                     <div
-                        className={`w-8 h-8 rounded-xl ${style.iconBox} flex items-center justify-center shrink-0`}
+                        className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl ${style.iconBox} flex items-center justify-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-4 sm:[&>svg]:h-4`}
                     >
                         {icon}
                     </div>
                 )}
             </div>
             <div
-                className={`text-lg sm:text-2xl font-black tracking-tight ${style.valueColor}`}
+                className={`text-[15px] sm:text-2xl font-black tracking-tight truncate ${style.valueColor}`}
+                title={typeof value === 'string' ? value : undefined}
             >
                 {value}
             </div>
             {subtitle && (
-                <div className="text-[11px] font-semibold text-slate-400 mt-1">
+                <div className="text-[9.5px] sm:text-[11px] font-medium text-slate-400 mt-0.5 sm:mt-1 truncate" title={subtitle}>
                     {subtitle}
                 </div>
             )}

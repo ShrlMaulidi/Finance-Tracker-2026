@@ -12,4 +12,12 @@ class DebtBudget extends Model
         'target_amount',
         'is_recurring',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'target_amount' => 'float',
+            'is_recurring' => 'boolean',
+        ];
+    }
 }

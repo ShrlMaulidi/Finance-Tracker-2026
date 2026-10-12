@@ -11,9 +11,24 @@ class BudgetController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+        if ($user->isFree()) {
+            return Inertia::render('LockedFeature', [
+                'feature' => 'anggaran',
+                'title' => 'Menu Anggaran Tabungan & Target Terkunci',
+                'subtitle' => 'Alokasikan Dana Simpanan Impian Khusus Member Pro',
+                'description' => 'Disiplin menabung dengan menetapkan alokasi anggaran khusus untuk pos tabungan impian, investasi, dan target masa depan.',
+                'benefits' => [
+                    'Tetapkan target alokasi tabungan bulanan terencana',
+                    'Otomatisasi anggaran berulang (recurring) setiap bulan',
+                    'Tracking progres pemenuhan simpanan & investasi',
+                    'Integrasi langsung dengan total kekayaan bersih',
+                ],
+            ]);
+        }
+
         Carbon::setLocale('id');
         $currentMonth = ucfirst(Carbon::now()->translatedFormat('F Y'));
-        $user = auth()->user();
 
         // Cek dan gandakan anggaran berulang (recurring) dari masa lalu ke bulan ini
         $recurringPastBudgets = Budget::where('user_id', $user->id)
@@ -97,13 +112,13 @@ class BudgetController extends Controller
                     'id' => $budget->id,
                     'type' => $budget->type,
                     'name' => $budget->name,
-                    'target' => $budget->target_amount,
-                    'current' => $budget->current_amount,
+                    'target' => (float)$budget->target_amount,
+                    'current' => (float)$budget->current_amount,
                     'color' => $color,
                     'status' => $budget->status,
-                    'is_recurring' => $budget->is_recurring,
-                    'total_target' => $targetData ? $targetData->target_amount : 0,
-                    'total_saved' => $targetData ? $targetData->current_amount : 0,
+                    'is_recurring' => (bool)$budget->is_recurring,
+                    'total_target' => (float)($targetData ? $targetData->target_amount : 0),
+                    'total_saved' => (float)($targetData ? $targetData->current_amount : 0),
                 ];
             });
 
@@ -124,8 +139,8 @@ class BudgetController extends Controller
                     'month' => $budget->month,
                     'type' => $budget->type,
                     'name' => $budget->name,
-                    'target' => $budget->target_amount,
-                    'current' => $budget->current_amount,
+                    'target' => (float)$budget->target_amount,
+                    'current' => (float)$budget->current_amount,
                     'status' => $status,
                 ];
             });
@@ -154,6 +169,10 @@ class BudgetController extends Controller
 
     public function store(Request $request)
     {
+        if (auth()->user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
@@ -191,6 +210,10 @@ class BudgetController extends Controller
 
     public function update(Request $request, Budget $budget)
     {
+        if (auth()->user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== auth()->id()) abort(403);
 
         $request->validate([
@@ -224,6 +247,10 @@ class BudgetController extends Controller
 
     public function destroy(Budget $budget)
     {
+        if (auth()->user()->isFree()) {
+            abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
+        }
+
         if ($budget->user_id !== auth()->id()) abort(403);
 
         $budget->delete();

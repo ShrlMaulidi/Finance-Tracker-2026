@@ -143,7 +143,7 @@ export default function OfferModal() {
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
                                             <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <span className="text-slate-700 font-medium"><strong>Semua fitur Paket Pro</strong> (Export PDF & Excel)</span>
+                                        <span className="text-slate-700 font-medium"><strong>Semua fitur Paket Pro</strong> (Full Akses)</span>
                                     </li>
                                     <li className="flex items-start gap-1.5 sm:gap-2">
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
@@ -161,7 +161,7 @@ export default function OfferModal() {
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
                                             <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <span className="text-slate-700 font-medium">Laporan analitik pintar & saran penghematan</span>
+                                        <span className="text-slate-700 font-medium">Catat transaksi otomatis & scan nota via WA</span>
                                     </li>
                                 </ul>
                             </div>
@@ -201,19 +201,19 @@ export default function OfferModal() {
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0 mt-0.5">
                                             <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <span className="text-slate-700 font-medium"><strong>Full akses</strong> semua fitur pencatatan</span>
+                                        <span className="text-slate-700 font-medium"><strong>Target, tagihan, kategori & metode</strong> tanpa batas</span>
                                     </li>
                                     <li className="flex items-start gap-1.5 sm:gap-2">
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0 mt-0.5">
                                             <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <span className="text-slate-700 font-medium">Export PDF & Excel Tanpa Batas</span>
+                                        <span className="text-slate-700 font-medium"><strong>Akses penuh</strong> seluruh modul anggaran</span>
                                     </li>
                                     <li className="flex items-start gap-1.5 sm:gap-2">
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0 mt-0.5">
                                             <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <span className="text-slate-700 font-medium">Pengalaman aplikasi bebas iklan</span>
+                                        <span className="text-slate-700 font-medium">Laporan keuangan & ekspor PDF / Excel lengkap</span>
                                     </li>
                                 </ul>
                             </div>

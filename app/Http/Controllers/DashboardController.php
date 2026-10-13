@@ -95,6 +95,62 @@ class DashboardController extends Controller
             }
         }
 
+        // 1. Kategori Pengeluaran (Top breakdown for Donut chart & legend)
+        $expenseQuery = (clone $query)->where('type', 'pengeluaran');
+        $expenseTransactions = $expenseQuery->select('category', 'amount')->get();
+        $totalPengeluaranFloat = (float) $totalPengeluaran;
+
+        $groupedCategories = $expenseTransactions
+            ->groupBy('category')
+            ->map(function ($items, $cat) use ($totalPengeluaranFloat) {
+                $sum = (float) $items->sum('amount');
+                return [
+                    'name' => $cat ?: 'Lainnya',
+                    'amount' => $sum,
+                    'count' => $items->count(),
+                    'percentage' => $totalPengeluaranFloat > 0 ? round(($sum / $totalPengeluaranFloat) * 100) : 0,
+                ];
+            })
+            ->sortByDesc('amount')
+            ->values();
+
+        if ($groupedCategories->count() > 4) {
+            $topCategories = $groupedCategories->take(3);
+            $others = $groupedCategories->slice(3);
+            $otherSum = (float) $others->sum('amount');
+            $otherCount = (int) $others->sum('count');
+            $otherPercentage = $totalPengeluaranFloat > 0 ? round(($otherSum / $totalPengeluaranFloat) * 100) : 0;
+
+            $categoryExpenses = $topCategories->push([
+                'name' => 'Lainnya',
+                'amount' => $otherSum,
+                'count' => $otherCount,
+                'percentage' => $otherPercentage,
+            ])->values()->all();
+        } else {
+            $categoryExpenses = $groupedCategories->all();
+        }
+
+        // 2. Riwayat Transaksi Terbaru
+        $recentTransactions = (clone $query)
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id' => $t->id,
+                    'type' => $t->type,
+                    'amount' => (float) $t->amount,
+                    'category' => $t->category ?: 'Lainnya',
+                    'payment_method' => $t->payment_method ?: 'Cash',
+                    'title' => $t->title ?: ($t->description ?: $t->category ?: 'Transaksi'),
+                    'description' => $t->description,
+                    'date' => $t->date,
+                    'date_formatted' => Carbon::parse($t->date)->translatedFormat('d F Y'),
+                ];
+            });
+
         return Inertia::render('Dashboard/Index', [
             'summary' => [
                 'pemasukan' => (float)$totalPemasukan,
@@ -106,6 +162,8 @@ class DashboardController extends Controller
             'currentFilter' => $filter,
             'selectedMonth' => (int)$monthQuery,
             'selectedYear' => (int)$yearQuery,
+            'categoryExpenses' => $categoryExpenses,
+            'recentTransactions' => $recentTransactions,
         ]);
     }
 }

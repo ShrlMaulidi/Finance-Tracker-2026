@@ -6,7 +6,7 @@ import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Componen
 
 export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], expenseCategories = [], availableCategories = [], historyData = [], historyMonths = [] }) {
     const [activeTab, setActiveTab] = useState('bulan_ini');
-    
+
     // Form untuk membuat anggaran baru (Inline Form)
     const { data, setData, post, processing, reset, errors } = useForm({
         name: '',
@@ -17,14 +17,14 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
     // State & Form khusus untuk Edit Modal
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingBudget, setEditingBudget] = useState(null);
-    const { 
-        data: editData, 
-        setData: setEditData, 
-        put: putEdit, 
-        processing: editProcessing, 
-        reset: resetEdit, 
+    const {
+        data: editData,
+        setData: setEditData,
+        put: putEdit,
+        processing: editProcessing,
+        reset: resetEdit,
         clearErrors: clearEditErrors,
-        errors: editErrors 
+        errors: editErrors
     } = useForm({
         name: '',
         target_amount: '',
@@ -79,7 +79,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
         <AuthenticatedLayout>
             <Head title="Pengeluaran Bulanan" />
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
-                
+
                 {/* Header Page & Toolbar */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
                     <div>
@@ -89,7 +89,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                         </h1>
                         <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5 sm:mt-1">Kendalikan batas pengeluaran rutin Anda setiap bulan.</p>
                     </div>
-                    
+
                     {/* Tab Navigation */}
                     <TabFilter
                         tabs={[
@@ -110,7 +110,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                             <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 lg:sticky lg:top-6">
                                 <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-800 mb-4 sm:mb-6 flex items-center gap-2.5 sm:gap-3">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#f43f5e]/10 text-[#f43f5e] flex items-center justify-center shrink-0">
-                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                     </div>
                                     <span>Buat Anggaran</span>
                                 </h2>
@@ -118,7 +118,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                 <form onSubmit={submit} className="space-y-3.5 sm:space-y-5">
                                     <div>
                                         <label className="text-xs sm:text-sm font-bold text-slate-600 block mb-1 sm:mb-1.5">Pilih Kategori</label>
-                                        <select 
+                                        <select
                                             value={data.name}
                                             onChange={e => setData('name', e.target.value)}
                                             className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] font-semibold transition-all text-xs sm:text-sm cursor-pointer"
@@ -139,11 +139,11 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                         <label className="text-xs sm:text-sm font-bold text-slate-600 block mb-1 sm:mb-1.5">Batas Anggaran</label>
                                         <div className="relative">
                                             <span className="absolute left-3.5 top-2 sm:top-2.5 text-slate-400 font-bold text-xs sm:text-sm">Rp</span>
-                                            <CurrencyInput 
+                                            <CurrencyInput
                                                 value={data.target_amount}
                                                 onValueChange={val => setData('target_amount', val)}
-                                                placeholder="1.000.000" 
-                                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] font-bold transition-all text-xs sm:text-sm" 
+                                                placeholder="1.000.000"
+                                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] font-bold transition-all text-xs sm:text-sm"
                                             />
                                         </div>
                                         {errors.target_amount && <p className="text-red-500 text-[11px] font-bold mt-1">{errors.target_amount}</p>}
@@ -162,8 +162,8 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                         </label>
                                     </div>
 
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         loading={processing}
                                         className="w-full !bg-[#f43f5e] hover:!bg-[#e11d48]"
                                     >
@@ -180,7 +180,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                     const usedAmount = item.current ?? item.used ?? 0;
                                     const percent = item.target > 0 ? Math.min((usedAmount / item.target) * 100, 100) : 0;
                                     const isOverbudget = usedAmount > item.target;
-                                    
+
                                     return (
                                         <div key={item.id} className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 hover:shadow-md transition-all relative overflow-hidden group flex flex-col justify-between">
                                             {/* Action buttons (Visible on mobile, hover-revealed on desktop) */}
@@ -192,13 +192,13 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                                     onDelete={() => handleDelete(item.id)}
                                                 />
                                             </div>
-                                            
+
                                             <div className="pr-16 mb-3 sm:mb-4">
                                                 <div className="flex items-center gap-1.5 mb-0.5">
                                                     <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate" title={item.name}>{item.name}</h3>
                                                     {item.is_recurring && (
                                                         <span className="bg-slate-100 text-slate-400 p-0.5 sm:p-1 rounded shrink-0" title="Rutin Setiap Bulan">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                                         </span>
                                                     )}
                                                 </div>
@@ -215,14 +215,14 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                                         {percent.toFixed(0)}%
                                                     </span>
                                                 </div>
-                                                <ProgressBar 
+                                                <ProgressBar
                                                     value={usedAmount}
                                                     max={item.target}
                                                     variant="auto"
                                                 />
-                                                
+
                                                 <p className="text-[11px] sm:text-xs font-semibold text-slate-500 text-right mt-1.5">
-                                                    {usedAmount > item.target 
+                                                    {usedAmount > item.target
                                                         ? `Melebihi batas sebesar ${formatRp(usedAmount - item.target)}!`
                                                         : `Sisa anggaran: ${formatRp(item.target - usedAmount)}`
                                                     }
@@ -233,7 +233,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                 }) : (
                                     <div className="col-span-1 md:col-span-2 bg-slate-50/70 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center">
                                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xs mb-3 sm:mb-4 text-slate-300">
-                                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                            <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                                         </div>
                                         <p className="text-slate-600 font-bold text-sm sm:text-base">Belum ada anggaran bulan ini.</p>
                                         <p className="text-slate-400 text-xs sm:text-sm mt-1">Buat anggaran pertama Anda untuk mengontrol pengeluaran.</p>
@@ -251,14 +251,14 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                                 <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-800 flex items-center gap-2.5">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </div>
                                     <span>Riwayat Anggaran Pengeluaran</span>
                                 </h2>
-                                
+
                                 {/* Filter Dropdown */}
                                 <div className="w-full sm:w-auto">
-                                    <select 
+                                    <select
                                         value={filterMonth}
                                         onChange={(e) => setFilterMonth(e.target.value)}
                                         className="bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl px-3.5 py-2 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] transition-colors cursor-pointer text-xs sm:text-sm w-full sm:w-auto"
@@ -270,7 +270,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
                                 <table className="w-full text-left border-collapse min-w-[560px]">
                                     <thead>
@@ -293,7 +293,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                             filteredHistory.map((row, idx) => {
                                                 const isOver = row.used > row.target;
                                                 const isPerfect = row.used === row.target;
-                                                
+
                                                 return (
                                                     <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                                                         <td className="py-3 sm:py-3.5 px-3 font-bold text-slate-700">{row.month}</td>
@@ -303,12 +303,12 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                                                         <td className="py-3 sm:py-3.5 px-3 text-center">
                                                             {isPerfect ? (
                                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                                                     Sesuai
                                                                 </span>
                                                             ) : isOver ? (
                                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-rose-50 text-rose-600 border border-rose-100">
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                                                                     Overbudget
                                                                 </span>
                                                             ) : (
@@ -341,7 +341,7 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                     <div className="space-y-3.5 sm:space-y-4">
                         <div>
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Pilih Kategori</label>
-                            <select 
+                            <select
                                 value={editData.name}
                                 onChange={e => setEditData('name', e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] text-xs sm:text-sm font-semibold cursor-pointer"
@@ -353,45 +353,45 @@ export default function PengeluaranBulanan({ currentMonth, currentBudgets = [], 
                             </select>
                             {editErrors.name && <p className="text-red-500 text-[11px] font-bold mt-1">{editErrors.name}</p>}
                         </div>
-                        
+
                         <div>
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Anggaran (Rp)</label>
                             <div className="relative">
                                 <span className="absolute left-3.5 top-2 sm:top-2.5 text-slate-400 font-bold text-xs sm:text-sm">Rp</span>
-                                <CurrencyInput 
+                                <CurrencyInput
                                     value={editData.target_amount}
                                     onValueChange={val => setEditData('target_amount', val)}
                                     placeholder="1.000.000"
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] font-bold text-xs sm:text-sm transition-colors" 
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#f43f5e] focus:ring-1 focus:ring-[#f43f5e] font-bold text-xs sm:text-sm transition-colors"
                                 />
                             </div>
                             {editErrors.target_amount && <p className="text-red-500 text-[11px] font-bold mt-1">{editErrors.target_amount}</p>}
                         </div>
 
                         <div className="flex items-center p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 id="edit_is_recurring_expense"
                                 checked={editData.is_recurring}
                                 onChange={e => setEditData('is_recurring', e.target.checked)}
-                                className="w-4 h-4 text-[#f43f5e] bg-white border-slate-300 rounded focus:ring-[#f43f5e] cursor-pointer" 
+                                className="w-4 h-4 text-[#f43f5e] bg-white border-slate-300 rounded focus:ring-[#f43f5e] cursor-pointer"
                             />
                             <label htmlFor="edit_is_recurring_expense" className="ml-2.5 text-[11px] sm:text-xs font-bold text-slate-600 cursor-pointer select-none">
                                 Anggarkan Setiap Bulan
                             </label>
                         </div>
                     </div>
-                    
+
                     <div className="pt-4 sm:pt-6 flex gap-2.5 sm:gap-3">
-                        <Button 
+                        <Button
                             variant="secondary"
                             onClick={() => { setIsEditModalOpen(false); setEditingBudget(null); resetEdit(); }}
                             className="flex-1 !py-2.5 sm:!py-3"
                         >
                             Batal
                         </Button>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             loading={editProcessing}
                             className="flex-1 !bg-[#f43f5e] hover:!bg-[#e11d48] !py-2.5 sm:!py-3"
                         >

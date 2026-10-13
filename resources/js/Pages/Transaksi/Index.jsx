@@ -151,7 +151,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     return (
         <AuthenticatedLayout>
-            <Head title="Pengeluaran & Pemasukan" />
+            <Head title="Transaksi" />
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
                 
                 {/* Pop-up Notification (Toast Banner Pop-up) */}
@@ -190,7 +190,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     <div>
                         <p className="text-[11px] sm:text-xs font-bold text-[#009bd2] uppercase tracking-wider mb-0.5 sm:mb-1">Pencatatan Keuangan</p>
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-                            Pengeluaran & Pemasukan
+                            Transaksi
                         </h1>
                     </div>
                 </div>

@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/tabungan/target', [\App\Http\Controllers\TargetController::class, 'store'])->name('tabungan.target.store');
     Route::post('/tabungan/target/{target}', [\App\Http\Controllers\TargetController::class, 'update'])->name('tabungan.target.update');
     Route::delete('/tabungan/target/{target}', [\App\Http\Controllers\TargetController::class, 'destroy'])->name('tabungan.target.destroy');
+    Route::get('/anggaran/ringkasan', [\App\Http\Controllers\BudgetSummaryController::class, 'index'])->name('anggaran.ringkasan');
     Route::get('/anggaran/investasi', [\App\Http\Controllers\BudgetController::class, 'index'])->name('anggaran.investasi');
     Route::post('/anggaran/investasi', [\App\Http\Controllers\BudgetController::class, 'store'])->name('anggaran.investasi.store');
     Route::put('/anggaran/investasi/{budget}', [\App\Http\Controllers\BudgetController::class, 'update'])->name('anggaran.investasi.update');

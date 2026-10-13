@@ -47,7 +47,7 @@ export default function Hutang({ debts }) {
 
     const submit = (e) => {
         e.preventDefault();
-        
+
         if (editingDebt) {
             put(route('hutang-piutang.update', editingDebt.id), {
                 preserveScroll: true,
@@ -79,14 +79,14 @@ export default function Hutang({ debts }) {
     const activeDebts = debts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
     const activeReceivables = debts.filter(d => d.type === 'piutang' && d.status !== 'lunas');
     const historyDebts = debts.filter(d => d.status === 'lunas');
-    
+
     const displayData = activeTab === 'hutang' ? activeDebts : activeTab === 'piutang' ? activeReceivables : historyDebts;
 
     return (
         <AuthenticatedLayout>
             <Head title="Hutang & Piutang" />
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
-                
+
                 {/* Header Page & Toolbar */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
                     <div>
@@ -96,7 +96,7 @@ export default function Hutang({ debts }) {
                         </h1>
                         <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5 sm:mt-1">Pantau kewajiban pinjaman dan hak piutang Anda secara teratur.</p>
                     </div>
-                    
+
                     {/* Tab Navigation & Add Action */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
                         <TabFilter
@@ -108,9 +108,9 @@ export default function Hutang({ debts }) {
                             activeTab={activeTab}
                             onChange={setActiveTab}
                         />
-                        <Button 
+                        <Button
                             onClick={openAddModal}
-                            icon={<svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>}
+                            icon={<svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>}
                         >
                             Tambah Data
                         </Button>
@@ -124,10 +124,10 @@ export default function Hutang({ debts }) {
                             {displayData.map(item => {
                                 const paidAmount = Math.max(0, item.amount - item.remaining_amount);
                                 const percent = Math.min(100, Math.round((paidAmount / item.amount) * 100));
-                                
+
                                 return (
                                     <div key={item.id} className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden">
-                                        
+
                                         <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col justify-between">
                                             <div>
                                                 <div className="flex justify-between items-start gap-2.5 mb-3 sm:mb-5">
@@ -151,13 +151,13 @@ export default function Hutang({ debts }) {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     {/* Action Dropdown */}
                                                     <div className="shrink-0 -mr-1">
                                                         <Dropdown>
                                                             <Dropdown.Trigger>
                                                                 <button className="w-8 h-8 sm:w-9 sm:h-9 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
-                                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
                                                                 </button>
                                                             </Dropdown.Trigger>
                                                             <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
@@ -187,8 +187,8 @@ export default function Hutang({ debts }) {
                                                         <span className="text-base sm:text-xl font-black text-slate-800">{percent}%</span>
                                                     </div>
                                                 </div>
-                                                
-                                                <ProgressBar 
+
+                                                <ProgressBar
                                                     value={paidAmount}
                                                     max={item.amount}
                                                     variant={item.type === 'hutang' ? 'rose' : 'emerald'}
@@ -225,14 +225,14 @@ export default function Hutang({ debts }) {
                 subtitle="Lengkapi formulir di bawah ini untuk menyimpan data."
                 footer={
                     <>
-                        <Button 
+                        <Button
                             variant="secondary"
                             onClick={() => { setIsModalOpen(false); setEditingDebt(null); reset(); }}
                             className="flex-1 !py-2.5 sm:!py-3"
                         >
                             Batal
                         </Button>
-                        <Button 
+                        <Button
                             type="submit"
                             form="debtForm"
                             loading={processing}
@@ -245,14 +245,14 @@ export default function Hutang({ debts }) {
             >
                 <form id="debtForm" onSubmit={submit} className="space-y-3.5 sm:space-y-4">
                     <div className="flex bg-slate-100/90 p-1 rounded-xl gap-1">
-                        <button 
+                        <button
                             type="button"
                             onClick={() => setData('type', 'hutang')}
                             className={`flex-1 py-2 sm:py-2.5 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${data.type === 'hutang' ? 'bg-white text-rose-500 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Hutang (Saya Pinjam)
                         </button>
-                        <button 
+                        <button
                             type="button"
                             onClick={() => setData('type', 'piutang')}
                             className={`flex-1 py-2 sm:py-2.5 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${data.type === 'piutang' ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
@@ -263,12 +263,12 @@ export default function Hutang({ debts }) {
 
                     <div>
                         <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Nama Orang / Instansi</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={data.name}
                             onChange={e => setData('name', e.target.value)}
                             placeholder="Contoh: Budi, Bank BCA"
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-semibold transition-colors" 
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-semibold transition-colors"
                         />
                         {errors.name && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.name}</p>}
                     </div>
@@ -278,11 +278,11 @@ export default function Hutang({ debts }) {
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Total Nominal</label>
                             <div className="relative">
                                 <span className="absolute left-3.5 top-2 sm:top-2.5 text-slate-400 font-bold text-xs sm:text-sm">Rp</span>
-                                <CurrencyInput 
+                                <CurrencyInput
                                     value={data.amount}
                                     onValueChange={val => setData('amount', val)}
                                     placeholder="1.000.000"
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-bold transition-colors" 
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-bold transition-colors"
                                 />
                             </div>
                             {errors.amount && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.amount}</p>}
@@ -291,11 +291,11 @@ export default function Hutang({ debts }) {
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Sisa Belum Dibayar</label>
                             <div className="relative">
                                 <span className="absolute left-3.5 top-2 sm:top-2.5 text-slate-400 font-bold text-xs sm:text-sm">Rp</span>
-                                <CurrencyInput 
+                                <CurrencyInput
                                     value={data.remaining_amount}
                                     onValueChange={val => setData('remaining_amount', val)}
                                     placeholder="1.000.000"
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-bold transition-colors" 
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-bold transition-colors"
                                 />
                             </div>
                             {errors.remaining_amount && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.remaining_amount}</p>}
@@ -305,17 +305,17 @@ export default function Hutang({ debts }) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Jatuh Tempo (Opsional)</label>
-                            <input 
-                                type="date" 
+                            <input
+                                type="date"
                                 value={data.due_date}
                                 onChange={e => setData('due_date', e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] transition-colors" 
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] transition-colors"
                             />
                             {errors.due_date && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.due_date}</p>}
                         </div>
                         <div>
                             <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Status</label>
-                            <select 
+                            <select
                                 value={data.status}
                                 onChange={e => setData('status', e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] font-semibold transition-colors cursor-pointer"
@@ -328,12 +328,12 @@ export default function Hutang({ debts }) {
 
                     <div>
                         <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Keterangan (Opsional)</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={data.description}
                             onChange={e => setData('description', e.target.value)}
                             placeholder="Misal: Pinjaman modal usaha"
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] transition-colors" 
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] transition-colors"
                         />
                         {errors.description && <p className="text-red-500 text-[11px] mt-1 font-semibold">{errors.description}</p>}
                     </div>

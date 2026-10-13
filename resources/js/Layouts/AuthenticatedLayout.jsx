@@ -235,10 +235,14 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
             </button>
             {/* Submenu Items */}
-            <div className={`overflow-hidden transition-all duration-300 ${sidebarOpen && openMenus[menuKey] ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className={`overflow-hidden transition-all duration-300 ${sidebarOpen && openMenus[menuKey] ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
+                            <Link href={route('anggaran.ringkasan')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                                <span className="truncate">Ringkasan Anggaran</span>
+                                {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
+                            </Link>
                             <Link href={route('anggaran.investasi')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
@@ -299,8 +303,8 @@ export default function AuthenticatedLayout({ children }) {
                         <MenuItem icon={Icons.Hutang} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
                         <MenuItem icon={Icons.Tagihan} text="Tagihan Rutin" active={route().current('tagihan.*')} routeName="tagihan.index" />
                         <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} isProLocked={isBudgetLocked} />
-                        <MenuItem icon={Icons.Pengeluaran} text="Pengeluaran & Pemasukan" active={route().current('transaksi.index')} routeName="transaksi.index" />
-                        <MenuItem icon={Icons.Transaksi} text="Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
+                        <MenuItem icon={Icons.Pengeluaran} text="Transaksi" active={route().current('transaksi.index')} routeName="transaksi.index" />
+                        <MenuItem icon={Icons.Transaksi} text="Riwayat Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
                     </div>
 
                     <SectionLabel text="Laporan" />

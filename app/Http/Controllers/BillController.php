@@ -36,6 +36,9 @@ class BillController extends Controller
         $today = Carbon::today();
         $isCurrentMonth = $selectedDate->isSameMonth($today);
 
+        // Auto-reconcile bills with transactions for the selected month
+        $this->autoReconcileBillsForMonth(Auth::id(), $monthQuery);
+
         // Fetch bills for current user
         $rawBills = Bill::where('user_id', Auth::id())
             ->where('is_active', true)
@@ -253,6 +256,8 @@ class BillController extends Controller
             'is_active' => true,
         ]);
 
+        $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
+
         return back()->with('success', "Tagihan '{$validated['name']}' berhasil ditambahkan dan otomatis terdaftar di kategori pengeluaran!");
     }
 
@@ -293,6 +298,8 @@ class BillController extends Controller
             'account_number' => $validated['account_number'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ]);
+
+        $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
 
         return back()->with('success', "Tagihan '{$bill->name}' berhasil diperbarui!");
     }
@@ -377,5 +384,67 @@ class BillController extends Controller
         });
 
         return back()->with('success', "Pembayaran tagihan '{$bill->name}' sebesar Rp " . number_format($validated['amount'], 0, ',', '.') . " berhasil dicatat ke Pengeluaran!");
+    }
+
+    /**
+     * Automatically reconcile active bills with existing expense transactions for the given month.
+     */
+    private function autoReconcileBillsForMonth(int $userId, string $monthQuery): void
+    {
+        $activeBills = Bill::where('user_id', $userId)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($activeBills as $bill) {
+            $billCat = strtolower(trim($bill->category_name ?? ''));
+            $billName = strtolower(trim($bill->name ?? ''));
+
+            $matchingTransactions = Transaction::where('user_id', $userId)
+                ->where('type', 'pengeluaran')
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$monthQuery])
+                ->where(function ($q) use ($billCat, $billName) {
+                    if ($billCat !== '') {
+                        $q->whereRaw('LOWER(TRIM(category)) = ?', [$billCat]);
+                    }
+                    if ($billName !== '' && $billName !== $billCat) {
+                        $q->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
+                    }
+                })
+                ->orderBy('date', 'desc')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            if ($matchingTransactions->isNotEmpty()) {
+                $totalPaid = (float) $matchingTransactions->sum('amount');
+                $latestTx = $matchingTransactions->first();
+
+                BillPayment::updateOrCreate(
+                    [
+                        'bill_id' => $bill->id,
+                        'month' => $monthQuery,
+                    ],
+                    [
+                        'user_id' => $userId,
+                        'transaction_id' => $latestTx->id,
+                        'amount' => $totalPaid,
+                        'paid_at' => $latestTx->date,
+                        'payment_method' => $latestTx->payment_method ?? 'Cash',
+                        'notes' => $latestTx->description ?: "Dibayar via transaksi Pengeluaran: {$latestTx->title}",
+                    ]
+                );
+            } else {
+                $existingPayment = BillPayment::where('bill_id', $bill->id)
+                    ->where('month', $monthQuery)
+                    ->first();
+
+                if ($existingPayment) {
+                    if ($existingPayment->transaction_id && !Transaction::where('id', $existingPayment->transaction_id)->exists()) {
+                        $existingPayment->delete();
+                    } elseif ($existingPayment->notes && str_contains($existingPayment->notes, 'transaksi Pengeluaran')) {
+                        $existingPayment->delete();
+                    }
+                }
+            }
+        }
     }
 }

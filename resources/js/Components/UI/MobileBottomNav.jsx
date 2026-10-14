@@ -73,7 +73,7 @@ export default function MobileBottomNav({
                         <Link
                             key={item.key}
                             href={route(item.routeName)}
-                            prefetch={['hover', 'mousedown']}
+                            prefetch={['mount', 'hover', 'mousedown']}
                             cacheFor="5m"
                             onClick={() => {
                                 if (isMenuOpen && handleMenuToggle) {

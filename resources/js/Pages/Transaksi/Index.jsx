@@ -299,21 +299,21 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         <button 
                                             type="button"
                                             onClick={() => { setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : ''})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pemasukan
                                         </button>
                                         <button 
                                             type="button"
                                             onClick={() => { setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : ''})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pengeluaran
                                         </button>
                                         <button 
                                             type="button"
                                             onClick={() => { setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Tabungan
                                         </button>
@@ -326,7 +326,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <select 
                                         value={data.category}
                                         onChange={e => setData('category', e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
                                     >
                                         <option value="" disabled>Pilih Kategori</option>
                                         {(data.type === 'pengeluaran' ? pengeluaranCategories : data.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
@@ -341,7 +341,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <select 
                                         value={data.payment_method}
                                         onChange={e => setData('payment_method', e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
                                     >
                                         <option value="" disabled>Pilih Metode Pembayaran</option>
                                         {paymentMethods && paymentMethods.length > 0 ? paymentMethods.map(method => (
@@ -361,7 +361,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             value={data.amount}
                                             onValueChange={val => setData('amount', val)}
                                             placeholder="50000" 
-                                            className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-black text-sm sm:text-base transition-all" 
+                                            className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-black text-sm sm:text-base transition-all" 
                                         />
                                     </div>
                                     {errors.amount && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.amount}</p>}
@@ -374,7 +374,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         value={data.title}
                                         onChange={e => setData('title', e.target.value)}
                                         placeholder={data.type === 'pengeluaran' ? 'Makan siang...' : 'Gaji bulanan...'}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
+                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
                                     />
                                     {errors.title && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.title}</p>}
                                 </div>
@@ -385,7 +385,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         type="date" 
                                         value={data.date}
                                         onChange={e => setData('date', e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
+                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
                                     />
                                     {errors.date && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.date}</p>}
                                 </div>
@@ -393,7 +393,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <button 
                                     type="submit"
                                     disabled={processing}
-                                    className={`w-full ${data.type === 'pengeluaran' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25' : data.type === 'pemasukan' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25' : ''} text-white py-3 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base transition-all shadow-md active:scale-[0.99] mt-2 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    className={`w-full ${data.type === 'pengeluaran' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25' : data.type === 'pemasukan' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25' : ''} text-white py-3 sm:py-3.5 min-h-[46px] sm:min-h-[50px] rounded-xl sm:rounded-2xl font-black text-sm sm:text-base transition-all shadow-md active:scale-[0.99] mt-2 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
                                     style={data.type === 'tabungan' ? { backgroundColor: '#009bd2', boxShadow: '0 8px 16px -3px rgba(0, 155, 210, 0.25)' } : {}}
                                 >
                                     {processing ? 'Menyimpan...' : 'Simpan Transaksi'}
@@ -423,7 +423,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <button
                                     type="button"
                                     onClick={() => setMobileTab('catat')}
-                                    className="sm:hidden px-3 py-1.5 rounded-xl bg-[#009bd2] hover:bg-[#0086b6] text-white font-bold text-xs flex items-center gap-1.5 active:scale-95 shadow-xs shrink-0 transition"
+                                    className="sm:hidden px-3 py-1.5 min-h-[36px] rounded-xl bg-[#009bd2] hover:bg-[#0086b6] text-white font-bold text-xs flex items-center gap-1.5 active:scale-95 shadow-xs shrink-0 transition"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/>

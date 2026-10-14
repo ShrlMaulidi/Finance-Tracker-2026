@@ -54,8 +54,9 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
-        $request->session()->flash('show_subscription_offer', true);
+        $request->session()->flash('just_registered', true);
         $request->session()->flash('just_logged_in', true);
+        $request->session()->flash('show_subscription_offer', true);
 
         return redirect(route('dashboard', absolute: false));
     }

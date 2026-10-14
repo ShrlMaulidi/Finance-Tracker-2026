@@ -190,7 +190,7 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
                                         : { text: 'text-emerald-500', bg: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-600' };
                                         
                                     return (
-                                        <div key={item.id} className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 hover:shadow-md transition-all relative overflow-hidden group flex flex-col justify-between">
+                                        <div key={item.id} className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 hover:shadow-md transition-all relative group flex flex-col justify-between">
                                             {/* Action buttons (Visible on mobile, hover-revealed on desktop) */}
                                             <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                 <ActionButtons

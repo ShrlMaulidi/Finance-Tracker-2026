@@ -29,13 +29,17 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $isFreeUser = $user ? $user->isFree() : true;
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
             'flash' => [
-                'show_subscription_offer' => $request->session()->get('show_subscription_offer', false),
+                'just_registered' => (bool) $request->session()->get('just_registered', false),
+                'show_subscription_offer' => $isFreeUser && (bool) $request->session()->get('show_subscription_offer', false),
                 'just_logged_in' => $request->session()->get('just_logged_in', false),
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

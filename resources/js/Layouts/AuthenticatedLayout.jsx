@@ -5,6 +5,7 @@ import OfferModal from '@/Components/OfferModal';
 import UserAvatar from '@/Components/UserAvatar';
 import MobileBottomNav from '@/Components/UI/MobileBottomNav';
 import PwaInstallBanner from '@/Components/UI/PwaInstallBanner';
+import OnboardingTour from '@/Components/UI/OnboardingTour';
 
 const Icons = {
     Dashboard: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
@@ -28,6 +29,14 @@ const Icons = {
 
 export default function AuthenticatedLayout({ children }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
+
+    const isSubscribed = Boolean(
+        user?.is_pro || 
+        user?.is_pro_plus || 
+        user?.role === 'superadmin' || 
+        user?.active_tier === 'pro' || 
+        user?.active_tier === 'pro_plus'
+    );
 
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -468,6 +477,16 @@ export default function AuthenticatedLayout({ children }) {
                                 )}
                                 <Dropdown.Link href={route('profile.edit')}>Pengaturan</Dropdown.Link>
 
+                                {/* Trigger Tour Panduan Aplikasi */}
+                                <button
+                                    type="button"
+                                    onClick={() => window.dispatchEvent(new CustomEvent('start-onboarding-tour'))}
+                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-between transition-colors border-t border-slate-100 cursor-pointer"
+                                >
+                                    <span>Panduan Aplikasi</span>
+                                    <span className="text-[10px] font-bold text-[#009bd2] bg-sky-50 px-2 py-0.5 rounded-md">Tour</span>
+                                </button>
+
                                 {/* Switcher in Dropdown */}
                                 <button
                                     type="button"
@@ -495,8 +514,9 @@ export default function AuthenticatedLayout({ children }) {
                 )}
 
                 {/* DYNAMIC PAGE CONTENT */}
-                <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${mobileNavMode === 'bottom' ? 'pb-20 md:pb-0' : 'pb-0'}`}>
-                    <OfferModal />
+                <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${mobileNavMode === 'bottom' ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0' : 'pb-8 md:pb-0'}`}>
+                    <OnboardingTour mobileNavMode={mobileNavMode} />
+                    {!isSubscribed && <OfferModal />}
                     <PwaInstallBanner />
                     {children}
                 </main>

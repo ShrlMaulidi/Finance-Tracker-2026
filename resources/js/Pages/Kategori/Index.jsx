@@ -82,8 +82,8 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                     {/* Tab Navigation (Segmented Control on mobile) */}
                     <TabFilter
                         tabs={[
-                            { key: 'pengeluaran', label: 'Kategori Pengeluaran', count: pengeluaranCategories.length, activeColor: 'text-rose-600' },
-                            { key: 'pemasukan', label: 'Kategori Pemasukan', count: pemasukanCategories.length, activeColor: 'text-emerald-600' },
+                            { key: 'pengeluaran', label: 'Kategori Pengeluaran', mobileLabel: 'Pengeluaran', count: pengeluaranCategories.length, activeColor: 'text-rose-600' },
+                            { key: 'pemasukan', label: 'Kategori Pemasukan', mobileLabel: 'Pemasukan', count: pemasukanCategories.length, activeColor: 'text-emerald-600' },
                         ]}
                         activeTab={activeTab}
                         onChange={(key) => { setActiveTab(key); setData('type', key); clearErrors(); }}
@@ -101,7 +101,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11.5px] sm:text-xs font-black text-amber-950 truncate">
-                                        Kuota Gratis: {currentCount}/3 Kategori
+                                        Kuota Gratis: {maxLimit ? `${currentCount}/${maxLimit}` : currentCount} Kategori
                                     </span>
                                     <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${!canAdd ? 'bg-amber-200/90 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>
                                         {!canAdd ? 'Penuh' : 'Tersedia'}
@@ -110,7 +110,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                                 <p className="text-[10px] sm:text-[11.5px] text-amber-800/80 font-medium truncate mt-0.5">
                                     {!canAdd 
                                         ? 'Batas tercapai. Upgrade ke PRO untuk menambah kategori tanpa batas.' 
-                                        : 'Akun Gratis dibatasi maksimal 3 kategori kustom.'}
+                                        : `Akun Gratis dibatasi maksimal ${maxLimit ?? 15} kategori.`}
                                 </p>
                             </div>
                         </div>
@@ -144,7 +144,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                                             setData('type', e.target.value);
                                             setActiveTab(e.target.value);
                                         }}
-                                        className={`w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer ${activeTab === 'pengeluaran' ? 'focus:border-rose-500' : 'focus:border-emerald-500'}`}
+                                        className={`w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer ${activeTab === 'pengeluaran' ? 'focus:border-rose-500' : 'focus:border-emerald-500'}`}
                                     >
                                         <option value="pengeluaran">Pengeluaran</option>
                                         <option value="pemasukan">Pemasukan</option>
@@ -159,7 +159,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                                         value={data.name}
                                         onChange={e => setData('name', e.target.value)}
                                         placeholder={activeTab === 'pengeluaran' ? 'Makan & Minum...' : 'Gaji Bulanan...'} 
-                                        className={`w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:bg-white font-extrabold transition-all text-xs sm:text-sm ${activeTab === 'pengeluaran' ? 'focus:border-rose-500' : 'focus:border-emerald-500'}`} 
+                                        className={`w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:bg-white font-extrabold transition-all text-xs sm:text-sm ${activeTab === 'pengeluaran' ? 'focus:border-rose-500' : 'focus:border-emerald-500'}`} 
                                     />
                                     {errors.name && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.name}</p>}
                                 </div>
@@ -169,7 +169,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                                     onClick={isFree && !canAdd ? () => router.visit(route('berlangganan.index')) : undefined}
                                     loading={processing}
                                     size="lg"
-                                    className={`w-full !rounded-xl sm:!rounded-2xl mt-2 ${
+                                    className={`w-full !rounded-xl sm:!rounded-2xl mt-2 min-h-[46px] ${
                                         isFree && !canAdd 
                                             ? '!bg-amber-500 hover:!bg-amber-600 shadow-amber-500/25 !text-white' 
                                             : activeTab === 'pengeluaran' ? '!bg-rose-500 hover:!bg-rose-600 shadow-rose-500/25' : '!bg-emerald-500 hover:!bg-emerald-600 shadow-emerald-500/25'

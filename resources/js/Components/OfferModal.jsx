@@ -2,7 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { usePage, Link } from '@inertiajs/react';
 
 export default function OfferModal() {
-    const { flash, pricing } = usePage().props;
+    const { auth, flash, pricing } = usePage().props;
+    const user = auth?.user;
+
+    // Cek apakah user sudah berlangganan (Pro, Pro Plus, atau Super Admin)
+    const isSubscribed = Boolean(
+        user?.is_pro || 
+        user?.is_pro_plus || 
+        user?.role === 'superadmin' || 
+        user?.active_tier === 'pro' || 
+        user?.active_tier === 'pro_plus'
+    );
+
     const [isOpen, setIsOpen] = useState(false);
     const [mobilePlan, setMobilePlan] = useState('pro_plus'); // 'pro_plus' | 'pro'
 
@@ -18,43 +29,94 @@ export default function OfferModal() {
         }).format(number || 0);
     };
 
+    const handleCloseModal = () => {
+        setIsOpen(false);
+        if (typeof window !== 'undefined') {
+            window.__offerModalOpen = false;
+            window.__offerModalPending = false;
+            window.dispatchEvent(new CustomEvent('subscription-offer-closed'));
+        }
+    };
+
+    // Close on Escape key
     useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                handleCloseModal();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen]);
+
+    useEffect(() => {
+        // Jangan tampilkan modal jika akun sudah berlangganan Pro atau Pro Plus
+        if (isSubscribed) {
+            setIsOpen(false);
+            if (typeof window !== 'undefined') {
+                window.__offerModalOpen = false;
+                window.__offerModalPending = false;
+            }
+            return;
+        }
+
         const justLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('justLoggedIn') === 'true';
         const flashOffer = Boolean(flash?.show_subscription_offer);
 
         // Jika user baru login / register, selalu tampilkan modal penawaran
         if (flashOffer || justLoggedIn) {
             if (typeof window !== 'undefined') {
+                window.__offerModalPending = true;
                 sessionStorage.removeItem('justLoggedIn');
                 sessionStorage.setItem('hasSeenOffer', 'true');
             }
             const timer = setTimeout(() => {
+                if (typeof window !== 'undefined') {
+                    window.__offerModalOpen = true;
+                    window.__offerModalPending = false;
+                }
                 setIsOpen(true);
-            }, 600);
-            return () => clearTimeout(timer);
+            }, 350);
+            return () => {
+                clearTimeout(timer);
+                if (typeof window !== 'undefined') {
+                    window.__offerModalPending = false;
+                }
+            };
         }
 
         // Jika belum pernah melihat penawaran sama sekali di sesi browser ini
         if (typeof window !== 'undefined') {
             const hasSeenOffer = sessionStorage.getItem('hasSeenOffer');
             if (!hasSeenOffer) {
+                window.__offerModalPending = true;
                 const timer = setTimeout(() => {
+                    if (typeof window !== 'undefined') {
+                        window.__offerModalOpen = true;
+                        window.__offerModalPending = false;
+                    }
                     setIsOpen(true);
                     sessionStorage.setItem('hasSeenOffer', 'true');
-                }, 1000);
-                return () => clearTimeout(timer);
+                }, 800);
+                return () => {
+                    clearTimeout(timer);
+                    if (typeof window !== 'undefined') {
+                        window.__offerModalPending = false;
+                    }
+                };
             }
         }
-    }, [flash]);
+    }, [flash, isSubscribed]);
 
-    if (!isOpen) return null;
+    if (isSubscribed || !isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden">
             {/* Backdrop */}
             <div 
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-                onClick={() => setIsOpen(false)}
+                onClick={handleCloseModal}
             ></div>
             
             {/* Modal Dialog */}
@@ -62,7 +124,7 @@ export default function OfferModal() {
                 
                 {/* Close Button */}
                 <button 
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleCloseModal}
                     aria-label="Tutup penawaran"
                     className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 w-7 h-7 sm:w-9 sm:h-9 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full flex items-center justify-center transition-colors z-20 shadow-xs"
                 >
@@ -168,7 +230,7 @@ export default function OfferModal() {
                             
                             <Link 
                                 href={route('berlangganan.index')}
-                                onClick={() => setIsOpen(false)}
+                                onClick={handleCloseModal}
                                 className="w-full py-2.5 sm:py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.99] text-white font-extrabold text-xs sm:text-sm transition-all text-center block shadow-md shadow-indigo-600/25"
                             >
                                 Pilih Pro Plus &rarr;
@@ -220,7 +282,7 @@ export default function OfferModal() {
                             
                             <Link 
                                 href={route('berlangganan.index')}
-                                onClick={() => setIsOpen(false)}
+                                onClick={handleCloseModal}
                                 className="w-full py-2.5 sm:py-3.5 rounded-xl bg-slate-900 hover:bg-[#009bd2] active:scale-[0.99] text-white font-extrabold text-xs sm:text-sm transition-colors text-center block shadow-xs"
                             >
                                 Pilih Paket Pro
@@ -233,7 +295,7 @@ export default function OfferModal() {
                     <div className="text-center mt-2.5 sm:mt-5 pb-0.5">
                         <button 
                             type="button"
-                            onClick={() => setIsOpen(false)}
+                            onClick={handleCloseModal}
                             className="text-[10.5px] sm:text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-1 px-3"
                         >
                             Lanjutkan dengan versi Gratis &rarr;

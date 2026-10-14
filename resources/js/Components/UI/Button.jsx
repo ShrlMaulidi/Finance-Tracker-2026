@@ -22,9 +22,9 @@ export default function Button({
 }) {
     // Size tokens
     const sizeClasses = {
-        sm: 'px-3 py-1.5 text-xs rounded-xl font-bold gap-1.5',
-        md: 'px-4 sm:px-5 py-2.5 text-xs sm:text-sm rounded-xl font-bold gap-2',
-        lg: 'px-5 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base rounded-xl sm:rounded-2xl font-black gap-2.5',
+        sm: 'px-3 py-1.5 text-xs rounded-xl font-bold gap-1.5 min-h-[36px]',
+        md: 'px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm rounded-xl font-bold gap-2 min-h-[42px]',
+        lg: 'px-4 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-base rounded-xl sm:rounded-2xl font-black gap-2 sm:gap-2.5 min-h-[46px] sm:min-h-[48px]',
     };
 
     // Variant tokens matching existing palette exactly

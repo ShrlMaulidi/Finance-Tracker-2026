@@ -10,7 +10,14 @@ class PaymentMethodController extends Controller
 {
     public function index()
     {
-        $methods = PaymentMethod::where('user_id', auth()->id())
+        $user = auth()->user();
+
+        // Auto-seed defaults if user does not have payment methods yet
+        if (PaymentMethod::where('user_id', $user->id)->count() === 0) {
+            $user->seedDefaultCategoriesAndPaymentMethods();
+        }
+
+        $methods = PaymentMethod::where('user_id', $user->id)
             ->orderBy('name')
             ->get()
             ->map(function ($method) {
@@ -20,7 +27,6 @@ class PaymentMethodController extends Controller
                 ];
             });
 
-        $user = auth()->user();
         $userMethodsCount = PaymentMethod::where('user_id', $user->id)->count();
         $methodLimit = $user->getLimit('payment_method');
         $isUnlimited = $methodLimit < 0;

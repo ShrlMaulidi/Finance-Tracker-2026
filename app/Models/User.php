@@ -37,6 +37,83 @@ class User extends Authenticatable
     protected $appends = ['is_pro', 'is_pro_plus', 'permissions', 'tier_limits', 'active_tier'];
 
     /**
+     * Default categories definition for new users.
+     */
+    public static function defaultCategories(): array
+    {
+        return [
+            'pemasukan' => [
+                'Gaji',
+                'Bonus',
+                'Freelance',
+                'Pemberian',
+                'Lainnya',
+            ],
+            'pengeluaran' => [
+                'Makan & Minum',
+                'Transportasi',
+                'Hiburan',
+                'Lainnya',
+            ],
+        ];
+    }
+
+    /**
+     * Default payment methods definition for new users.
+     */
+    public static function defaultPaymentMethods(): array
+    {
+        return [
+            'Cash',
+            'E-Banking',
+            'E-Wallet',
+        ];
+    }
+
+    /**
+     * Seed default categories and payment methods for this user.
+     */
+    public function seedDefaultCategoriesAndPaymentMethods(): void
+    {
+        foreach (self::defaultCategories() as $type => $categories) {
+            foreach ($categories as $name) {
+                Category::firstOrCreate([
+                    'user_id' => $this->id,
+                    'type' => $type,
+                    'name' => $name,
+                ]);
+            }
+        }
+
+        foreach (self::defaultPaymentMethods() as $methodName) {
+            PaymentMethod::firstOrCreate([
+                'user_id' => $this->id,
+                'name' => $methodName,
+            ]);
+        }
+    }
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            $user->seedDefaultCategoriesAndPaymentMethods();
+        });
+    }
+
+    public function categories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
+    public function paymentMethods(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    /**
      * Check if user is Super Admin.
      */
     public function isSuperAdmin(): bool

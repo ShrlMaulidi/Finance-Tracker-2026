@@ -1,12 +1,6 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 
-/**
- * MobileBottomNav Component
- * Provides a native mobile app bottom navigation experience (iOS/Android style).
- * 
- * High performance, zero external libraries, lightweight SVG icons.
- */
 export default function MobileBottomNav({
     onOpenMenu,
     onToggleMenu,

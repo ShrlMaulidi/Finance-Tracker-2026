@@ -10,3 +10,41 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
+
+/* Prevent iOS Safari from auto-zooming on focus (iOS zooms in on inputs with font-size < 16px) */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+/* Mobile Touch & Tap Polish */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button, a, select, input, [role="button"] {
+    touch-action: manipulation;
+}
+
+@media screen and (max-width: 768px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* iOS Bottom Sheet & Floating Card Animations */
+@keyframes slideUpSheet {
+    from {
+        transform: translate3d(0, 100%, 0);
+        opacity: 0;
+    }
+    to {
+        transform: translate3d(0, 0, 0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up-sheet {
+    animation: slideUpSheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

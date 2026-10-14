@@ -4,12 +4,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
 import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Components/UI';
+import { compressImage } from '@/Utils/imageCompressor';
 
 export default function Target({ dbTargets = [], isFree = false, canAdd = true, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('berjalan');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTarget, setEditingTarget] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+    const [isCompressingImage, setIsCompressingImage] = useState(false);
     
     // Inertia form
     const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
@@ -54,13 +56,34 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         }
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        setData('image', file);
-        if (file) {
-            setImagePreview(URL.createObjectURL(file));
-        } else {
+    const handleImageChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            setData('image', null);
             setImagePreview(null);
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            alert('Berkas harus berupa gambar (JPG, PNG, WebP).');
+            return;
+        }
+
+        setImagePreview(URL.createObjectURL(file));
+
+        try {
+            setIsCompressingImage(true);
+            const compressed = await compressImage(file, {
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.85,
+            });
+            setData('image', compressed);
+        } catch (err) {
+            console.error('Target image compression error:', err);
+            setData('image', file);
+        } finally {
+            setIsCompressingImage(false);
         }
     };
 
@@ -115,8 +138,8 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
                         <TabFilter
                             tabs={[
-                                { key: 'berjalan', label: 'Sedang Berjalan', count: activeTargets.length },
-                                { key: 'tercapai', label: 'Sudah Tercapai', count: achievedTargets.length },
+                                { key: 'berjalan', label: 'Sedang Berjalan', mobileLabel: 'Berjalan', count: activeTargets.length },
+                                { key: 'tercapai', label: 'Sudah Tercapai', mobileLabel: 'Tercapai', count: achievedTargets.length },
                             ]}
                             activeTab={activeTab}
                             onChange={setActiveTab}
@@ -124,7 +147,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                         <Button 
                             onClick={openAddModal}
                             variant={isFree && !canAdd ? 'secondary' : 'primary'}
-                            className={isFree && !canAdd ? '!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100' : ''}
+                            className={`min-h-[42px] ${isFree && !canAdd ? '!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100' : ''}`}
                             icon={isFree && !canAdd ? (
                                 <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                             ) : (
@@ -247,7 +270,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                                         <span className="text-slate-500 truncate mr-2">Sisa {formatRp(remaining)}</span>
                                                         <Link 
                                                             href={route('transaksi.index', { type: 'tabungan' })}
-                                                            className="text-[#009bd2] hover:text-[#007da8] transition-colors flex items-center gap-1 font-extrabold shrink-0"
+                                                            className="text-[#009bd2] hover:text-[#007da8] bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 font-extrabold shrink-0 active:scale-95 min-h-[32px]"
                                                         >
                                                             + Tambah Saldo
                                                         </Link>
@@ -359,7 +382,15 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     <div>
                         <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Gambar Target (Opsional)</label>
                         <div className="relative w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center overflow-hidden hover:bg-slate-100 transition-colors group cursor-pointer h-24 sm:h-28">
-                            {imagePreview ? (
+                            {isCompressingImage ? (
+                                <div className="text-center p-3 flex flex-col items-center gap-1.5">
+                                    <svg className="w-5 h-5 text-[#009bd2] animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                    <span className="text-xs font-bold text-slate-600">Mengoptimasi gambar...</span>
+                                </div>
+                            ) : imagePreview ? (
                                 <>
                                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -375,8 +406,9 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                             <input 
                                 type="file" 
                                 accept="image/*"
+                                disabled={isCompressingImage}
                                 onChange={handleImageChange}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait"
                             />
                         </div>
                         {errors.image && <p className="text-red-500 text-[11px] mt-1">{errors.image}</p>}

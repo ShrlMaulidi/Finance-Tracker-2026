@@ -14,8 +14,8 @@ export default function Settings({ systemInfo, pricingSettings, tierRules }) {
         free: {
             target_limit: 1,
             bill_limit: 2,
-            category_limit: 3,
-            payment_method_limit: 3,
+            category_limit: 15,
+            payment_method_limit: 5,
             access_budget: false,
             access_report: false,
             access_report_export: false,

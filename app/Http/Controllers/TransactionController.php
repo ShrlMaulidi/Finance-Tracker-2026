@@ -51,7 +51,11 @@ class TransactionController extends Controller
         $totalPengeluaran = $totals->get('pengeluaran', 0);
         $totalTabungan = $totals->get('tabungan', 0);
 
-        // Get categories from database
+        // Get categories from database (auto-seed if empty)
+        $currentUser = Auth::user();
+        if ($currentUser && \App\Models\Category::where('user_id', $currentUser->id)->count() === 0) {
+            $currentUser->seedDefaultCategoriesAndPaymentMethods();
+        }
         $userCategories = \App\Models\Category::where('user_id', Auth::id())->get();
         $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
         $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();

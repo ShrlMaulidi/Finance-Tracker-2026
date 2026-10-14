@@ -82,7 +82,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11.5px] sm:text-xs font-black text-amber-950 truncate">
-                                        Kuota Gratis: {currentCount}/3 Metode
+                                        Kuota Gratis: {maxLimit ? `${currentCount}/${maxLimit}` : currentCount} Metode
                                     </span>
                                     <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${!canAdd ? 'bg-amber-200/90 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>
                                         {!canAdd ? 'Penuh' : 'Tersedia'}
@@ -91,7 +91,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                                 <p className="text-[10px] sm:text-[11.5px] text-amber-800/80 font-medium truncate mt-0.5">
                                     {!canAdd 
                                         ? 'Batas tercapai. Upgrade ke PRO untuk menambah metode tanpa batas.' 
-                                        : 'Akun Gratis dibatasi maksimal 3 metode pembayaran kustom.'}
+                                        : `Akun Gratis dibatasi maksimal ${maxLimit ?? 5} metode pembayaran.`}
                                 </p>
                             </div>
                         </div>
@@ -124,7 +124,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                                         value={data.name}
                                         onChange={e => setData('name', e.target.value)}
                                         placeholder="Cash, Bank, E-Wallet..." 
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus:ring-0 focus:bg-white font-extrabold transition-all text-xs sm:text-sm focus:border-[#6366f1]" 
+                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:bg-white font-extrabold transition-all text-xs sm:text-sm focus:border-[#6366f1]" 
                                     />
                                     {errors.name && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.name}</p>}
                                 </div>
@@ -134,7 +134,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                                     onClick={isFree && !canAdd ? () => router.visit(route('berlangganan.index')) : undefined}
                                     loading={processing}
                                     size="lg"
-                                    className={`w-full !rounded-xl sm:!rounded-2xl mt-2 ${
+                                    className={`w-full !rounded-xl sm:!rounded-2xl mt-2 min-h-[46px] ${
                                         isFree && !canAdd
                                             ? '!bg-amber-500 hover:!bg-amber-600 shadow-amber-500/25 !text-white'
                                             : '!bg-[#6366f1] hover:!bg-[#4f46e5] text-white shadow-md shadow-indigo-500/25'

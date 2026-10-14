@@ -65,7 +65,7 @@ class TargetController extends Controller
             'category' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
             'target_date' => 'nullable|date',
-            'image' => 'nullable|image|max:2048'
+            'image' => 'nullable|image|max:10240'
         ]);
 
         $imagePath = null;
@@ -96,7 +96,7 @@ class TargetController extends Controller
             'category' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
             'target_date' => 'nullable|date',
-            'image' => 'nullable|image|max:2048'
+            'image' => 'nullable|image|max:10240'
         ]);
 
         $data = [

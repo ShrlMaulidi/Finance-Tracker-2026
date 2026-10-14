@@ -11,12 +11,13 @@ export default function ActionButtons({
     deleteTooltip = 'Hapus',
     size = 'md', // 'sm' | 'md'
     variant = 'transparent', // 'transparent' | 'soft'
+    tooltipPosition = 'bottom', // 'bottom' | 'top'
     className = '',
     children = null, // Extra action buttons if any
 }) {
     const [hovered, setHovered] = useState(null); // 'edit' | 'delete' | null
 
-    const btnPadding = size === 'sm' ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-8 h-8';
+    const btnPadding = size === 'sm' ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-8.5 h-8.5 sm:w-8 sm:h-8 min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0';
     const iconSize = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
 
     const editBtnStyle =
@@ -28,6 +29,8 @@ export default function ActionButtons({
         variant === 'soft'
             ? 'bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-500'
             : 'bg-transparent hover:bg-red-50 active:bg-red-100 text-red-500';
+
+    const isBottom = tooltipPosition === 'bottom';
 
     return (
         <div className={`flex items-center gap-1 shrink-0 ${className}`}>
@@ -54,13 +57,28 @@ export default function ActionButtons({
                         </svg>
                     </button>
                     <div
-                        className="absolute bottom-full right-1/2 translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-800 text-white text-[11px] font-bold rounded pointer-events-none z-30 transition-all duration-200 shadow-sm whitespace-nowrap"
+                        className={`absolute ${
+                            isBottom ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                        } right-1/2 translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[11px] font-bold rounded-md pointer-events-none z-40 transition-all duration-150 shadow-md whitespace-nowrap`}
                         style={{
                             opacity: hovered === 'edit' ? 1 : 0,
                             visibility: hovered === 'edit' ? 'visible' : 'hidden',
-                            transform: hovered === 'edit' ? 'translate(50%, 0)' : 'translate(50%, 4px)',
+                            transform:
+                                hovered === 'edit'
+                                    ? 'translate(50%, 0)'
+                                    : isBottom
+                                    ? 'translate(50%, -4px)'
+                                    : 'translate(50%, 4px)',
                         }}
                     >
+                        {/* Tooltip Arrow */}
+                        <div
+                            className={`absolute ${
+                                isBottom
+                                    ? '-top-1 border-b-slate-800 border-b-4'
+                                    : '-bottom-1 border-t-slate-800 border-t-4'
+                            } right-1/2 translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent`}
+                        />
                         {editTooltip}
                     </div>
                 </div>
@@ -92,13 +110,28 @@ export default function ActionButtons({
                         </svg>
                     </button>
                     <div
-                        className="absolute bottom-full right-1/2 translate-x-1/2 mb-1.5 px-2 py-1 bg-red-600 text-white text-[11px] font-bold rounded pointer-events-none z-30 transition-all duration-200 shadow-sm whitespace-nowrap"
+                        className={`absolute ${
+                            isBottom ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                        } right-1/2 translate-x-1/2 px-2 py-1 bg-red-600 text-white text-[11px] font-bold rounded-md pointer-events-none z-40 transition-all duration-150 shadow-md whitespace-nowrap`}
                         style={{
                             opacity: hovered === 'delete' ? 1 : 0,
                             visibility: hovered === 'delete' ? 'visible' : 'hidden',
-                            transform: hovered === 'delete' ? 'translate(50%, 0)' : 'translate(50%, 4px)',
+                            transform:
+                                hovered === 'delete'
+                                    ? 'translate(50%, 0)'
+                                    : isBottom
+                                    ? 'translate(50%, -4px)'
+                                    : 'translate(50%, 4px)',
                         }}
                     >
+                        {/* Tooltip Arrow */}
+                        <div
+                            className={`absolute ${
+                                isBottom
+                                    ? '-top-1 border-b-red-600 border-b-4'
+                                    : '-bottom-1 border-t-red-600 border-t-4'
+                            } right-1/2 translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent`}
+                        />
                         {deleteTooltip}
                     </div>
                 </div>

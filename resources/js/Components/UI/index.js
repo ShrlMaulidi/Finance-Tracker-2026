@@ -13,3 +13,4 @@ export { default as Card } from './Card';
 export { default as AlertBanner } from './AlertBanner';
 export { default as MobileBottomNav } from './MobileBottomNav';
 export { default as PwaInstallBanner } from './PwaInstallBanner';
+export { default as OnboardingTour } from './OnboardingTour';

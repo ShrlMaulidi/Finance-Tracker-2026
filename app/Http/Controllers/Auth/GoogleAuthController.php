@@ -22,6 +22,7 @@ class GoogleAuthController extends Controller
             
             $user = User::where('google_id', $googleUser->id)->orWhere('email', $googleUser->email)->first();
             
+            $isNewUser = false;
             if (!$user) {
                 if (!\App\Http\Controllers\Admin\AdminSettingController::isRegistrationAllowed()) {
                     return redirect()->route('login')->with('error', 'Pendaftaran akun baru sedang ditutup sementara oleh administrator.');
@@ -33,6 +34,7 @@ class GoogleAuthController extends Controller
                     'google_id' => $googleUser->id,
                     'avatar' => null, // Default profile photo uses initials
                 ]);
+                $isNewUser = true;
             } else {
                 $user->update([
                     'google_id' => $googleUser->id,
@@ -40,7 +42,12 @@ class GoogleAuthController extends Controller
             }
             
             Auth::login($user, true);
-            session()->flash('show_subscription_offer', true);
+            if ($isNewUser) {
+                session()->flash('just_registered', true);
+                session()->flash('show_subscription_offer', true);
+            } elseif ($user->isFree()) {
+                session()->flash('show_subscription_offer', true);
+            }
             session()->flash('just_logged_in', true);
             
             return redirect()->intended(route('dashboard', absolute: false));

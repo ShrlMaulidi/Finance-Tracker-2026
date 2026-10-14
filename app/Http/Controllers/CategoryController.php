@@ -10,7 +10,14 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::where('user_id', auth()->id())
+        $user = auth()->user();
+
+        // Auto-seed defaults if user does not have categories yet
+        if (Category::where('user_id', $user->id)->count() === 0) {
+            $user->seedDefaultCategoriesAndPaymentMethods();
+        }
+
+        $categories = Category::where('user_id', $user->id)
             ->orderBy('type')
             ->orderBy('name')
             ->get()
@@ -22,7 +29,6 @@ class CategoryController extends Controller
                 ];
             });
 
-        $user = auth()->user();
         $userCategoriesCount = Category::where('user_id', $user->id)->count();
         $categoryLimit = $user->getLimit('category');
         $isUnlimited = $categoryLimit < 0;

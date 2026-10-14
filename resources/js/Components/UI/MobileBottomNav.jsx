@@ -73,16 +73,17 @@ export default function MobileBottomNav({
                         <Link
                             key={item.key}
                             href={route(item.routeName)}
+                            prefetch="hover"
+                            cacheFor="30s"
                             onClick={() => {
                                 if (isMenuOpen && handleMenuToggle) {
                                     handleMenuToggle();
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${
-                                active
+                            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${active
                                     ? 'text-[#009bd2]'
                                     : 'text-slate-400 hover:text-slate-600'
-                            }`}
+                                }`}
                         >
                             {/* Active Top Bar Indicator */}
                             {active && (
@@ -93,9 +94,8 @@ export default function MobileBottomNav({
                                 {item.icon}
                             </div>
                             <span
-                                className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${
-                                    active ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
-                                }`}
+                                className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${active ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
+                                    }`}
                             >
                                 {item.label}
                             </span>
@@ -109,11 +109,10 @@ export default function MobileBottomNav({
                     onClick={handleMenuToggle}
                     aria-label={isMenuOpen ? "Tutup Menu" : "Buka Menu"}
                     aria-expanded={isMenuOpen}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${
-                        isMenuOpen
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${isMenuOpen
                             ? 'text-[#009bd2]'
                             : 'text-slate-400 hover:text-slate-600'
-                    }`}
+                        }`}
                 >
                     {isMenuOpen && (
                         <span className="absolute top-0 w-8 h-[3px] bg-[#009bd2] rounded-full shadow-[0_1px_6px_rgba(0,155,210,0.4)] animate-fadeIn" />
@@ -131,9 +130,8 @@ export default function MobileBottomNav({
                         )}
                     </div>
                     <span
-                        className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${
-                            isMenuOpen ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
-                        }`}
+                        className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${isMenuOpen ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
+                            }`}
                     >
                         {isMenuOpen ? 'Tutup' : 'Menu'}
                     </span>

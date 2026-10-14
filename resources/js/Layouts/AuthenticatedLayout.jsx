@@ -31,10 +31,10 @@ export default function AuthenticatedLayout({ children }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
 
     const isSubscribed = Boolean(
-        user?.is_pro || 
-        user?.is_pro_plus || 
-        user?.role === 'superadmin' || 
-        user?.active_tier === 'pro' || 
+        user?.is_pro ||
+        user?.is_pro_plus ||
+        user?.role === 'superadmin' ||
+        user?.active_tier === 'pro' ||
         user?.active_tier === 'pro_plus'
     );
 
@@ -191,8 +191,10 @@ export default function AuthenticatedLayout({ children }) {
 
     // Helper for Menu Items that anchor icons so they never move during width transitions
     const MenuItem = ({ icon, text, active = false, routeName = "#", isProLocked = false, badgeText = "PRO" }) => (
-        <Link 
-            href={routeName === '#' ? '#' : route(routeName)} 
+        <Link
+            href={routeName === '#' ? '#' : route(routeName)}
+            prefetch="hover"
+            cacheFor="30s"
             onClick={() => {
                 saveSidebarScroll();
                 if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -207,11 +209,10 @@ export default function AuthenticatedLayout({ children }) {
             <div className={`flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ${sidebarOpen ? 'w-[150px] opacity-100' : 'w-0 opacity-0'}`}>
                 <span className={`text-[13px] font-semibold transition-all duration-300 origin-left truncate ${active ? '' : 'group-hover:scale-[1.02] group-hover:font-bold group-hover:tracking-tight'}`}>{text}</span>
                 {isProLocked && (
-                    <span className={`shrink-0 ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-2xs ${
-                        badgeText === 'PRO+'
+                    <span className={`shrink-0 ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-2xs ${badgeText === 'PRO+'
                             ? 'bg-purple-100 text-purple-700 border border-purple-200/80'
                             : 'bg-amber-100 text-amber-700 border border-amber-200/80'
-                    }`}>
+                        }`}>
                         {badgeText}
                     </span>
                 )}
@@ -221,9 +222,9 @@ export default function AuthenticatedLayout({ children }) {
 
     const SubMenuParent = ({ icon, text, menuKey, active = false, isProLocked = false }) => (
         <div className="relative">
-            <button 
+            <button
                 type="button"
-                onClick={() => toggleMenu(menuKey)} 
+                onClick={() => toggleMenu(menuKey)}
                 className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}
             >
                 <div className={`w-10 h-10 flex justify-center items-center shrink-0 transition-all duration-300 ease-out group-hover:scale-[1.1] group-hover:-rotate-[12deg] ${active ? 'text-white' : 'group-hover:text-[#009bd2]'}`}>
@@ -248,19 +249,19 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.ringkasan')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.ringkasan')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Ringkasan Anggaran</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.investasi')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.investasi')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.hutang')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.hutang')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Hutang</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.pengeluaran')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.pengeluaran')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Pengeluaran Bulanan</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
@@ -268,8 +269,8 @@ export default function AuthenticatedLayout({ children }) {
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>

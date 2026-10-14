@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
-        <link rel="icon" type="image/png" href="/logo.png">
+        <link rel="icon" type="image/png" href="/favicon.png">
 
         <!-- PWA Manifest & Mobile Web App Meta -->
         <link rel="manifest" href="/manifest.json">
@@ -14,7 +14,7 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="apple-mobile-web-app-title" content="FinanceTrack">
-        <link rel="apple-touch-icon" href="/logo.png">
+        <link rel="apple-touch-icon" href="/favicon.png">
 
         <!-- Register Service Worker & Early PWA Install Prompt Capture -->
         <script>

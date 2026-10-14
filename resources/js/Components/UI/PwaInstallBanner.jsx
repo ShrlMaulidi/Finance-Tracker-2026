@@ -10,7 +10,7 @@ export default function PwaInstallBanner() {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [isVisible, setIsVisible] = useState(() => {
         if (typeof window === 'undefined') return false;
-        const isStandalone = 
+        const isStandalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true ||
             document.referrer.includes('android-app://');
@@ -28,7 +28,7 @@ export default function PwaInstallBanner() {
         if (typeof window === 'undefined') return;
 
         // Check if app is already running in standalone PWA mode (already installed & opened as app)
-        const isStandalone = 
+        const isStandalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true ||
             document.referrer.includes('android-app://');
@@ -178,11 +178,11 @@ export default function PwaInstallBanner() {
 
             {/* GUIDED INSTALL BOTTOM SHEET (FOR IOS SAFARI / MOBILE) */}
             {showIosGuide && (
-                <div 
+                <div
                     className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fadeIn"
                     onClick={() => setShowIosGuide(false)}
                 >
-                    <div 
+                    <div
                         className="bg-white rounded-t-[2rem] sm:rounded-3xl max-w-md w-full p-5 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl border-t sm:border border-slate-200/80 text-left animate-slide-up-sheet relative overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >

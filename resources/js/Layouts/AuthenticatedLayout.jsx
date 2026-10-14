@@ -193,8 +193,8 @@ export default function AuthenticatedLayout({ children }) {
     const MenuItem = ({ icon, text, active = false, routeName = "#", isProLocked = false, badgeText = "PRO" }) => (
         <Link
             href={routeName === '#' ? '#' : route(routeName)}
-            prefetch="hover"
-            cacheFor="30s"
+            prefetch={['hover', 'mousedown']}
+            cacheFor="5m"
             onClick={() => {
                 saveSidebarScroll();
                 if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -249,19 +249,19 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.ringkasan')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.ringkasan')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Ringkasan Anggaran</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.investasi')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.investasi')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.hutang')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.hutang')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Hutang</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.pengeluaran')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.pengeluaran')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Pengeluaran Bulanan</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
@@ -269,8 +269,8 @@ export default function AuthenticatedLayout({ children }) {
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} prefetch="hover" cacheFor="1m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>

@@ -58,7 +58,9 @@ class WhatsAppAIWebhookController extends Controller
         }
 
         $validated = $request->validate([
-            'sender_phone' => 'required|string',
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
             'type' => 'required|in:pengeluaran,pemasukan,tabungan',
             'amount' => 'required|numeric|min:1',
             'title' => 'required|string|max:255',
@@ -68,40 +70,58 @@ class WhatsAppAIWebhookController extends Controller
             'description' => 'nullable|string|max:1000',
         ]);
 
-        $normalizedPhone = User::normalizePhoneNumber($validated['sender_phone']);
-        if (! $normalizedPhone) {
+        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
+        $senderPhone = $request->input('sender_phone');
+
+        if (empty($senderId) && empty($senderPhone)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Nomor WhatsApp pengirim tidak valid.',
+                'message' => 'Parameter pengirim (sender_phone atau sender_id) wajib dikirimkan.',
             ], 422);
+        }
+
+        // 1. Prioritize lookup by sender_id / WhatsApp LID
+        $user = null;
+        if ($senderId) {
+            $user = User::findByWhatsAppIdentifier($senderId);
+        }
+
+        // 2. Fallback to sender_phone
+        if (! $user && $senderPhone) {
+            $user = User::findByWhatsAppIdentifier($senderPhone);
+        }
+
+        // Auto-link whatsapp_lid if user was matched by phone and has no LID yet
+        if ($user && empty($user->whatsapp_lid)) {
+            if ($senderId && str_contains($senderId, '@lid')) {
+                $user->update(['whatsapp_lid' => $senderId]);
+            } elseif ($senderPhone && str_contains($senderPhone, '@lid')) {
+                $user->update(['whatsapp_lid' => $senderPhone]);
+            }
         }
 
         // Debug logging to trace transaction attribution
         Log::info('WhatsApp AI Webhook: Incoming transaction request', [
-            'raw_sender_phone' => $validated['sender_phone'],
-            'normalized_phone' => $normalizedPhone,
+            'raw_sender_phone' => $senderPhone,
+            'raw_sender_id' => $senderId,
+            'user_found' => (bool) $user,
+            'user_id' => $user?->id,
+            'user_name' => $user?->name,
+            'user_phone' => $user?->phone_number,
+            'user_lid' => $user?->whatsapp_lid,
             'title' => $validated['title'] ?? 'N/A',
             'amount' => $validated['amount'] ?? 0,
             'ip' => $request->ip(),
         ]);
 
-        $user = User::where('phone_number', $normalizedPhone)->first();
-
-        // Log which user was matched (or not)
-        Log::info('WhatsApp AI Webhook: User lookup result', [
-            'normalized_phone' => $normalizedPhone,
-            'user_found' => (bool) $user,
-            'user_id' => $user?->id,
-            'user_name' => $user?->name,
-            'user_phone_in_db' => $user?->phone_number,
-        ]);
-
-        // Case 1: Phone not linked to any user
+        // Case 1: Phone / LID not linked to any user
         if (! $user) {
+            $identifier = $senderPhone ?? $senderId;
+
             return response()->json([
                 'status' => 'unregistered_phone',
-                'sender_phone' => $normalizedPhone,
-                'message' => "⚠️ *Nomor Belum Terdaftar*\n\nNomor WhatsApp Anda (+{$normalizedPhone}) belum ditautkan ke akun FinanceTrack mana pun.\n\nSilakan login ke web FinanceTrack lalu buka menu *Integrasi Agent AI* untuk menautkan nomor Anda.",
+                'sender_identifier' => $identifier,
+                'message' => "⚠️ *Akun WhatsApp Belum Terdaftar*\n\nAkun WhatsApp Anda ({$identifier}) belum ditautkan ke akun FinanceTrack mana pun.\n\nSilakan login ke web FinanceTrack lalu buka menu *Integrasi Agent AI* untuk menautkan nomor Anda.",
             ], 404);
         }
 
@@ -320,16 +340,26 @@ class WhatsAppAIWebhookController extends Controller
         }
 
         $validated = $request->validate([
-            'sender_phone' => 'required|string',
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
         ]);
 
-        $normalizedPhone = User::normalizePhoneNumber($validated['sender_phone']);
-        $user = User::where('phone_number', $normalizedPhone)->first();
+        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
+        $senderPhone = $request->input('sender_phone');
+
+        $user = null;
+        if ($senderId) {
+            $user = User::findByWhatsAppIdentifier($senderId);
+        }
+        if (! $user && $senderPhone) {
+            $user = User::findByWhatsAppIdentifier($senderPhone);
+        }
 
         if (! $user) {
             return response()->json([
                 'status' => 'unregistered_phone',
-                'message' => 'Nomor WhatsApp belum terdaftar di FinanceTrack.',
+                'message' => 'Akun WhatsApp belum terdaftar di FinanceTrack.',
                 'can_transact' => false,
             ], 404);
         }
@@ -355,6 +385,7 @@ class WhatsAppAIWebhookController extends Controller
             'user' => [
                 'name' => $user->name,
                 'phone' => $user->phone_number,
+                'whatsapp_lid' => $user->whatsapp_lid,
                 'is_active' => (bool) $user->is_active,
                 'tier' => $user->active_tier,
                 'can_transact' => $canTransact,
@@ -382,11 +413,21 @@ class WhatsAppAIWebhookController extends Controller
         }
 
         $validated = $request->validate([
-            'sender_phone' => 'required|string',
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
         ]);
 
-        $normalizedPhone = User::normalizePhoneNumber($validated['sender_phone']);
-        $user = User::where('phone_number', $normalizedPhone)->first();
+        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
+        $senderPhone = $request->input('sender_phone');
+
+        $user = null;
+        if ($senderId) {
+            $user = User::findByWhatsAppIdentifier($senderId);
+        }
+        if (! $user && $senderPhone) {
+            $user = User::findByWhatsAppIdentifier($senderPhone);
+        }
 
         if (! $user || ! $user->canAccess('ai_agent')) {
             return response()->json([

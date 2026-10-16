@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'phone_number', 'password', 'google_id', 'avatar', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
+#[Fillable(['name', 'email', 'phone_number', 'whatsapp_lid', 'password', 'google_id', 'avatar', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -145,6 +145,40 @@ class User extends Authenticatable
         }
 
         return $clean;
+    }
+
+    /**
+     * Find user by phone number or WhatsApp LID / JID.
+     */
+    public static function findByWhatsAppIdentifier(?string $identifier): ?User
+    {
+        if (! $identifier) {
+            return null;
+        }
+
+        $raw = trim($identifier);
+
+        // 1. Try finding by raw whatsapp_lid (e.g. 166129871880419@lid, 166129871880419, or with/without @lid)
+        $cleanLid = preg_replace('/@[a-zA-Z0-9\._-]+$/', '', $raw);
+        $user = self::where('whatsapp_lid', $raw)
+            ->orWhere('whatsapp_lid', $cleanLid)
+            ->orWhere('whatsapp_lid', $cleanLid.'@lid')
+            ->first();
+
+        if ($user) {
+            return $user;
+        }
+
+        // 2. Try normalized phone number
+        $normalized = self::normalizePhoneNumber($raw);
+        if ($normalized) {
+            $user = self::where('phone_number', $normalized)->first();
+            if ($user) {
+                return $user;
+            }
+        }
+
+        return null;
     }
 
     /**

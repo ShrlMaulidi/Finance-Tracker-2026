@@ -108,7 +108,8 @@ class AIAgentController extends Controller
 
         return Inertia::render('AIAgent/Index', [
             'phoneNumber' => $user->phone_number,
-            'isPhoneConnected' => ! empty($user->phone_number),
+            'whatsappLid' => $user->whatsapp_lid,
+            'isPhoneConnected' => ! empty($user->phone_number) || ! empty($user->whatsapp_lid),
             'botPhoneNumber' => $botPhoneClean,
             'recentAiTransactions' => $recentAiTransactions,
             'stats' => [
@@ -170,6 +171,7 @@ class AIAgentController extends Controller
     {
         $user = Auth::user();
         $user->phone_number = null;
+        $user->whatsapp_lid = null;
         $user->save();
 
         return back()->with('success', 'Nomor WhatsApp berhasil diputuskan dari akun Anda.');

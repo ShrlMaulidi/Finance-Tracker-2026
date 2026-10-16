@@ -170,6 +170,7 @@ export default function Laporan({
                                         type="month"
                                         value={monthInputValue}
                                         onChange={handleMonthChange}
+                                        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
                                         className="border-none bg-transparent text-xs sm:text-sm font-extrabold text-slate-800 focus:ring-0 p-0 cursor-pointer"
                                     />
                                 </div>

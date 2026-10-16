@@ -55,6 +55,10 @@ export default function SearchInput({
                 type="text"
                 value={value}
                 onChange={onChange}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.preventDefault();
+                    props.onKeyDown?.(e);
+                }}
                 placeholder={placeholder}
                 className={`w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl font-medium placeholder-slate-400 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white transition-all ${sizeClasses} ${inputClassName}`}
                 {...props}

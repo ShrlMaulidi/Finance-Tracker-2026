@@ -14,6 +14,11 @@ class Transaction extends Model
         'payment_method',
         'title',
         'description',
-        'date'
+        'date',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

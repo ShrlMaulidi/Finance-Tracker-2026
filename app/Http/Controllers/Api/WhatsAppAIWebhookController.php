@@ -76,7 +76,25 @@ class WhatsAppAIWebhookController extends Controller
             ], 422);
         }
 
+        // Debug logging to trace transaction attribution
+        Log::info('WhatsApp AI Webhook: Incoming transaction request', [
+            'raw_sender_phone' => $validated['sender_phone'],
+            'normalized_phone' => $normalizedPhone,
+            'title' => $validated['title'] ?? 'N/A',
+            'amount' => $validated['amount'] ?? 0,
+            'ip' => $request->ip(),
+        ]);
+
         $user = User::where('phone_number', $normalizedPhone)->first();
+
+        // Log which user was matched (or not)
+        Log::info('WhatsApp AI Webhook: User lookup result', [
+            'normalized_phone' => $normalizedPhone,
+            'user_found' => (bool) $user,
+            'user_id' => $user?->id,
+            'user_name' => $user?->name,
+            'user_phone_in_db' => $user?->phone_number,
+        ]);
 
         // Case 1: Phone not linked to any user
         if (! $user) {

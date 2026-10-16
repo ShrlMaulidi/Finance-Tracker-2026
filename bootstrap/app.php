@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Middleware\CheckPlatformMaintenance;
+use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -13,17 +17,19 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\CheckPlatformMaintenance::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
+            CheckPlatformMaintenance::class,
         ]);
 
         $middleware->alias([
-            'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'superadmin' => EnsureSuperAdmin::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
             'webhook/whatsapp',
+            'webhook/whatsapp/*',
+            'api/webhook/whatsapp/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

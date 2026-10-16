@@ -41,4 +41,9 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    'ai_agent' => [
+        'secret' => env('AI_AGENT_SECRET', 'financetrack-ai-secret-2026'),
+        'bot_phone' => env('AI_WHATSAPP_BOT_NUMBER', '6281234567890'),
+    ],
+
 ];

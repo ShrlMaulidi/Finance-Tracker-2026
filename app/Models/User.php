@@ -6,13 +6,13 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-use Illuminate\Database\Eloquent\Casts\Attribute;
-
-#[Fillable(['name', 'email', 'password', 'google_id', 'avatar', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
+#[Fillable(['name', 'email', 'phone_number', 'password', 'google_id', 'avatar', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -103,14 +103,48 @@ class User extends Authenticatable
         });
     }
 
-    public function categories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function categories(): HasMany
     {
         return $this->hasMany(Category::class);
     }
 
-    public function paymentMethods(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function paymentMethods(): HasMany
     {
         return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * Normalize WhatsApp phone number into standard international format (e.g., 628123456789).
+     */
+    public static function normalizePhoneNumber(?string $number): ?string
+    {
+        if (! $number) {
+            return null;
+        }
+
+        // Clean out WhatsApp JID suffixes if present (e.g., @s.whatsapp.net, @c.us)
+        $clean = preg_replace('/@[a-zA-Z0-9\._-]+$/', '', trim($number));
+        // Strip everything except digits
+        $clean = preg_replace('/\D+/', '', $clean);
+
+        if (empty($clean)) {
+            return null;
+        }
+
+        // 08xx -> 628xx
+        if (str_starts_with($clean, '08')) {
+            $clean = '628'.substr($clean, 2);
+        } elseif (str_starts_with($clean, '8')) {
+            // 8xx -> 628xx
+            $clean = '628'.substr($clean, 1);
+        }
+
+        return $clean;
     }
 
     /**
@@ -134,6 +168,7 @@ class User extends Authenticatable
             if ($this->subscription_expires_at && $this->subscription_expires_at->isPast()) {
                 return false;
             }
+
             return true;
         }
 
@@ -153,6 +188,7 @@ class User extends Authenticatable
             if ($this->subscription_expires_at && $this->subscription_expires_at->isPast()) {
                 return false;
             }
+
             return true;
         }
 
@@ -164,7 +200,7 @@ class User extends Authenticatable
      */
     public function isFree(): bool
     {
-        return !$this->isPro();
+        return ! $this->isPro();
     }
 
     /**
@@ -181,6 +217,7 @@ class User extends Authenticatable
         if ($this->isPro()) {
             return 'pro';
         }
+
         return 'free';
     }
 
@@ -211,6 +248,7 @@ class User extends Authenticatable
 
         $allRules = Setting::getTierRules();
         $tier = $this->getActiveTier();
+
         return $this->memoizedTierRules = ($allRules[$tier] ?? $allRules['free']);
     }
 
@@ -224,6 +262,7 @@ class User extends Authenticatable
         }
         $rules = $this->getTierRules();
         $key = str_starts_with($feature, 'access_') ? $feature : "access_{$feature}";
+
         return (bool) ($rules[$key] ?? false);
     }
 
@@ -237,6 +276,7 @@ class User extends Authenticatable
         }
         $rules = $this->getTierRules();
         $key = str_ends_with($entity, '_limit') ? $entity : "{$entity}_limit";
+
         return (int) ($rules[$key] ?? -1);
     }
 
@@ -249,6 +289,7 @@ class User extends Authenticatable
         if ($limit < 0) {
             return false;
         }
+
         return $currentCount >= $limit;
     }
 
@@ -274,6 +315,7 @@ class User extends Authenticatable
     public function getPermissionsAttribute(): array
     {
         $rules = $this->getTierRules();
+
         return [
             'budget' => (bool) ($rules['access_budget'] ?? false),
             'report' => (bool) ($rules['access_report'] ?? false),
@@ -289,6 +331,7 @@ class User extends Authenticatable
     public function getTierLimitsAttribute(): array
     {
         $rules = $this->getTierRules();
+
         return [
             'target_limit' => (int) ($rules['target_limit'] ?? -1),
             'bill_limit' => (int) ($rules['bill_limit'] ?? -1),
@@ -312,7 +355,7 @@ class User extends Authenticatable
     {
         return Attribute::make(
             get: function ($value) {
-                if (!$value) {
+                if (! $value) {
                     return null;
                 }
                 if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
@@ -321,7 +364,8 @@ class User extends Authenticatable
                 if (str_starts_with($value, '/storage/')) {
                     return $value;
                 }
-                return asset('storage/' . $value);
+
+                return asset('storage/'.$value);
             }
         );
     }

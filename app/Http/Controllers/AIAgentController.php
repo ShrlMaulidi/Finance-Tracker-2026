@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Category;
 use App\Models\PaymentMethod;
 use App\Models\Setting;
@@ -161,6 +162,16 @@ class AIAgentController extends Controller
         $user->phone_number = $normalized;
         $user->save();
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $user->id,
+                action: 'updated',
+                source: 'web',
+                message: "Nomor WhatsApp (+{$normalized}) berhasil ditautkan"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return back()->with('success', "Nomor WhatsApp (+{$normalized}) berhasil ditautkan! Anda sudah dapat mengirim pesan transaksi ke bot kami.");
     }
 
@@ -173,6 +184,16 @@ class AIAgentController extends Controller
         $user->phone_number = null;
         $user->whatsapp_lid = null;
         $user->save();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $user->id,
+                action: 'updated',
+                source: 'web',
+                message: 'Nomor WhatsApp berhasil diputuskan'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return back()->with('success', 'Nomor WhatsApp berhasil diputuskan dari akun Anda.');
     }

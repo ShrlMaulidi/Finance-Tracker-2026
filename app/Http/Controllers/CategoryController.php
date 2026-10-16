@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -49,14 +50,15 @@ class CategoryController extends Controller
         $count = Category::where('user_id', $user->id)->count();
         if ($user->hasReachedLimit('category', $count)) {
             $limit = $user->getLimit('category');
+
             return redirect()->back()->withErrors([
-                'name' => "Batas maksimal kategori untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah kategori tanpa batas."
+                'name' => "Batas maksimal kategori untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah kategori tanpa batas.",
             ]);
         }
 
         $request->validate([
             'type' => 'required|in:pemasukan,pengeluaran',
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         // Cek apakah nama kategori untuk tipe yang sama sudah ada
@@ -72,34 +74,68 @@ class CategoryController extends Controller
         Category::create([
             'user_id' => auth()->id(),
             'type' => $request->type,
-            'name' => $request->name
+            'name' => $request->name,
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'created',
+                source: 'web',
+                message: "Kategori '{$request->name}' berhasil ditambahkan"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Kategori berhasil ditambahkan.');
     }
 
     public function update(Request $request, Category $category)
     {
-        if ($category->user_id !== auth()->id()) abort(403);
+        if ($category->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $request->validate([
             'type' => 'required|in:pemasukan,pengeluaran',
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         $category->update([
             'type' => $request->type,
-            'name' => $request->name
+            'name' => $request->name,
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'updated',
+                source: 'web',
+                message: "Kategori '{$category->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
     }
 
     public function destroy(Category $category)
     {
-        if ($category->user_id !== auth()->id()) abort(403);
+        if ($category->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $category->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Kategori berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Kategori berhasil dihapus.');
     }

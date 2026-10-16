@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-
-use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -46,7 +46,7 @@ class ProfileController extends Controller
         // Handle Avatar Removal
         if ($request->boolean('remove_avatar')) {
             $oldAvatar = $user->getRawOriginal('avatar');
-            if ($oldAvatar && !str_starts_with($oldAvatar, 'http')) {
+            if ($oldAvatar && ! str_starts_with($oldAvatar, 'http')) {
                 Storage::disk('public')->delete($oldAvatar);
             }
             $user->avatar = null;
@@ -55,7 +55,7 @@ class ProfileController extends Controller
         // Handle Avatar Upload
         if ($request->hasFile('avatar')) {
             $oldAvatar = $user->getRawOriginal('avatar');
-            if ($oldAvatar && !str_starts_with($oldAvatar, 'http')) {
+            if ($oldAvatar && ! str_starts_with($oldAvatar, 'http')) {
                 Storage::disk('public')->delete($oldAvatar);
             }
             $path = $request->file('avatar')->store('avatars', 'public');
@@ -63,6 +63,16 @@ class ProfileController extends Controller
         }
 
         $user->save();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $user->id,
+                action: 'updated',
+                source: 'web',
+                message: 'Profil Anda berhasil diperbarui'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return Redirect::route('profile.edit');
     }

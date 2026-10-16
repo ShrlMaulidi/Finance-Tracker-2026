@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 
 export default function Index({ currentPlan = 'free', pricing }) {
-    const pagePricing = usePage().props.pricing || {};
-    const effectivePricing = pricing || pagePricing;
+    const { auth, pricing: pagePricing } = usePage().props;
+    const user = auth?.user;
+    const effectivePricing = pricing || pagePricing || {};
 
     const proMonthly = Number(effectivePricing.pro_monthly_price ?? 14999);
     const proYearly = Number(effectivePricing.pro_yearly_price ?? 149000);
@@ -24,18 +25,74 @@ export default function Index({ currentPlan = 'free', pricing }) {
     const [mobilePlan, setMobilePlan] = useState('all'); // 'all' | 'pro_plus' | 'pro' | 'free'
     const [openFaq, setOpenFaq] = useState(null);
     const [checkoutPlan, setCheckoutPlan] = useState(null);
+    const [copied, setCopied] = useState(false);
 
     const toggleFaq = (index) => {
         setOpenFaq(openFaq === index ? null : index);
     };
 
-    const handleSelectPlan = (planKey, name, price) => {
+    const handleSelectPlan = (planKey, name) => {
         setCheckoutPlan({
             key: planKey,
             name: name,
-            price: price,
         });
+        setCopied(false);
     };
+
+    const getCheckoutPrice = (planKey) => {
+        if (!planKey) return 0;
+        if (planKey === 'pro_plus') {
+            return billingCycle === 'monthly' ? proPlusMonthly : proPlusYearly;
+        }
+        return billingCycle === 'monthly' ? proMonthly : proYearly;
+    };
+
+    const currentCheckoutPrice = getCheckoutPrice(checkoutPlan?.key);
+
+    const handleCopyAmount = () => {
+        if (!currentCheckoutPrice) return;
+        navigator.clipboard.writeText(String(currentCheckoutPrice));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    // Auto buka modal checkout jika ada query param ?plan=...
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const planParam = params.get('plan');
+            if (planParam === 'pro' && currentPlan !== 'pro') {
+                handleSelectPlan('pro', 'Paket Pro');
+            } else if (planParam === 'pro_plus' && currentPlan !== 'pro_plus') {
+                handleSelectPlan('pro_plus', 'Paket Pro Plus (AI & WA)');
+            }
+        }
+    }, []);
+
+    // Tutup modal jika tombol Escape ditekan
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && checkoutPlan) {
+                setCheckoutPlan(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [checkoutPlan]);
+
+    const waNumber = effectivePricing.support_wa?.replace(/\D/g, '') || '6281234567890';
+    const waMessage = checkoutPlan ? encodeURIComponent(
+`Halo Admin FinanceTrack, saya ingin mengonfirmasi pembayaran langganan via QRIS.
+
+Detail Akun & Paket:
+• Nama: ${user?.name || '-'}
+• Email: ${user?.email || '-'}
+• Paket: ${checkoutPlan.name}
+• Periode: ${billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan'}
+• Total Transfer: ${formatRupiah(currentCheckoutPrice)}
+
+Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukti transfer di chat ini. Mohon verifikasi dan aktivasi akun saya. Terima kasih!`
+    ) : '';
 
     const faqs = [
         {
@@ -313,7 +370,7 @@ export default function Index({ currentPlan = 'free', pricing }) {
 
                         <button 
                             type="button"
-                            onClick={() => handleSelectPlan('pro', 'Paket Pro', billingCycle === 'monthly' ? proMonthly : proYearly)}
+                            onClick={() => handleSelectPlan('pro', 'Paket Pro')}
                             disabled={currentPlan === 'pro'}
                             className={`w-full py-2.5 sm:py-3.5 rounded-xl font-extrabold text-xs sm:text-sm shadow-sm transition-all text-center flex items-center justify-center gap-1.5 ${
                                 currentPlan === 'pro'
@@ -410,7 +467,7 @@ export default function Index({ currentPlan = 'free', pricing }) {
 
                         <button 
                             type="button"
-                            onClick={() => handleSelectPlan('pro_plus', 'Paket Pro Plus (AI & WA)', billingCycle === 'monthly' ? proPlusMonthly : proPlusYearly)}
+                            onClick={() => handleSelectPlan('pro_plus', 'Paket Pro Plus (AI & WA)')}
                             disabled={currentPlan === 'pro_plus'}
                             style={{ backgroundColor: '#4f46e5' }}
                             className={`w-full py-2.5 sm:py-3.5 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all text-center flex items-center justify-center gap-1.5 ${
@@ -480,71 +537,164 @@ export default function Index({ currentPlan = 'free', pricing }) {
 
             </div>
 
-            {/* CHECKOUT / PAYMENT CONFIRMATION MODAL */}
+            {/* CHECKOUT / QRIS PAYMENT MODAL */}
             {checkoutPlan && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setCheckoutPlan(null);
+                    }}
+                >
                     <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full shadow-2xl space-y-3.5 animate-scale-up max-h-[92vh] overflow-y-auto">
+                        
+                        {/* Header Modal */}
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 text-[#009bd2] flex items-center justify-center shrink-0">
-                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l3 6 5-4-2 12H6L4 6l5 4 3-6z" /></svg>
+                            <div className="flex items-center gap-2.5">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                    checkoutPlan.key === 'pro_plus' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-50 text-[#009bd2]'
+                                }`}>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l3 6 5-4-2 12H6L4 6l5 4 3-6z" /></svg>
                                 </div>
                                 <div>
-                                    <h3 className="text-xs sm:text-base font-black text-slate-800">{checkoutPlan.name}</h3>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Aktivasi Langganan Akun</p>
+                                    <h3 className="text-sm sm:text-base font-black text-slate-800">{checkoutPlan.name}</h3>
+                                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Pembayaran Resmi via QRIS</p>
                                 </div>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setCheckoutPlan(null)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                aria-label="Tutup"
                             >
-                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
 
-                        {/* Total Price Box */}
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                        {/* Rincian Tagihan & Tombol Salin */}
+                        <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
                             <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium">
-                                <span>Siklus Pembayaran:</span>
-                                <span className="font-bold text-slate-700 capitalize">{billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan (Hemat 20%)'}</span>
+                                <span>Siklus Langganan:</span>
+                                <span className="font-extrabold text-slate-800 capitalize">
+                                    {billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan (Hemat 20%)'}
+                                </span>
                             </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                                <span className="text-[11px] sm:text-xs font-bold text-slate-700">Total Biaya:</span>
-                                <span className="text-base sm:text-lg font-black text-[#009bd2]">{formatRupiah(checkoutPlan.price)}</span>
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                                <div>
+                                    <span className="text-[10.5px] sm:text-xs font-bold text-slate-600 block">Total Tagihan:</span>
+                                    <span className="text-lg sm:text-xl font-black text-[#009bd2] tracking-tight">
+                                        {formatRupiah(currentCheckoutPrice)}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyAmount}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
+                                        copied
+                                            ? 'bg-emerald-600 text-white shadow-xs'
+                                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
+                                    }`}
+                                >
+                                    {copied ? (
+                                        <>
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                            <span>Tersalin!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                            <span>Salin Nominal</span>
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
 
-                        {/* Payment Method Highlights */}
-                        <div className="space-y-1.5">
-                            <p className="text-[11px] sm:text-xs font-bold text-slate-700">Metode Pembayaran Tersedia:</p>
-                            <div className="p-2.5 rounded-xl border border-slate-200 flex items-center gap-2.5 bg-white">
-                                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                        {/* Tampilan Gambar QRIS */}
+                        <div className="p-3.5 rounded-2xl bg-white border-2 border-slate-100 shadow-xs space-y-2.5 text-center">
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>Scan Kode QRIS</span>
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    Semua Bank & E-Wallet
+                                </span>
+                            </div>
+
+                            {/* Foto QRIS Resmi */}
+                            <div className="relative bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80 flex flex-col items-center justify-center">
+                                <img
+                                    src="/Qris/qris.jpeg"
+                                    alt="QRIS Pembayaran FinanceTrack"
+                                    className="w-full max-w-[210px] sm:max-w-[230px] h-auto rounded-lg object-contain shadow-xs bg-white"
+                                    loading="eager"
+                                />
+                                
+                                <div className="mt-2.5 flex items-center gap-2 w-full max-w-[240px]">
+                                    <a
+                                        href="/Qris/qris.jpeg"
+                                        download="QRIS-FinanceTrack.jpeg"
+                                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1.5 active:scale-95"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        <span>Download QRIS</span>
+                                    </a>
+                                    <a
+                                        href="/Qris/qris.jpeg"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                                        title="Buka Gambar Penuh"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                        <span>Perbesar</span>
+                                    </a>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-[11px] sm:text-xs font-bold text-slate-800">QRIS / E-Wallet / Transfer Bank</p>
-                                    <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium">BCA, Mandiri, GoPay, OVO, ShopeePay</p>
-                                </div>
+                            </div>
+
+                            {/* Badge Aplikasi yang Didukung */}
+                            <div className="flex flex-wrap items-center justify-center gap-1 text-[9px] font-bold text-slate-500 pt-0.5">
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BCA</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">Mandiri</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BRI</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BNI</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">GoPay</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">OVO</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">DANA</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">ShopeePay</span>
                             </div>
                         </div>
 
-                        {/* WhatsApp Activation Direct Link */}
+                        {/* Petunjuk Singkat Pembayaran */}
+                        <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100/70 text-left space-y-1">
+                            <p className="text-[11px] sm:text-xs font-black text-[#009bd2] flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span>Langkah Pembayaran:</span>
+                            </p>
+                            <ol className="text-[10px] sm:text-[11px] text-slate-600 space-y-0.5 list-decimal list-inside font-medium leading-relaxed">
+                                <li>Scan QRIS di atas atau simpan ke galeri ponsel Anda.</li>
+                                <li>Transfer sesuai nominal <strong>{formatRupiah(currentCheckoutPrice)}</strong>.</li>
+                                <li>Klik tombol WhatsApp di bawah untuk kirim bukti transfer agar akun langsung aktif.</li>
+                            </ol>
+                        </div>
+
+                        {/* Tombol Konfirmasi WhatsApp & Tutup */}
                         <div className="pt-1 flex flex-col gap-1.5">
                             <a
-                                href={`https://wa.me/${effectivePricing.support_wa?.replace(/\D/g, '') || '6281234567890'}?text=${encodeURIComponent(`Halo Admin FinanceTrack, saya ingin mengaktifkan langganan ${checkoutPlan.name} (${billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan'}) seharga ${formatRupiah(checkoutPlan.price)}.`)}`}
+                                href={`https://wa.me/${waNumber}?text=${waMessage}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="w-full py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 text-center"
+                                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-extrabold text-xs sm:text-sm text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] text-center"
                             >
-                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.173.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.203c.043.072.043.419-.101.824z"/></svg>
-                                <span>Konfirmasi & Bayar via WhatsApp</span>
+                                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.173.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.203c.043.072.043.419-.101.824z"/></svg>
+                                <span>Konfirmasi Bukti Bayar via WhatsApp</span>
                             </a>
                             <button
                                 type="button"
                                 onClick={() => setCheckoutPlan(null)}
-                                className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all text-center"
+                                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all text-center active:scale-[0.98]"
                             >
-                                Tutup
+                                Kembali / Pilih Paket Lain
                             </button>
                         </div>
                     </div>

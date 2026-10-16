@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\TransactionRecorded;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Models\BillPayment;
@@ -258,6 +259,19 @@ class WhatsAppAIWebhookController extends Controller
                 $this->syncBillPayment($user->id, $finalCategory, $trxDate);
             }
         });
+
+        // Broadcast realtime update to user's browser via Reverb
+        try {
+            broadcast(new TransactionRecorded(
+                userId: $user->id,
+                transaction: $transaction,
+                action: 'created',
+                source: 'whatsapp',
+                message: "Transaksi baru masuk via WhatsApp Bot: {$transaction->title} (Rp ".number_format($transaction->amount, 0, ',', '.').')'
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to broadcast transaction to Reverb: '.$e->getMessage());
+        }
 
         // Calculate up-to-date balances for instant user feedback
         $totals = Transaction::where('user_id', $user->id)

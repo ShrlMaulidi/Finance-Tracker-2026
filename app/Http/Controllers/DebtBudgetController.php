@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
+use App\Models\Debt;
 use App\Models\DebtBudget;
 use App\Models\Transaction;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class DebtBudgetController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
-        if (!$user->canAccess('budget')) {
+        if (! $user->canAccess('budget')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'anggaran',
                 'title' => 'Menu Anggaran Hutang Terkunci',
@@ -45,7 +47,7 @@ class DebtBudgetController extends Controller
             ->get();
 
         $budgetNames = $budgets->pluck('name')->toArray();
-        $debtsList = \App\Models\Debt::where('user_id', Auth::id())
+        $debtsList = Debt::where('user_id', Auth::id())
             ->whereIn('name', $budgetNames)
             ->get()
             ->keyBy('name');
@@ -53,24 +55,24 @@ class DebtBudgetController extends Controller
         $currentBudgets = $budgets->map(function ($budget) use ($transactions, $debtsList) {
             $used = $transactions->where('category', $budget->name)->sum('amount');
             $debt = $debtsList[$budget->name] ?? null;
-            
+
             return [
                 'id' => $budget->id,
                 'name' => $budget->name,
-                'target' => (float)$budget->target_amount,
-                'used' => (float)$used,
-                'is_recurring' => (bool)$budget->is_recurring,
-                'total_debt' => $debt ? (float)$debt->remaining_amount : 0,
-                'debt_type' => $debt ? $debt->type : 'hutang'
+                'target' => (float) $budget->target_amount,
+                'used' => (float) $used,
+                'is_recurring' => (bool) $budget->is_recurring,
+                'total_debt' => $debt ? (float) $debt->remaining_amount : 0,
+                'debt_type' => $debt ? $debt->type : 'hutang',
             ];
         });
 
         // Calculate history for the last 6 months (excluding current month) using SQL aggregation
         $historyData = [];
-        
+
         $sixMonthsAgo = Carbon::now()->subMonths(6)->startOfMonth();
         $lastMonth = Carbon::now()->subMonths(1)->endOfMonth();
-        
+
         $historySummary = Transaction::where('user_id', Auth::id())
             ->where('type', 'pengeluaran')
             ->whereBetween('date', [$sixMonthsAgo, $lastMonth])
@@ -78,7 +80,7 @@ class DebtBudgetController extends Controller
             ->groupBy('ym', 'category')
             ->get()
             ->groupBy('ym');
-            
+
         for ($i = 1; $i <= 6; $i++) {
             $date = Carbon::now()->subMonths($i);
             $month = $date->month;
@@ -89,36 +91,36 @@ class DebtBudgetController extends Controller
             $monthMap = $historySummary->get($monthKey, collect())->pluck('total', 'category');
 
             foreach ($budgets as $budget) {
-                if (!$budget->is_recurring && ($month !== $currentMonth || $year !== $currentYear)) {
+                if (! $budget->is_recurring && ($month !== $currentMonth || $year !== $currentYear)) {
                     continue; // Skip non-recurring for past months
                 }
-                
+
                 // Skip if the budget was created AFTER this history month
                 $budgetCreatedAt = Carbon::parse($budget->created_at);
                 if ($year < $budgetCreatedAt->year || ($year === $budgetCreatedAt->year && $month < $budgetCreatedAt->month)) {
                     continue;
                 }
-                
+
                 $used = (float) ($monthMap->get($budget->name, 0));
                 $historyData[] = [
                     'month' => $monthName,
                     'name' => $budget->name,
-                    'target' => (float)$budget->target_amount,
+                    'target' => (float) $budget->target_amount,
                     'used' => $used,
                 ];
             }
         }
-        
+
         $historyMonths = collect($historyData)->pluck('month')->unique()->values();
 
-        $activeDebts = \App\Models\Debt::where('user_id', Auth::id())
+        $activeDebts = Debt::where('user_id', Auth::id())
             ->where('status', 'belum_lunas')
             ->orderBy('created_at', 'desc')
             ->get();
 
         $usedDebts = $currentBudgets->pluck('name')->toArray();
-        $availableDebts = $activeDebts->filter(function($debt) use ($usedDebts) {
-            return !in_array($debt->name, $usedDebts);
+        $availableDebts = $activeDebts->filter(function ($debt) use ($usedDebts) {
+            return ! in_array($debt->name, $usedDebts);
         })->values();
 
         $totalHutang = $activeDebts->where('type', 'hutang')->sum('remaining_amount');
@@ -132,26 +134,26 @@ class DebtBudgetController extends Controller
             'activeDebts' => $activeDebts,
             'availableDebts' => $availableDebts,
             'totalHutang' => $totalHutang,
-            'totalPiutang' => $totalPiutang
+            'totalPiutang' => $totalPiutang,
         ]);
     }
 
     public function store(Request $request)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:0',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
 
         $exists = DebtBudget::where('user_id', Auth::id())
             ->where('name', $request->name)
             ->exists();
-            
+
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk hutang/piutang ini sudah ada.']);
         }
@@ -160,12 +162,22 @@ class DebtBudgetController extends Controller
 
         DebtBudget::create($validated);
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'created',
+                source: 'web',
+                message: "Anggaran Hutang '{$validated['name']}' berhasil ditambahkan"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return redirect()->back()->with('success', 'Anggaran hutang berhasil ditambahkan.');
     }
 
     public function update(Request $request, DebtBudget $budget)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
@@ -176,26 +188,36 @@ class DebtBudgetController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:0',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
 
         $exists = DebtBudget::where('user_id', Auth::id())
             ->where('name', $request->name)
             ->where('id', '!=', $budget->id)
             ->exists();
-            
+
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk hutang/piutang ini sudah ada.']);
         }
 
         $budget->update($validated);
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'updated',
+                source: 'web',
+                message: "Anggaran Hutang '{$budget->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return redirect()->back()->with('success', 'Anggaran hutang berhasil diperbarui.');
     }
 
     public function destroy(DebtBudget $budget)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
@@ -204,6 +226,16 @@ class DebtBudgetController extends Controller
         }
 
         $budget->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Anggaran hutang berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran hutang berhasil dihapus.');
     }

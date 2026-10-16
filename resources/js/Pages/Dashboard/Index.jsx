@@ -107,6 +107,127 @@ export default function Dashboard({
         { name: '30', pemasukan: 6000000, pengeluaran: 3100000, tabungan: 1200000 },
     ] : chartData;
 
+    // Dedicated live reactive state for Dashboard
+    const [liveSummary, setLiveSummary] = useState(summary);
+    const [liveRecent, setLiveRecent] = useState(recentTransactions);
+
+    useEffect(() => {
+        setLiveSummary(summary);
+    }, [summary]);
+
+    useEffect(() => {
+        setLiveRecent(recentTransactions);
+    }, [recentTransactions]);
+
+    const activeSummary = liveSummary || summary;
+    const activeRecent = liveRecent || recentTransactions;
+
+    // Direct Reverb Realtime Listener & Window Event Listener on Dashboard
+    useEffect(() => {
+        if (!user?.id || typeof window === 'undefined') {
+            return;
+        }
+
+        const handleRealtimeTrx = (e) => {
+            const eventData = e?.detail || e;
+            const trx = eventData?.transaction;
+            const action = eventData?.action || 'created';
+
+            if (trx) {
+                const amount = Number(trx.amount) || 0;
+                const type = trx.type; // 'pemasukan' | 'pengeluaran' | 'tabungan'
+
+                // Instantly update summary in memory in 0ms without waiting for HTTP network roundtrip
+                setLiveSummary(prev => {
+                    const current = prev || { pemasukan: 0, pengeluaran: 0, tabungan: 0, saldo: 0 };
+                    let pemasukan = Number(current.pemasukan) || 0;
+                    let pengeluaran = Number(current.pengeluaran) || 0;
+                    let tabungan = Number(current.tabungan) || 0;
+
+                    if (action === 'deleted') {
+                        if (type === 'pemasukan') pemasukan = Math.max(0, pemasukan - amount);
+                        else if (type === 'pengeluaran') pengeluaran = Math.max(0, pengeluaran - amount);
+                        else if (type === 'tabungan') tabungan = Math.max(0, tabungan - amount);
+                    } else {
+                        // created or updated
+                        if (type === 'pemasukan') pemasukan += amount;
+                        else if (type === 'pengeluaran') pengeluaran += amount;
+                        else if (type === 'tabungan') tabungan += amount;
+                    }
+
+                    return {
+                        pemasukan,
+                        pengeluaran,
+                        tabungan,
+                        saldo: pemasukan - pengeluaran - tabungan,
+                    };
+                });
+
+                // Instantly prepend new transaction to recent list
+                if (action === 'created') {
+                    setLiveRecent(prev => {
+                        const newTrx = {
+                            id: trx.id || Date.now(),
+                            type: trx.type,
+                            amount: Number(trx.amount),
+                            category: trx.category || 'Lainnya',
+                            payment_method: trx.payment_method || 'Cash',
+                            title: trx.title || 'Transaksi Baru',
+                            description: trx.description,
+                            date: trx.date || new Date().toISOString().split('T')[0],
+                            date_formatted: 'Hari ini',
+                        };
+                        return [newTrx, ...(prev || []).filter(item => item.id !== newTrx.id)].slice(0, 5);
+                    });
+                } else if (action === 'deleted') {
+                    setLiveRecent(prev => (prev || []).filter(item => item.id !== trx.id));
+                }
+            }
+
+            // Also reload props from server to refresh chart and ensure full database reconciliation
+            router.reload({
+                preserveScroll: true,
+                preserveState: true,
+            });
+        };
+
+        // 1. Listen to global window event dispatched by AuthenticatedLayout (guaranteed delivery)
+        window.addEventListener('finance-realtime-update', handleRealtimeTrx);
+
+        // 2. Also listen to Echo channel directly, passing the callback so cleanup doesn't wipe out layout listeners
+        let echoChannel = null;
+        if (window.Echo) {
+            echoChannel = window.Echo.private(`user.${user.id}`);
+            echoChannel.listen('.transaction.recorded', handleRealtimeTrx);
+            echoChannel.listen('transaction.recorded', handleRealtimeTrx);
+            echoChannel.listen('TransactionRecorded', handleRealtimeTrx);
+            echoChannel.listen('.TransactionRecorded', handleRealtimeTrx);
+            echoChannel.listen('App\\Events\\TransactionRecorded', handleRealtimeTrx);
+        }
+
+        // 3. Fast 5-second polling while looking at the Dashboard as a resilient safety net
+        const pollTimer = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+                router.reload({
+                    preserveScroll: true,
+                    preserveState: true,
+                });
+            }
+        }, 5000);
+
+        return () => {
+            window.removeEventListener('finance-realtime-update', handleRealtimeTrx);
+            clearInterval(pollTimer);
+            if (echoChannel) {
+                echoChannel.stopListening('.transaction.recorded', handleRealtimeTrx);
+                echoChannel.stopListening('transaction.recorded', handleRealtimeTrx);
+                echoChannel.stopListening('TransactionRecorded', handleRealtimeTrx);
+                echoChannel.stopListening('.TransactionRecorded', handleRealtimeTrx);
+                echoChannel.stopListening('App\\Events\\TransactionRecorded', handleRealtimeTrx);
+            }
+        };
+    }, [user?.id]);
+
     useEffect(() => {
         let timer;
         const checkMobile = () => {
@@ -195,8 +316,8 @@ export default function Dashboard({
     }));
 
     // Progress percentage: Saldo Bersih against Total Pemasukan
-    const incomePercentage = summary?.pemasukan > 0 
-        ? Math.round(((summary?.saldo || 0) / summary.pemasukan) * 100) 
+    const incomePercentage = activeSummary?.pemasukan > 0 
+        ? Math.round(((activeSummary?.saldo || 0) / activeSummary.pemasukan) * 100) 
         : 0;
     const clampedProgress = Math.min(100, Math.max(0, incomePercentage));
 
@@ -321,13 +442,19 @@ export default function Dashboard({
                         )}
                     </div>
 
-                    {/* Top Card: Saldo Bersih, Progress Bar, Uang Masuk & Uang Keluar */}
+                    {/* Top Card: Estimasi Saldo Tersisa, Progress Bar, Total Pemasukan, Total Pengeluaran & Total Tabungan */}
                     <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-3.5">
-                        <div>
-                            <p className="text-xs font-extrabold text-slate-700 tracking-tight">Saldo Bersih</p>
-                            <h2 className="text-3xl font-black text-slate-900 tracking-tight mt-1 truncate" title={formatRp(summary?.saldo || 0)}>
-                                {formatRp(summary?.saldo || 0)}
-                            </h2>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Estimasi Saldo Tersisa</p>
+                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1 truncate" title={formatRp(activeSummary?.saldo || 0)}>
+                                    {formatRp(activeSummary?.saldo || 0)}
+                                </h2>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[11px] font-black border border-emerald-100/60 shadow-2xs">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Realtime</span>
+                            </div>
                         </div>
 
                         {/* Progress Bar */}
@@ -339,38 +466,53 @@ export default function Dashboard({
                                 />
                             </div>
                             <p className="text-[11px] font-bold text-slate-500 mt-1.5">
-                                {summary?.saldo < 0 ? 'Defisit Anggaran' : `${incomePercentage}% dari Penghasilan`}
+                                {activeSummary?.saldo < 0 ? 'Defisit Anggaran' : `${incomePercentage}% dari Penghasilan`}
                             </p>
                         </div>
 
-                        {/* Two Sub-Cards: Uang Masuk & Uang Keluar */}
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                            {/* Uang Masuk */}
-                            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between min-h-[92px]">
+                        {/* Three Sub-Cards: Total Pemasukan, Total Pengeluaran & Total Tabungan */}
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                            {/* Total Pemasukan */}
+                            <div className="bg-white rounded-2xl p-2.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between min-h-[82px]">
                                 <div className="flex items-center justify-between gap-1">
-                                    <span className="text-xs font-black text-slate-800">Uang Masuk</span>
-                                    <span className="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                                    <span className="text-[10.5px] font-black text-slate-800 leading-tight">Pemasukan</span>
+                                    <span className="w-4 h-4 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                                     </span>
                                 </div>
-                                <div className="mt-2">
-                                    <span className="text-sm font-black text-emerald-600 tracking-tight truncate block" title={formatRp(summary?.pemasukan || 0)}>
-                                        {formatRp(summary?.pemasukan || 0)}
+                                <div className="mt-1">
+                                    <span className="text-xs font-black text-emerald-600 tracking-tight truncate block" title={formatRp(activeSummary?.pemasukan || 0)}>
+                                        {formatRp(activeSummary?.pemasukan || 0)}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Uang Keluar */}
-                            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between min-h-[92px]">
+                            {/* Total Pengeluaran */}
+                            <div className="bg-white rounded-2xl p-2.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between min-h-[82px]">
                                 <div className="flex items-center justify-between gap-1">
-                                    <span className="text-xs font-black text-slate-800">Uang Keluar</span>
-                                    <span className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                                    <span className="text-[10.5px] font-black text-slate-800 leading-tight">Pengeluaran</span>
+                                    <span className="w-4 h-4 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                     </span>
                                 </div>
-                                <div className="mt-2">
-                                    <span className="text-sm font-black text-rose-600 tracking-tight truncate block" title={formatRp(summary?.pengeluaran || 0)}>
-                                        {formatRp(summary?.pengeluaran || 0)}
+                                <div className="mt-1">
+                                    <span className="text-xs font-black text-rose-600 tracking-tight truncate block" title={formatRp(activeSummary?.pengeluaran || 0)}>
+                                        {formatRp(activeSummary?.pengeluaran || 0)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Total Tabungan */}
+                            <div className="bg-white rounded-2xl p-2.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between min-h-[82px]">
+                                <div className="flex items-center justify-between gap-1">
+                                    <span className="text-[10.5px] font-black text-slate-800 leading-tight">Tabungan</span>
+                                    <span className="w-4 h-4 rounded-md bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                    </span>
+                                </div>
+                                <div className="mt-1">
+                                    <span className="text-xs font-black text-[#009bd2] tracking-tight truncate block" title={formatRp(activeSummary?.tabungan || 0)}>
+                                        {formatRp(activeSummary?.tabungan || 0)}
                                     </span>
                                 </div>
                             </div>
@@ -448,9 +590,9 @@ export default function Dashboard({
                             </Link>
                         </div>
 
-                        {recentTransactions && recentTransactions.length > 0 ? (
+                        {activeRecent && activeRecent.length > 0 ? (
                             <div className="space-y-2.5">
-                                {recentTransactions.map((trx) => {
+                                {activeRecent.map((trx) => {
                                     const isPengeluaran = trx.type === 'pengeluaran';
                                     const isPemasukan = trx.type === 'pemasukan';
 
@@ -669,7 +811,7 @@ export default function Dashboard({
                             </div>
                             <div>
                                 <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Pemasukan</p>
-                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary?.pemasukan || 0)}>{formatRp(summary?.pemasukan || 0)}</h3>
+                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(activeSummary?.pemasukan || 0)}>{formatRp(activeSummary?.pemasukan || 0)}</h3>
                             </div>
                         </div>
 
@@ -683,7 +825,7 @@ export default function Dashboard({
                             </div>
                             <div>
                                 <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Pengeluaran</p>
-                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary?.pengeluaran || 0)}>{formatRp(summary?.pengeluaran || 0)}</h3>
+                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(activeSummary?.pengeluaran || 0)}>{formatRp(activeSummary?.pengeluaran || 0)}</h3>
                             </div>
                         </div>
 
@@ -697,7 +839,7 @@ export default function Dashboard({
                             </div>
                             <div>
                                 <p className="text-slate-400 font-bold text-xs sm:text-sm mb-0.5 sm:mb-1">Total Tabungan</p>
-                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(summary?.tabungan || 0)}>{formatRp(summary?.tabungan || 0)}</h3>
+                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate" title={formatRp(activeSummary?.tabungan || 0)}>{formatRp(activeSummary?.tabungan || 0)}</h3>
                             </div>
                         </div>
                     </div>
@@ -709,7 +851,7 @@ export default function Dashboard({
                         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                             <div>
                                 <p className="text-slate-400 font-bold text-[11px] sm:text-xs md:text-sm uppercase tracking-wider mb-1 sm:mb-2">Estimasi Saldo Tersisa</p>
-                                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight truncate" title={formatRp(summary?.saldo || 0)}>{formatRp(summary?.saldo || 0)}</h2>
+                                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight truncate" title={formatRp(activeSummary?.saldo || 0)}>{formatRp(activeSummary?.saldo || 0)}</h2>
                             </div>
                             <div className="hidden sm:flex items-center gap-2 self-start sm:self-center bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10">
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -939,7 +1081,7 @@ export default function Dashboard({
                                     <p className="text-xs text-slate-400 font-medium">Distribusi pos pengeluaran terbesar</p>
                                 </div>
                                 <span className="text-xs font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full">
-                                    {formatRp(summary?.pengeluaran || 0)}
+                                    {formatRp(activeSummary?.pengeluaran || 0)}
                                 </span>
                             </div>
 
@@ -1000,9 +1142,9 @@ export default function Dashboard({
                                 </Link>
                             </div>
 
-                            {recentTransactions && recentTransactions.length > 0 ? (
+                            {activeRecent && activeRecent.length > 0 ? (
                                 <div className="space-y-2.5">
-                                    {recentTransactions.map((trx) => {
+                                    {activeRecent.map((trx) => {
                                         const isPengeluaran = trx.type === 'pengeluaran';
                                         const isPemasukan = trx.type === 'pemasukan';
 

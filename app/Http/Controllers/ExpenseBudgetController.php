@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Budget;
+use App\Models\Category;
 use App\Models\Transaction;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class ExpenseBudgetController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
-        if (!$user->canAccess('budget')) {
+        if (! $user->canAccess('budget')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'anggaran',
                 'title' => 'Menu Pengeluaran Bulanan Terkunci',
@@ -35,7 +37,7 @@ class ExpenseBudgetController extends Controller
         $currentYear = Carbon::now()->year;
 
         // Ambil kategori pengeluaran dari tabel categories
-        $expenseCategories = \App\Models\Category::where('user_id', $user->id)
+        $expenseCategories = Category::where('user_id', $user->id)
             ->where('type', 'pengeluaran')
             ->orderBy('name')
             ->pluck('name')
@@ -56,7 +58,7 @@ class ExpenseBudgetController extends Controller
             ->toArray();
 
         foreach ($recurringPastBudgets as $name => $group) {
-            if (!in_array($name, $existingNamesThisMonth)) {
+            if (! in_array($name, $existingNamesThisMonth)) {
                 $latest = $group->sortByDesc('created_at')->first();
                 Budget::create([
                     'user_id' => $user->id,
@@ -66,7 +68,7 @@ class ExpenseBudgetController extends Controller
                     'current_amount' => 0,
                     'month' => $currentMonth,
                     'status' => 'Berjalan',
-                    'is_recurring' => true
+                    'is_recurring' => true,
                 ]);
             }
         }
@@ -84,9 +86,9 @@ class ExpenseBudgetController extends Controller
         $currentBudgets = Budget::where('user_id', $user->id)
             ->where('month', $currentMonth)
             ->where('type', 'Pengeluaran')
-            ->get()->map(function($budget) use ($actualExpenses) {
+            ->get()->map(function ($budget) use ($actualExpenses) {
                 $actualExpense = (float) ($actualExpenses[$budget->name] ?? 0);
-                
+
                 $status = 'Berjalan';
                 if ($actualExpense > $budget->target_amount) {
                     $status = 'Melebihi';
@@ -98,11 +100,11 @@ class ExpenseBudgetController extends Controller
                     'id' => $budget->id,
                     'type' => $budget->type,
                     'name' => $budget->name,
-                    'target' => (float)$budget->target_amount,
+                    'target' => (float) $budget->target_amount,
                     'current' => $actualExpense,
                     'status' => $status,
-                    'is_recurring' => (bool)$budget->is_recurring,
-                    'percentage' => $budget->target_amount > 0 ? min(100, round(($actualExpense / $budget->target_amount) * 100)) : 0
+                    'is_recurring' => (bool) $budget->is_recurring,
+                    'percentage' => $budget->target_amount > 0 ? min(100, round(($actualExpense / $budget->target_amount) * 100)) : 0,
                 ];
             });
 
@@ -112,17 +114,17 @@ class ExpenseBudgetController extends Controller
             ->where('month', '!=', $currentMonth)
             ->orderBy('created_at', 'desc')
             ->get();
-            
-        $historyData = $historyBudgets->map(function($budget) {
+
+        $historyData = $historyBudgets->map(function ($budget) {
             return [
                 'id' => $budget->id,
                 'name' => $budget->name,
-                'target' => (float)$budget->target_amount,
-                'used' => (float)$budget->current_amount,
-                'month' => $budget->month
+                'target' => (float) $budget->target_amount,
+                'used' => (float) $budget->current_amount,
+                'month' => $budget->month,
             ];
         });
-        
+
         $historyMonths = collect($historyData)->pluck('month')->unique()->values();
 
         $usedCategories = $currentBudgets->pluck('name')->toArray();
@@ -134,20 +136,20 @@ class ExpenseBudgetController extends Controller
             'expenseCategories' => $expenseCategories,
             'availableCategories' => $availableCategories,
             'historyData' => $historyData,
-            'historyMonths' => $historyMonths
+            'historyMonths' => $historyMonths,
         ]);
     }
 
     public function store(Request $request)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
 
         Carbon::setLocale('id');
@@ -159,7 +161,7 @@ class ExpenseBudgetController extends Controller
             ->where('name', $request->name)
             ->where('month', $currentMonth)
             ->exists();
-            
+
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk kategori ini sudah ada di bulan ini.']);
         }
@@ -172,24 +174,36 @@ class ExpenseBudgetController extends Controller
             'current_amount' => 0,
             'month' => $currentMonth,
             'status' => 'Berjalan',
-            'is_recurring' => $request->boolean('is_recurring', false)
+            'is_recurring' => $request->boolean('is_recurring', false),
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'created',
+                source: 'web',
+                message: "Anggaran Pengeluaran '{$request->name}' berhasil disimpan"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil disimpan.');
     }
 
     public function update(Request $request, Budget $budget)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
-        if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') abort(403);
+        if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') {
+            abort(403);
+        }
 
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
 
         $exists = Budget::where('user_id', auth()->id())
@@ -198,7 +212,7 @@ class ExpenseBudgetController extends Controller
             ->where('month', $budget->month)
             ->where('id', '!=', $budget->id)
             ->exists();
-            
+
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk kategori ini sudah ada.']);
         }
@@ -206,21 +220,43 @@ class ExpenseBudgetController extends Controller
         $budget->update([
             'name' => $request->name,
             'target_amount' => $request->target_amount,
-            'is_recurring' => $request->boolean('is_recurring', false)
+            'is_recurring' => $request->boolean('is_recurring', false),
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'updated',
+                source: 'web',
+                message: "Anggaran Pengeluaran '{$request->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil diubah.');
     }
 
     public function destroy(Budget $budget)
     {
-        if (!Auth::user()->canAccess('budget')) {
+        if (! Auth::user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
-        if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') abort(403);
+        if ($budget->user_id !== auth()->id() || $budget->type !== 'Pengeluaran') {
+            abort(403);
+        }
 
         $budget->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Anggaran pengeluaran berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil dihapus.');
     }

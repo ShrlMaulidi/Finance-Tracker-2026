@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Category;
@@ -61,13 +62,13 @@ class BillController extends Controller
                 $status = 'lunas';
                 $countdownText = 'Lunas';
                 $badgeText = 'Sudah Dibayar';
-            } elseif ($selectedDate->isPast() && !$selectedDate->isCurrentMonth()) {
+            } elseif ($selectedDate->isPast() && ! $selectedDate->isCurrentMonth()) {
                 $status = 'terlambat';
                 $countdownText = 'Belum dibayar';
                 $badgeText = 'Lewat Jatuh Tempo';
             } elseif ($diffDays < 0) {
                 $status = 'terlambat';
-                $countdownText = 'Terlambat ' . abs($diffDays) . ' hari';
+                $countdownText = 'Terlambat '.abs($diffDays).' hari';
                 $badgeText = 'Lewat Jatuh Tempo';
             } elseif ($diffDays === 0) {
                 $status = 'hari_ini';
@@ -75,11 +76,11 @@ class BillController extends Controller
                 $badgeText = 'Jatuh Tempo Hari Ini';
             } elseif ($diffDays <= $bill->reminder_days) {
                 $status = 'segera';
-                $countdownText = $diffDays . ' hari lagi';
+                $countdownText = $diffDays.' hari lagi';
                 $badgeText = 'Segera Jatuh Tempo';
             } else {
                 $status = 'mendatang';
-                $countdownText = $diffDays . ' hari lagi';
+                $countdownText = $diffDays.' hari lagi';
                 $badgeText = 'Mendatang';
             }
 
@@ -155,7 +156,7 @@ class BillController extends Controller
                     'id' => $p->id,
                     'bill_name' => $p->bill ? $p->bill->name : 'Tagihan',
                     'category_name' => $p->bill ? ($p->bill->category_name ?? $p->bill->name) : 'Tagihan',
-                    'month_label' => Carbon::parse($p->month . '-01')->translatedFormat('F Y'),
+                    'month_label' => Carbon::parse($p->month.'-01')->translatedFormat('F Y'),
                     'amount' => (float) $p->amount,
                     'paid_at' => $p->paid_at->translatedFormat('d F Y'),
                     'payment_method' => $p->payment_method ?? 'Default',
@@ -214,8 +215,9 @@ class BillController extends Controller
         $count = Bill::where('user_id', $user->id)->where('is_active', true)->count();
         if ($user->hasReachedLimit('bill', $count)) {
             $limit = $user->getLimit('bill');
+
             return redirect()->back()->withErrors([
-                'name' => "Batas maksimal Tagihan Rutin untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah tanpa batas."
+                'name' => "Batas maksimal Tagihan Rutin untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah tanpa batas.",
             ]);
         }
 
@@ -235,7 +237,7 @@ class BillController extends Controller
             'due_day.max' => 'Tanggal jatuh tempo maksimal tanggal 31.',
         ]);
 
-        $categoryName = !empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
+        $categoryName = ! empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
 
         // Automatically register as an expense category
         Category::firstOrCreate([
@@ -257,6 +259,16 @@ class BillController extends Controller
         ]);
 
         $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'created',
+                source: 'web',
+                message: "Tagihan '{$validated['name']}' berhasil ditambahkan"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return back()->with('success', "Tagihan '{$validated['name']}' berhasil ditambahkan dan otomatis terdaftar di kategori pengeluaran!");
     }
@@ -280,7 +292,7 @@ class BillController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $categoryName = !empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
+        $categoryName = ! empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
 
         // Automatically ensure category exists
         Category::firstOrCreate([
@@ -301,6 +313,16 @@ class BillController extends Controller
 
         $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'updated',
+                source: 'web',
+                message: "Tagihan '{$bill->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return back()->with('success', "Tagihan '{$bill->name}' berhasil diperbarui!");
     }
 
@@ -315,6 +337,16 @@ class BillController extends Controller
 
         $name = $bill->name;
         $bill->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'deleted',
+                source: 'web',
+                message: "Tagihan '{$name}' berhasil dihapus"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return back()->with('success', "Tagihan '{$name}' berhasil dihapus.");
     }
@@ -342,7 +374,7 @@ class BillController extends Controller
         ]);
 
         Carbon::setLocale('id');
-        $monthLabel = Carbon::parse($validated['month'] . '-01')->translatedFormat('F Y');
+        $monthLabel = Carbon::parse($validated['month'].'-01')->translatedFormat('F Y');
 
         DB::transaction(function () use ($bill, $validated, $monthLabel) {
             $categoryName = $bill->category_name ?? $bill->name;
@@ -361,7 +393,7 @@ class BillController extends Controller
                 'amount' => $validated['amount'],
                 'category' => $categoryName,
                 'payment_method' => $validated['payment_method'],
-                'title' => 'Bayar Tagihan ' . $bill->name,
+                'title' => 'Bayar Tagihan '.$bill->name,
                 'description' => $validated['notes'] ?? ("Pembayaran tagihan {$bill->name} untuk periode {$monthLabel}"),
                 'date' => $validated['paid_at'],
             ]);
@@ -383,7 +415,19 @@ class BillController extends Controller
             );
         });
 
-        return back()->with('success', "Pembayaran tagihan '{$bill->name}' sebesar Rp " . number_format($validated['amount'], 0, ',', '.') . " berhasil dicatat ke Pengeluaran!");
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                transaction: $transaction ?? null,
+                action: 'created',
+                source: 'web',
+                message: "Pembayaran tagihan '{$bill->name}' berhasil dicatat"
+            ));
+        } catch (\Throwable $e) {
+            // silent fallback
+        }
+
+        return back()->with('success', "Pembayaran tagihan '{$bill->name}' sebesar Rp ".number_format($validated['amount'], 0, ',', '.').' berhasil dicatat ke Pengeluaran!');
     }
 
     /**
@@ -438,7 +482,7 @@ class BillController extends Controller
                     ->first();
 
                 if ($existingPayment) {
-                    if ($existingPayment->transaction_id && !Transaction::where('id', $existingPayment->transaction_id)->exists()) {
+                    if ($existingPayment->transaction_id && ! Transaction::where('id', $existingPayment->transaction_id)->exists()) {
                         $existingPayment->delete();
                     } elseif ($existingPayment->notes && str_contains($existingPayment->notes, 'transaksi Pengeluaran')) {
                         $existingPayment->delete();

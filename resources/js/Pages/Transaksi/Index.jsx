@@ -460,7 +460,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             </div>
                                         </div>
                                         
-                                        <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+                                        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
                                             <div className="text-right">
                                                 <p 
                                                     className={`text-xs sm:text-base md:text-lg font-black tracking-tight ${item.type === 'pengeluaran' ? 'text-rose-600' : item.type === 'pemasukan' ? 'text-emerald-600' : ''}`}
@@ -470,21 +470,30 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 </p>
                                             </div>
                                             
-                                            {/* Action Dropdown Mini Toolbar - always accessible on mobile */}
-                                            <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                <Dropdown>
-                                                    <Dropdown.Trigger>
-                                                        <button className="w-7 h-7 sm:w-8 sm:h-8 bg-transparent hover:bg-slate-100 active:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
-                                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
-                                                        </button>
-                                                    </Dropdown.Trigger>
-                                                    <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
-                                                        <ActionButtons
-                                                            onEdit={() => openEditModal(item)}
-                                                            onDelete={() => handleDelete(item.id)}
-                                                        />
-                                                    </Dropdown.Content>
-                                                </Dropdown>
+                                            {/* Action Buttons: Edit & Hapus (Directly accessible on Desktop & Mobile, never cut off or clipped) */}
+                                            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pl-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(item)}
+                                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-[#009bd2]/10 text-slate-500 hover:text-[#009bd2] border border-slate-200/60 flex items-center justify-center transition-all active:scale-95 shadow-2xs group/btn"
+                                                    title="Edit Transaksi"
+                                                    aria-label="Edit Transaksi"
+                                                >
+                                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(item.id)}
+                                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 border border-rose-200/60 flex items-center justify-center transition-all active:scale-95 shadow-2xs group/btn"
+                                                    title="Hapus Transaksi"
+                                                    aria-label="Hapus Transaksi"
+                                                >
+                                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

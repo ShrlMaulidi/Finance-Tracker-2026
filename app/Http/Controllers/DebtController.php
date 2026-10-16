@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Debt;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class DebtController extends Controller
 {
@@ -14,9 +15,9 @@ class DebtController extends Controller
         $debts = Debt::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return Inertia::render('HutangPiutang/Index', [
-            'debts' => $debts
+            'debts' => $debts,
         ]);
     }
 
@@ -31,11 +32,21 @@ class DebtController extends Controller
             'status' => 'required|in:belum_lunas,lunas',
             'description' => 'nullable|string',
         ]);
-        
+
         $validated['user_id'] = Auth::id();
-        
+
         Debt::create($validated);
-        
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'created',
+                source: 'web',
+                message: "Data {$validated['type']} '{$validated['name']}' berhasil dicatat"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return redirect()->back()->with('success', 'Data berhasil ditambahkan.');
     }
 
@@ -44,7 +55,7 @@ class DebtController extends Controller
         if ($debt->user_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $validated = $request->validate([
             'type' => 'required|in:hutang,piutang',
             'name' => 'required|string|max:255',
@@ -54,9 +65,19 @@ class DebtController extends Controller
             'status' => 'required|in:belum_lunas,lunas',
             'description' => 'nullable|string',
         ]);
-        
+
         $debt->update($validated);
-        
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'updated',
+                source: 'web',
+                message: "Data {$debt->type} '{$debt->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return redirect()->back()->with('success', 'Data berhasil diubah.');
     }
 
@@ -65,9 +86,19 @@ class DebtController extends Controller
         if ($debt->user_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $debt->delete();
-        
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Data hutang/piutang berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
+
         return redirect()->back()->with('success', 'Data berhasil dihapus.');
     }
 }

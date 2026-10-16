@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\TransactionRecorded;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ class AdminUserController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -85,8 +86,18 @@ class AdminUserController extends Controller
             return back()->with('error', 'Anda tidak dapat menonaktifkan akun Super Admin Anda sendiri.');
         }
 
-        $user->is_active = !$user->is_active;
+        $user->is_active = ! $user->is_active;
         $user->save();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $user->id,
+                action: 'status_updated',
+                source: 'admin',
+                message: $user->is_active ? 'Akun Anda telah diaktifkan kembali oleh Admin' : 'Akun Anda telah dinonaktifkan sementara oleh Admin'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         $statusText = $user->is_active ? 'diaktifkan kembali' : 'dinonaktifkan sementara';
 
@@ -110,6 +121,16 @@ class AdminUserController extends Controller
             'pro' => 'Paket Pro',
             'pro_plus' => 'Paket Pro Plus',
         ];
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $user->id,
+                action: 'subscription_updated',
+                source: 'admin',
+                message: "Paket langganan Anda telah diperbarui ke {$tierNames[$validated['tier']]}!"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return back()->with('success', "Paket langganan pengguna '{$user->name}' berhasil diubah ke {$tierNames[$validated['tier']]}.");
     }

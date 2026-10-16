@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Transaction;
-use App\Models\Target;
+use App\Events\TransactionRecorded;
 use App\Models\Bill;
 use App\Models\BillPayment;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Category;
+use App\Models\Debt;
+use App\Models\PaymentMethod;
+use App\Models\Target;
+use App\Models\Transaction;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class TransactionController extends Controller
 {
@@ -26,7 +30,7 @@ class TransactionController extends Controller
                 return [
                     'id' => $t->id,
                     'type' => $t->type,
-                    'amount' => (float)$t->amount,
+                    'amount' => (float) $t->amount,
                     'category' => $t->category,
                     'payment_method' => $t->payment_method,
                     'title' => $t->title,
@@ -39,35 +43,35 @@ class TransactionController extends Controller
         // Calculate totals for the current month using SQL aggregates
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
-        
+
         $totals = Transaction::where('user_id', Auth::id())
             ->whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
             ->selectRaw('type, SUM(amount) as total')
             ->groupBy('type')
             ->pluck('total', 'type');
-            
+
         $totalPemasukan = $totals->get('pemasukan', 0);
         $totalPengeluaran = $totals->get('pengeluaran', 0);
         $totalTabungan = $totals->get('tabungan', 0);
 
         // Get categories from database (auto-seed if empty)
         $currentUser = Auth::user();
-        if ($currentUser && \App\Models\Category::where('user_id', $currentUser->id)->count() === 0) {
+        if ($currentUser && Category::where('user_id', $currentUser->id)->count() === 0) {
             $currentUser->seedDefaultCategoriesAndPaymentMethods();
         }
-        $userCategories = \App\Models\Category::where('user_id', Auth::id())->get();
-        $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
-        $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
+        $userCategories = Category::where('user_id', Auth::id())->get();
+        $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn ($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
+        $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn ($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
 
         // Inject active Debts/Receivables into categories in 1 efficient query
-        $activeDebts = \App\Models\Debt::where('user_id', Auth::id())
+        $activeDebts = Debt::where('user_id', Auth::id())
             ->whereIn('type', ['hutang', 'piutang'])
             ->where('status', 'belum_lunas')
             ->get(['name', 'type']);
 
-        $activeHutang = $activeDebts->where('type', 'hutang')->map(fn($d) => ['id' => $d->name, 'label' => 'Hutang: ' . $d->name])->toArray();
-        $activePiutang = $activeDebts->where('type', 'piutang')->map(fn($d) => ['id' => $d->name, 'label' => 'Piutang: ' . $d->name])->toArray();
+        $activeHutang = $activeDebts->where('type', 'hutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Hutang: '.$d->name])->toArray();
+        $activePiutang = $activeDebts->where('type', 'piutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Piutang: '.$d->name])->toArray();
 
         // Ensure active bill categories are present without duplicating
         $activeBills = Bill::where('user_id', Auth::id())
@@ -76,28 +80,28 @@ class TransactionController extends Controller
 
         $billCategories = [];
         foreach ($activeBills as $b) {
-            $catName = !empty($b->category_name) ? $b->category_name : $b->name;
+            $catName = ! empty($b->category_name) ? $b->category_name : $b->name;
             $billCategories[] = ['id' => $catName, 'label' => $catName];
         }
 
         $pengeluaranCategories = collect(array_merge($pengeluaranCategories, $billCategories, $activeHutang))->unique('id')->values()->toArray();
         $pemasukanCategories = collect(array_merge($pemasukanCategories, $activePiutang))->unique('id')->values()->toArray();
 
-        $paymentMethods = \App\Models\PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
+        $paymentMethods = PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
 
         return Inertia::render('Transaksi/Index', [
             'transactions' => $transactions,
             'summary' => [
-                'pemasukan' => (float)$totalPemasukan,
-                'pengeluaran' => (float)$totalPengeluaran,
-                'tabungan' => (float)$totalTabungan,
-                'saldo' => (float)($totalPemasukan - $totalPengeluaran - $totalTabungan)
+                'pemasukan' => (float) $totalPemasukan,
+                'pengeluaran' => (float) $totalPengeluaran,
+                'tabungan' => (float) $totalTabungan,
+                'saldo' => (float) ($totalPemasukan - $totalPengeluaran - $totalTabungan),
             ],
             'currentMonthName' => Carbon::now()->translatedFormat('F Y'),
             'targets' => $targets,
             'pemasukanCategories' => $pemasukanCategories,
             'pengeluaranCategories' => $pengeluaranCategories,
-            'paymentMethods' => $paymentMethods
+            'paymentMethods' => $paymentMethods,
         ]);
     }
 
@@ -138,6 +142,17 @@ class TransactionController extends Controller
         // Sync recurring bill payment if it's an expense matching a bill
         if ($validated['type'] === 'pengeluaran') {
             $this->syncBillPayment($transaction->user_id, $transaction->category, $transaction->date);
+        }
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                transaction: $transaction,
+                action: 'created',
+                source: 'web'
+            ));
+        } catch (\Throwable $e) {
+            // silent fallback if websocket offline
         }
 
         return redirect()->back()->with('success', 'Transaksi berhasil ditambahkan.');
@@ -203,6 +218,17 @@ class TransactionController extends Controller
             $this->syncBillPayment($transaction->user_id, $validated['category'], $validated['date']);
         }
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $transaction->user_id,
+                transaction: $transaction,
+                action: 'updated',
+                source: 'web'
+            ));
+        } catch (\Throwable $e) {
+            // silent fallback if websocket offline
+        }
+
         return redirect()->back()->with('success', 'Transaksi berhasil diperbarui.');
     }
 
@@ -237,22 +263,33 @@ class TransactionController extends Controller
             $this->syncBillPayment($userId, $category, $date);
         }
 
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) $userId,
+                transaction: $transaction,
+                action: 'deleted',
+                source: 'web'
+            ));
+        } catch (\Throwable $e) {
+            // silent fallback if websocket offline
+        }
+
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
     }
 
     private function syncDebtAmount($category, $amount, $type, $isRevert = false)
     {
-        $debt = \App\Models\Debt::where('user_id', Auth::id())
+        $debt = Debt::where('user_id', Auth::id())
             ->where('name', $category)
             ->first();
-            
+
         if ($debt) {
             if ($type === 'pengeluaran' && $debt->type === 'hutang') {
                 $debt->remaining_amount += $isRevert ? $amount : -$amount;
             } elseif ($type === 'pemasukan' && $debt->type === 'piutang') {
                 $debt->remaining_amount += $isRevert ? $amount : -$amount;
             }
-            
+
             // Prevent negative remaining amount and update status
             if ($debt->remaining_amount <= 0) {
                 $debt->remaining_amount = 0;
@@ -260,12 +297,12 @@ class TransactionController extends Controller
             } else {
                 $debt->status = 'belum_lunas';
             }
-            
+
             // Prevent remaining amount from exceeding original amount
             if ($debt->remaining_amount > $debt->amount) {
                 $debt->remaining_amount = $debt->amount;
             }
-            
+
             $debt->save();
         }
     }
@@ -283,9 +320,9 @@ class TransactionController extends Controller
             ->where('is_active', true)
             ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
                 $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
-                      ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                      ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
-                      ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
+                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
+                    ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
+                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
             })
             ->get();
 

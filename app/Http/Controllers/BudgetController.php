@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\Budget;
+use App\Models\Target;
+use App\Models\Transaction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class BudgetController extends Controller
 {
     public function index()
     {
         $user = auth()->user();
-        if (!$user->canAccess('budget')) {
+        if (! $user->canAccess('budget')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'anggaran',
                 'title' => 'Menu Anggaran Tabungan & Target Terkunci',
@@ -45,7 +48,7 @@ class BudgetController extends Controller
 
         foreach ($recurringPastBudgets as $name => $group) {
             // Cek apakah bulan ini sudah ada anggaran dengan nama tersebut
-            if (!in_array($name, $existingNamesThisMonth)) {
+            if (! in_array($name, $existingNamesThisMonth)) {
                 // Gandakan dari yang paling baru
                 $latest = $group->sortByDesc('created_at')->first();
                 Budget::create([
@@ -56,7 +59,7 @@ class BudgetController extends Controller
                     'current_amount' => 0,
                     'month' => $currentMonth,
                     'status' => 'Berjalan',
-                    'is_recurring' => true
+                    'is_recurring' => true,
                 ]);
             }
         }
@@ -69,10 +72,10 @@ class BudgetController extends Controller
             ->where('type', '!=', 'Pengeluaran')
             ->where('month', $currentMonth)
             ->get();
-            
+
         $budgetNames = $budgets->pluck('name')->toArray();
-        
-        $actualSavings = \App\Models\Transaction::where('user_id', $user->id)
+
+        $actualSavings = Transaction::where('user_id', $user->id)
             ->where('type', 'tabungan')
             ->whereIn('category', $budgetNames)
             ->whereMonth('date', $currentMonthNum)
@@ -80,38 +83,38 @@ class BudgetController extends Controller
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->pluck('total', 'category');
-            
-        $targetDataList = \App\Models\Target::where('user_id', $user->id)
+
+        $targetDataList = Target::where('user_id', $user->id)
             ->whereIn('name', $budgetNames)
             ->get()
             ->keyBy('name');
 
-        $currentBudgets = $budgets->map(function($budget) use ($actualSavings, $targetDataList) {
-                $color = $budget->type === 'Tabungan' ? 'blue' : 'emerald';
-                $savings = (float)($actualSavings[$budget->name] ?? 0);
-                $status = $savings >= $budget->target_amount ? 'Terpenuhi' : 'Berjalan';
-                $targetData = $targetDataList[$budget->name] ?? null;
+        $currentBudgets = $budgets->map(function ($budget) use ($actualSavings, $targetDataList) {
+            $color = $budget->type === 'Tabungan' ? 'blue' : 'emerald';
+            $savings = (float) ($actualSavings[$budget->name] ?? 0);
+            $status = $savings >= $budget->target_amount ? 'Terpenuhi' : 'Berjalan';
+            $targetData = $targetDataList[$budget->name] ?? null;
 
-                return [
-                    'id' => $budget->id,
-                    'type' => $budget->type,
-                    'name' => $budget->name,
-                    'target' => (float)$budget->target_amount,
-                    'current' => $savings,
-                    'color' => $color,
-                    'status' => $status,
-                    'is_recurring' => (bool)$budget->is_recurring,
-                    'total_target' => (float)($targetData ? $targetData->target_amount : 0),
-                    'total_saved' => (float)($targetData ? $targetData->current_amount : 0),
-                ];
-            });
+            return [
+                'id' => $budget->id,
+                'type' => $budget->type,
+                'name' => $budget->name,
+                'target' => (float) $budget->target_amount,
+                'current' => $savings,
+                'color' => $color,
+                'status' => $status,
+                'is_recurring' => (bool) $budget->is_recurring,
+                'total_target' => (float) ($targetData ? $targetData->target_amount : 0),
+                'total_saved' => (float) ($targetData ? $targetData->current_amount : 0),
+            ];
+        });
 
         // Ambil riwayat bulan-bulan sebelumnya
         $historyBudgets = Budget::where('user_id', $user->id)
             ->where('type', '!=', 'Pengeluaran')
             ->where('month', '!=', $currentMonth)
             ->orderBy('created_at', 'desc')
-            ->get()->map(function($budget) {
+            ->get()->map(function ($budget) {
                 $status = $budget->status;
                 if ($status === 'Berjalan') {
                     $status = ($budget->current_amount >= $budget->target_amount) ? 'Terpenuhi' : 'Gagal';
@@ -122,22 +125,22 @@ class BudgetController extends Controller
                     'month' => $budget->month,
                     'type' => $budget->type,
                     'name' => $budget->name,
-                    'target' => (float)$budget->target_amount,
-                    'current' => (float)$budget->current_amount,
+                    'target' => (float) $budget->target_amount,
+                    'current' => (float) $budget->current_amount,
                     'status' => $status,
                 ];
             });
 
         $historyMonths = $historyBudgets->pluck('month')->unique()->values();
 
-        $activeTargets = \App\Models\Target::where('user_id', $user->id)
+        $activeTargets = Target::where('user_id', $user->id)
             ->where('status', 'Berjalan')
             ->orderBy('created_at', 'desc')
             ->get();
 
         $usedTargets = $currentBudgets->pluck('name')->toArray();
-        $availableTargets = $activeTargets->filter(function($t) use ($usedTargets) {
-            return !in_array($t->name, $usedTargets);
+        $availableTargets = $activeTargets->filter(function ($t) use ($usedTargets) {
+            return ! in_array($t->name, $usedTargets);
         })->values();
 
         return Inertia::render('Anggaran/Investasi', [
@@ -146,20 +149,20 @@ class BudgetController extends Controller
             'historyData' => $historyBudgets,
             'historyMonths' => $historyMonths,
             'activeTargets' => $activeTargets,
-            'availableTargets' => $availableTargets
+            'availableTargets' => $availableTargets,
         ]);
     }
 
     public function store(Request $request)
     {
-        if (!auth()->user()->canAccess('budget')) {
+        if (! auth()->user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
 
         Carbon::setLocale('id');
@@ -173,8 +176,8 @@ class BudgetController extends Controller
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk target ini sudah ada di bulan ini.']);
         }
-        
-        $targetData = \App\Models\Target::where('user_id', auth()->id())->where('name', $request->name)->first();
+
+        $targetData = Target::where('user_id', auth()->id())->where('name', $request->name)->first();
         $type = $targetData ? $targetData->category : 'Tabungan';
 
         Budget::create([
@@ -185,26 +188,38 @@ class BudgetController extends Controller
             'current_amount' => 0,
             'month' => $currentMonth,
             'status' => 'Berjalan',
-            'is_recurring' => $request->boolean('is_recurring', false)
+            'is_recurring' => $request->boolean('is_recurring', false),
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'created',
+                source: 'web',
+                message: "Anggaran '{$request->name}' berhasil disimpan"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran baru berhasil disimpan.');
     }
 
     public function update(Request $request, Budget $budget)
     {
-        if (!auth()->user()->canAccess('budget')) {
+        if (! auth()->user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
-        if ($budget->user_id !== auth()->id()) abort(403);
+        if ($budget->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $request->validate([
             'name' => 'required|string|max:255',
             'target_amount' => 'required|numeric|min:1',
-            'is_recurring' => 'boolean'
+            'is_recurring' => 'boolean',
         ]);
-        
+
         $exists = Budget::where('user_id', auth()->id())
             ->where('month', $budget->month)
             ->where('name', $request->name)
@@ -214,29 +229,51 @@ class BudgetController extends Controller
         if ($exists) {
             return redirect()->back()->withErrors(['name' => 'Anggaran untuk target ini sudah ada di bulan ini.']);
         }
-        
-        $targetData = \App\Models\Target::where('user_id', auth()->id())->where('name', $request->name)->first();
+
+        $targetData = Target::where('user_id', auth()->id())->where('name', $request->name)->first();
         $type = $targetData ? $targetData->category : 'Tabungan';
 
         $budget->update([
             'type' => $type,
             'name' => $request->name,
             'target_amount' => $request->target_amount,
-            'is_recurring' => $request->boolean('is_recurring', false)
+            'is_recurring' => $request->boolean('is_recurring', false),
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'updated',
+                source: 'web',
+                message: "Anggaran '{$request->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran berhasil diubah.');
     }
 
     public function destroy(Budget $budget)
     {
-        if (!auth()->user()->canAccess('budget')) {
+        if (! auth()->user()->canAccess('budget')) {
             abort(403, 'Fitur anggaran hanya tersedia untuk akun Pro.');
         }
 
-        if ($budget->user_id !== auth()->id()) abort(403);
+        if ($budget->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $budget->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Anggaran berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Anggaran berhasil dihapus.');
     }

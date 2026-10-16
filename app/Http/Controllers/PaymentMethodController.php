@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionRecorded;
 use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -47,13 +48,14 @@ class PaymentMethodController extends Controller
         $count = PaymentMethod::where('user_id', $user->id)->count();
         if ($user->hasReachedLimit('payment_method', $count)) {
             $limit = $user->getLimit('payment_method');
+
             return redirect()->back()->withErrors([
-                'name' => "Batas maksimal metode pembayaran untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah metode pembayaran tanpa batas."
+                'name' => "Batas maksimal metode pembayaran untuk paket Anda telah tercapai (maksimal {$limit} data). Silakan upgrade ke paket Pro untuk menambah metode pembayaran tanpa batas.",
             ]);
         }
 
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         $exists = PaymentMethod::where('user_id', auth()->id())
@@ -66,18 +68,30 @@ class PaymentMethodController extends Controller
 
         PaymentMethod::create([
             'user_id' => auth()->id(),
-            'name' => $request->name
+            'name' => $request->name,
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'created',
+                source: 'web',
+                message: "Metode pembayaran '{$request->name}' berhasil ditambahkan"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil ditambahkan.');
     }
 
     public function update(Request $request, PaymentMethod $paymentMethod)
     {
-        if ($paymentMethod->user_id !== auth()->id()) abort(403);
+        if ($paymentMethod->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         $exists = PaymentMethod::where('user_id', auth()->id())
@@ -90,17 +104,39 @@ class PaymentMethodController extends Controller
         }
 
         $paymentMethod->update([
-            'name' => $request->name
+            'name' => $request->name,
         ]);
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'updated',
+                source: 'web',
+                message: "Metode pembayaran '{$paymentMethod->name}' berhasil diperbarui"
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil diperbarui.');
     }
 
     public function destroy(PaymentMethod $paymentMethod)
     {
-        if ($paymentMethod->user_id !== auth()->id()) abort(403);
+        if ($paymentMethod->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $paymentMethod->delete();
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) auth()->id(),
+                action: 'deleted',
+                source: 'web',
+                message: 'Metode pembayaran berhasil dihapus'
+            ));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil dihapus.');
     }

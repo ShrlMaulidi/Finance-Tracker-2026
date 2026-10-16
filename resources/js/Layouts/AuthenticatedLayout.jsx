@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import Dropdown from '@/Components/Dropdown';
 import OfferModal from '@/Components/OfferModal';
@@ -62,6 +62,12 @@ export default function AuthenticatedLayout({ children }) {
     });
 
     const [modeNotice, setModeNotice] = useState(null);
+    const [wsStatus, setWsStatus] = useState(() => {
+        if (typeof window !== 'undefined' && window.Echo?.connector?.pusher?.connection?.state) {
+            return window.Echo.connector.pusher.connection.state;
+        }
+        return 'connected';
+    });
 
     const toggleMobileNavMode = () => {
         setMobileNavMode(prev => {
@@ -104,6 +110,100 @@ export default function AuthenticatedLayout({ children }) {
             clearTimeout(t2);
         };
     }, [currentUrl, sidebarOpen]);
+
+    // Realtime WebSocket integration via Laravel Reverb + Mobile Resilience
+    useEffect(() => {
+        if (!user?.id || typeof window === 'undefined') {
+            return;
+        }
+
+        // Listen for connection state changes from Reverb
+        const handleStatusChange = (e) => {
+            const state = e.detail?.state;
+            if (state) {
+                setWsStatus(state);
+                // When reconnected, refresh active page to catch any missed updates
+                if (state === 'connected') {
+                    router.reload({
+                        preserveScroll: true,
+                        preserveState: true,
+                    });
+                }
+            }
+        };
+        window.addEventListener('reverb-status-change', handleStatusChange);
+
+        // Subscribe to private user channel
+        if (window.Echo) {
+            const channel = window.Echo.private(`user.${user.id}`);
+
+            const handleEvent = (e) => {
+                // Dispatch window event so pages (especially Dashboard) can update immediately in-memory
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('finance-realtime-update', { detail: e }));
+                }
+
+                // Instantly refresh current page props without scroll/state jump
+                router.reload({
+                    preserveScroll: true,
+                    preserveState: true,
+                });
+            };
+
+            // Listen to all possible event name variations to guarantee 100% catch rate
+            channel.listen('.transaction.recorded', handleEvent);
+            channel.listen('transaction.recorded', handleEvent);
+            channel.listen('TransactionRecorded', handleEvent);
+            channel.listen('.TransactionRecorded', handleEvent);
+            channel.listen('App\\Events\\TransactionRecorded', handleEvent);
+            channel.error((err) => {
+                console.warn('[Echo Channel Error]', err);
+                setWsStatus('connecting');
+            });
+        }
+
+        // Mobile & Tab Switching Resilience:
+        // When user switches back from WhatsApp or another app, immediately reload props to show changes made while in background
+        let lastVisibleTime = Date.now();
+        const handleResume = () => {
+            if (document.visibilityState === 'visible') {
+                const now = Date.now();
+                if (now - lastVisibleTime > 1500) {
+                    lastVisibleTime = now;
+                    router.reload({
+                        preserveScroll: true,
+                        preserveState: true,
+                    });
+                }
+                if (window.Echo?.connector?.pusher?.connection?.state === 'disconnected') {
+                    window.Echo.connector.pusher.connect();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleResume);
+        window.addEventListener('focus', handleResume);
+
+        // Fallback polling every 20 seconds while tab is active to ensure 100% sync even in strict firewalls
+        const fallbackInterval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+                router.reload({
+                    preserveScroll: true,
+                    preserveState: true,
+                });
+            }
+        }, 20000);
+
+        return () => {
+            window.removeEventListener('reverb-status-change', handleStatusChange);
+            document.removeEventListener('visibilitychange', handleResume);
+            window.removeEventListener('focus', handleResume);
+            clearInterval(fallbackInterval);
+            if (window.Echo) {
+                window.Echo.leave(`user.${user.id}`);
+            }
+        };
+    }, [user?.id]);
 
     // Automatically ensure sidebar stays closed on mobile when navigating
     useEffect(() => {
@@ -193,8 +293,7 @@ export default function AuthenticatedLayout({ children }) {
     const MenuItem = ({ icon, text, active = false, routeName = "#", isProLocked = false, badgeText = "PRO" }) => (
         <Link
             href={routeName === '#' ? '#' : route(routeName)}
-            prefetch={['hover', 'mousedown']}
-            cacheFor="5m"
+            cacheFor={0}
             onClick={() => {
                 saveSidebarScroll();
                 if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -249,19 +348,19 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.ringkasan')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.ringkasan')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Ringkasan Anggaran</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.investasi')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.investasi')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.hutang')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.hutang')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Hutang</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.pengeluaran')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.pengeluaran')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Pengeluaran Bulanan</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
@@ -269,8 +368,8 @@ export default function AuthenticatedLayout({ children }) {
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} prefetch={['hover', 'mousedown']} cacheFor="5m" onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>
@@ -405,10 +504,24 @@ export default function AuthenticatedLayout({ children }) {
                             </div>
                         </button>
 
-                        {/* Mobile Brand Title */}
-                        <div className="sm:hidden flex items-center gap-1.5 shrink-0">
+                        {/* Mobile Brand Title & Live Realtime Indicator */}
+                        <div className="sm:hidden flex items-center gap-2 shrink-0">
                             <img src="/logo.png" alt="FinanceTrack Logo" className="w-6 h-6 object-contain shrink-0" />
                             <span className="font-extrabold text-slate-800 text-[15px] tracking-tight whitespace-nowrap">FinanceTrack</span>
+                            {wsStatus === 'connected' ? (
+                                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/90 text-emerald-700 text-[10px] font-black tracking-wide shadow-2xs">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                    </span>
+                                    <span>Live</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold shadow-2xs">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                    <span>Sync</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Desktop Overview */}
@@ -419,6 +532,21 @@ export default function AuthenticatedLayout({ children }) {
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-6">
+                        {/* Realtime Status Indicator Badge (Desktop) */}
+                        {wsStatus === 'connected' ? (
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/90 text-emerald-700 text-xs font-bold shadow-2xs transition-all hover:bg-emerald-100/70" title="Terhubung secara realtime via Reverb WebSocket">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <span>Live Realtime</span>
+                            </div>
+                        ) : (
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold shadow-2xs transition-all" title="Sedang menghubungkan ke server realtime...">
+                                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span>Menghubungkan...</span>
+                            </div>
+                        )}
                         {/* Mobile Nav Switcher (Bottom Nav vs Sidebar) - Sleek 36x36 Icon Button */}
                         <button
                             type="button"
@@ -513,6 +641,7 @@ export default function AuthenticatedLayout({ children }) {
                         <span>{modeNotice}</span>
                     </div>
                 )}
+
 
                 {/* DYNAMIC PAGE CONTENT */}
                 <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${mobileNavMode === 'bottom' ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0' : 'pb-8 md:pb-0'}`}>

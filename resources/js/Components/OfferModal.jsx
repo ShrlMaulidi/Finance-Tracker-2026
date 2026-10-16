@@ -229,7 +229,7 @@ export default function OfferModal() {
                             </div>
                             
                             <Link 
-                                href={route('berlangganan.index')}
+                                href={route('berlangganan.index', { plan: 'pro_plus' })}
                                 onClick={handleCloseModal}
                                 className="w-full py-2.5 sm:py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.99] text-white font-extrabold text-xs sm:text-sm transition-all text-center block shadow-md shadow-indigo-600/25"
                             >
@@ -281,7 +281,7 @@ export default function OfferModal() {
                             </div>
                             
                             <Link 
-                                href={route('berlangganan.index')}
+                                href={route('berlangganan.index', { plan: 'pro' })}
                                 onClick={handleCloseModal}
                                 className="w-full py-2.5 sm:py-3.5 rounded-xl bg-slate-900 hover:bg-[#009bd2] active:scale-[0.99] text-white font-extrabold text-xs sm:text-sm transition-colors text-center block shadow-xs"
                             >

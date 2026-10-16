@@ -2,12 +2,12 @@ import { Head, Link } from '@inertiajs/react';
 
 export default function Welcome({ auth, canRegister = true }) {
     return (
-        <div 
-            className="min-h-screen relative flex flex-col font-sans" 
+        <div
+            className="min-h-screen relative flex flex-col font-sans"
             style={{ background: 'radial-gradient(circle at 75% 25%, #f0f7ff 0%, #fafcff 40%, #ffffff 100%)' }}
         >
             <Head title="FinanceTrack - AI Financial Assistant" />
-            
+
             {/* Navbar / Header */}
             <nav className="flex justify-between items-center py-3.5 px-4 sm:px-8 lg:px-12 backdrop-blur-md bg-white/70 sticky top-0 z-50 border-b border-slate-100 shadow-2xs">
                 <Link href="/" className="flex items-center gap-2 shrink-0">
@@ -17,8 +17,8 @@ export default function Welcome({ auth, canRegister = true }) {
 
                 <div className="flex items-center gap-2 sm:gap-3">
                     {auth?.user ? (
-                        <Link 
-                            href={route('dashboard')} 
+                        <Link
+                            href={route('dashboard')}
                             className="px-3.5 py-1.5 sm:px-5 sm:py-2 bg-[#009bd2] hover:bg-[#0089ba] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm shadow-[#009bd2]/25 active:scale-95 flex items-center gap-1.5"
                         >
                             <span>Dashboard</span>
@@ -26,15 +26,15 @@ export default function Welcome({ auth, canRegister = true }) {
                         </Link>
                     ) : (
                         <>
-                            <Link 
-                                href={route('login')} 
+                            <Link
+                                href={route('login')}
                                 className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-slate-600 font-bold hover:text-[#009bd2] transition-colors rounded-lg hover:bg-slate-50"
                             >
                                 Masuk
                             </Link>
                             {canRegister && (
-                                <Link 
-                                    href={route('register')} 
+                                <Link
+                                    href={route('register')}
                                     className="px-3.5 py-1.5 sm:px-5 sm:py-2 bg-[#009bd2] hover:bg-[#0089ba] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm shadow-[#009bd2]/25 active:scale-95"
                                 >
                                     Daftar
@@ -51,9 +51,9 @@ export default function Welcome({ auth, canRegister = true }) {
 
                 {/* Main Heading */}
                 <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-[70px] font-black text-slate-900 tracking-tight leading-[1.15] sm:leading-[1.1] mb-3.5 sm:mb-6 max-w-4xl mx-auto">
-                    Smart Way to Manage <br className="hidden sm:inline"/> Your <span className="text-[#009bd2]">Wealth</span>
+                    Smart Way to Manage <br className="hidden sm:inline" /> Your <span className="text-[#009bd2]">Wealth</span>
                 </h1>
-                
+
                 {/* Subtitle */}
                 <p className="text-xs sm:text-base md:text-lg text-slate-500 max-w-2xl mb-6 sm:mb-8 font-medium leading-relaxed px-2 sm:px-0">
                     Catat pengeluaran, pantau pemasukan, dan analisis kebiasaan finansial Anda secara instan dan otomatis melalui obrolan WhatsApp.
@@ -62,8 +62,8 @@ export default function Welcome({ auth, canRegister = true }) {
                 {/* Call to Actions */}
                 <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 justify-center w-full max-w-sm sm:max-w-md z-20 px-2 sm:px-0">
                     {auth?.user ? (
-                        <Link 
-                            href={route('dashboard')} 
+                        <Link
+                            href={route('dashboard')}
                             className="w-full bg-[#009bd2] hover:bg-[#0089ba] text-white font-extrabold py-3.5 px-6 rounded-xl transition-all shadow-md shadow-[#009bd2]/25 hover:-translate-y-0.5 active:scale-[0.98] text-sm sm:text-base flex justify-center items-center gap-2"
                         >
                             <span>Buka Dashboard Utama</span>
@@ -71,23 +71,23 @@ export default function Welcome({ auth, canRegister = true }) {
                         </Link>
                     ) : canRegister ? (
                         <>
-                            <Link 
-                                href={route('register')} 
+                            <Link
+                                href={route('register')}
                                 className="w-full sm:flex-1 bg-[#009bd2] hover:bg-[#0089ba] text-white font-extrabold py-3 sm:py-3.5 px-6 rounded-xl transition-all shadow-md shadow-[#009bd2]/25 hover:-translate-y-0.5 active:scale-[0.98] text-sm sm:text-base flex items-center justify-center gap-2"
                             >
                                 <span>Mulai Gratis</span>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                             </Link>
-                            <Link 
-                                href={route('login')} 
+                            <Link
+                                href={route('login')}
                                 className="w-full sm:flex-1 bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-bold py-3 sm:py-3.5 px-6 rounded-xl transition-all shadow-2xs hover:-translate-y-0.5 active:scale-[0.98] text-sm sm:text-base flex items-center justify-center"
                             >
                                 Masuk
                             </Link>
                         </>
                     ) : (
-                        <Link 
-                            href={route('login')} 
+                        <Link
+                            href={route('login')}
                             className="w-full bg-[#009bd2] hover:bg-[#0089ba] text-white font-extrabold py-3.5 px-6 rounded-xl transition-all shadow-md shadow-[#009bd2]/25 hover:-translate-y-0.5 active:scale-[0.98] text-sm sm:text-base flex justify-center items-center gap-2"
                         >
                             <span>Masuk ke Akun Anda</span>

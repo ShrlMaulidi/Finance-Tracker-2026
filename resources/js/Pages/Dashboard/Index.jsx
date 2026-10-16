@@ -565,7 +565,7 @@ export default function Dashboard({
                                     </div>
                                 </div>
                                 <div className="h-[220px] w-full relative">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                         {chartType === 'area' ? (
                                             <AreaChart data={displayChartData} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -771,7 +771,7 @@ export default function Dashboard({
                                 <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${
                                     !canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
                                 }`}>
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                         {chartType === 'area' ? (
                                             <AreaChart
                                                 data={displayChartData}

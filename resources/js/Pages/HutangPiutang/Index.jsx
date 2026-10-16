@@ -5,7 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Components/UI';
 
-export default function Hutang({ debts }) {
+export default function Hutang({ debts = [] }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     const [activeTab, setActiveTab] = useState('hutang');
@@ -76,9 +76,10 @@ export default function Hutang({ debts }) {
         }
     };
 
-    const activeDebts = debts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
-    const activeReceivables = debts.filter(d => d.type === 'piutang' && d.status !== 'lunas');
-    const historyDebts = debts.filter(d => d.status === 'lunas');
+    const safeDebts = Array.isArray(debts) ? debts : [];
+    const activeDebts = safeDebts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
+    const activeReceivables = safeDebts.filter(d => d.type === 'piutang' && d.status !== 'lunas');
+    const historyDebts = safeDebts.filter(d => d.status === 'lunas');
 
     const displayData = activeTab === 'hutang' ? activeDebts : activeTab === 'piutang' ? activeReceivables : historyDebts;
 

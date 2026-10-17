@@ -76,7 +76,7 @@ class TransactionController extends Controller
         // Ensure active bill categories are present without duplicating
         $activeBills = Bill::where('user_id', Auth::id())
             ->where('is_active', true)
-            ->get(['name', 'category_name']);
+            ->get(['id', 'name', 'category_name', 'amount']);
 
         $billCategories = [];
         foreach ($activeBills as $b) {
@@ -102,6 +102,12 @@ class TransactionController extends Controller
             'pemasukanCategories' => $pemasukanCategories,
             'pengeluaranCategories' => $pengeluaranCategories,
             'paymentMethods' => $paymentMethods,
+            'activeBills' => $activeBills->map(fn ($b) => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'category_name' => $b->category_name ?? $b->name,
+                'amount' => (float) $b->amount,
+            ])->values()->toArray(),
         ]);
     }
 
@@ -118,6 +124,25 @@ class TransactionController extends Controller
         ]);
 
         $validated['user_id'] = Auth::id();
+
+        // Lock amount to recurring bill if category matches an active bill
+        if ($validated['type'] === 'pengeluaran') {
+            $normalizedCategory = strtolower(trim($validated['category']));
+            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+            $matchingBill = Bill::where('user_id', Auth::id())
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
+                    $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
+                })
+                ->first();
+
+            if ($matchingBill) {
+                $validated['amount'] = (float) $matchingBill->amount;
+            }
+        }
 
         $transaction = Transaction::create($validated);
 
@@ -191,6 +216,25 @@ class TransactionController extends Controller
         } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
             // Revert old debt payment
             $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
+        }
+
+        // Lock amount to recurring bill if category matches an active bill
+        if ($validated['type'] === 'pengeluaran') {
+            $normalizedCategory = strtolower(trim($validated['category']));
+            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+            $matchingBill = Bill::where('user_id', Auth::id())
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
+                    $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
+                })
+                ->first();
+
+            if ($matchingBill) {
+                $validated['amount'] = (float) $matchingBill->amount;
+            }
         }
 
         $transaction->update($validated);

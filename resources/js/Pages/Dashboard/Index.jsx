@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+    AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const monthNames = [
@@ -76,12 +76,12 @@ const ChartTooltipContent = React.memo(({ active, payload, label, currentFilter,
     );
 });
 
-export default function Dashboard({ 
-    auth, 
-    summary, 
-    chartData = [], 
-    currentFilter = 'bulan', 
-    selectedMonth, 
+export default function Dashboard({
+    auth,
+    summary,
+    chartData = [],
+    currentFilter = 'bulan',
+    selectedMonth,
     selectedYear,
     categoryExpenses = [],
     recentTransactions = []
@@ -303,11 +303,11 @@ export default function Dashboard({
         router.get(route('dashboard'), { filter: 'tahun', year: y }, { preserveState: true, preserveScroll: true });
     };
 
-    const monthInputValue = selectedMonth && selectedYear 
-        ? `${selectedYear}-${String(selectedMonth).padStart(2, '0')}` 
+    const monthInputValue = selectedMonth && selectedYear
+        ? `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
         : '';
 
-    const availableYears = Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i);
+    const availableYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
 
     // Colorize categories for Donut chart and legend
     const chartCategories = (categoryExpenses || []).map((cat, idx) => ({
@@ -316,8 +316,8 @@ export default function Dashboard({
     }));
 
     // Progress percentage: Saldo Bersih against Total Pemasukan
-    const incomePercentage = activeSummary?.pemasukan > 0 
-        ? Math.round(((activeSummary?.saldo || 0) / activeSummary.pemasukan) * 100) 
+    const incomePercentage = activeSummary?.pemasukan > 0
+        ? Math.round(((activeSummary?.saldo || 0) / activeSummary.pemasukan) * 100)
         : 0;
     const clampedProgress = Math.min(100, Math.max(0, incomePercentage));
 
@@ -326,7 +326,7 @@ export default function Dashboard({
             <Head title="Dashboard" />
 
             <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative pb-20 sm:pb-8">
-                
+
                 {/* ======================================================== */}
                 {/* 1. TAMPILAN KHUSUS MOBILE (SESUAI WIREFRAME & TEMA KITA) */}
                 {/* ======================================================== */}
@@ -338,33 +338,30 @@ export default function Dashboard({
                             <button
                                 type="button"
                                 onClick={() => handleFilterChange('bulan')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${
-                                    currentFilter === 'bulan'
-                                        ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'bulan'
+                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
                             >
                                 Bulan
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleFilterChange('tahun')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${
-                                    currentFilter === 'tahun'
-                                        ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'tahun'
+                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
                             >
                                 Tahun
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleFilterChange('semua')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${
-                                    currentFilter === 'semua'
-                                        ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                }`}
+                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'semua'
+                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
                             >
                                 Semua Waktu
                             </button>
@@ -379,10 +376,10 @@ export default function Dashboard({
                                     className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
                                     aria-label="Bulan sebelumnya"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                                 <div className="relative flex-1 text-center px-2 flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                     <span className="text-xs font-black text-slate-800 tracking-tight">
                                         {monthNames[selectedMonth] || 'Bulan'} {selectedYear || new Date().getFullYear()}
                                     </span>
@@ -400,7 +397,7 @@ export default function Dashboard({
                                     className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
                                     aria-label="Bulan berikutnya"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
                         )}
@@ -413,10 +410,10 @@ export default function Dashboard({
                                     className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
                                     aria-label="Tahun sebelumnya"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                                 <div className="relative flex-1 text-center px-2 flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                     <span className="text-xs font-black text-slate-800 tracking-tight">
                                         Tahun {selectedYear || new Date().getFullYear()}
                                     </span>
@@ -436,7 +433,7 @@ export default function Dashboard({
                                     className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
                                     aria-label="Tahun berikutnya"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
                         )}
@@ -477,7 +474,7 @@ export default function Dashboard({
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10.5px] font-black text-slate-800 leading-tight">Pemasukan</span>
                                     <span className="w-4 h-4 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                                     </span>
                                 </div>
                                 <div className="mt-1">
@@ -492,7 +489,7 @@ export default function Dashboard({
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10.5px] font-black text-slate-800 leading-tight">Pengeluaran</span>
                                     <span className="w-4 h-4 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                                     </span>
                                 </div>
                                 <div className="mt-1">
@@ -603,13 +600,12 @@ export default function Dashboard({
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 {/* Round Icon */}
-                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                                    isPengeluaran
-                                                        ? 'bg-rose-50 text-rose-500'
-                                                        : isPemasukan
-                                                            ? 'bg-emerald-50 text-emerald-500'
-                                                            : 'bg-[#009bd2]/10 text-[#009bd2]'
-                                                }`}>
+                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPengeluaran
+                                                    ? 'bg-rose-50 text-rose-500'
+                                                    : isPemasukan
+                                                        ? 'bg-emerald-50 text-emerald-500'
+                                                        : 'bg-[#009bd2]/10 text-[#009bd2]'
+                                                    }`}>
                                                     {isPengeluaran ? (
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                                                     ) : isPemasukan ? (
@@ -640,13 +636,12 @@ export default function Dashboard({
 
                                             {/* Amount */}
                                             <div className="text-right shrink-0">
-                                                <span className={`font-black text-xs sm:text-sm tracking-tight ${
-                                                    isPengeluaran
-                                                        ? 'text-rose-500'
-                                                        : isPemasukan
-                                                            ? 'text-emerald-600'
-                                                            : 'text-[#009bd2]'
-                                                }`}>
+                                                <span className={`font-black text-xs sm:text-sm tracking-tight ${isPengeluaran
+                                                    ? 'text-rose-500'
+                                                    : isPemasukan
+                                                        ? 'text-emerald-600'
+                                                        : 'text-[#009bd2]'
+                                                    }`}>
                                                     {isPengeluaran ? `-${formatRp(trx.amount)}` : isPemasukan ? `+${formatRp(trx.amount)}` : formatRp(trx.amount)}
                                                 </span>
                                             </div>
@@ -754,8 +749,8 @@ export default function Dashboard({
                             {currentFilter === 'bulan' && (
                                 <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
                                     <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Bulan:</label>
-                                    <input 
-                                        type="month" 
+                                    <input
+                                        type="month"
                                         value={monthInputValue}
                                         onChange={handleMonthChange}
                                         className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-1"
@@ -765,7 +760,7 @@ export default function Dashboard({
                             {currentFilter === 'tahun' && (
                                 <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
                                     <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Tahun:</label>
-                                    <select 
+                                    <select
                                         value={selectedYear || new Date().getFullYear()}
                                         onChange={handleYearChange}
                                         className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-5"
@@ -777,19 +772,19 @@ export default function Dashboard({
                                 </div>
                             )}
                             <div className="flex bg-slate-100/90 p-1 rounded-xl w-full sm:w-auto gap-1">
-                                <button 
+                                <button
                                     onClick={() => handleFilterChange('bulan')}
                                     className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'bulan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     Bulanan
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => handleFilterChange('tahun')}
                                     className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'tahun' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     Tahunan
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => handleFilterChange('semua')}
                                     className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'semua' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
@@ -805,7 +800,7 @@ export default function Dashboard({
                         <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(16,185,129,0.08)] transition-all">
                             <div className="flex items-center justify-between mb-2.5 sm:mb-4">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                                 </div>
                                 <span className="text-[10px] sm:text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Pemasukan</span>
                             </div>
@@ -819,7 +814,7 @@ export default function Dashboard({
                         <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between group hover:shadow-[0_8px_30px_rgb(244,63,94,0.08)] transition-all">
                             <div className="flex items-center justify-between mb-2.5 sm:mb-4">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
-                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                                 </div>
                                 <span className="text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">Pengeluaran</span>
                             </div>
@@ -883,22 +878,20 @@ export default function Dashboard({
                                 <div className="bg-slate-100/80 p-1 rounded-xl flex items-center shadow-inner">
                                     <button
                                         onClick={() => setChartType('area')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
-                                            chartType === 'area'
-                                                ? 'bg-white text-slate-900 shadow-xs'
-                                                : 'text-slate-500 hover:text-slate-800'
-                                        }`}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${chartType === 'area'
+                                            ? 'bg-white text-slate-900 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                            }`}
                                     >
                                         <svg className="w-3.5 h-3.5 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                                         <span>Area</span>
                                     </button>
                                     <button
                                         onClick={() => setChartType('bar')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${
-                                            chartType === 'bar'
-                                                ? 'bg-white text-slate-900 shadow-xs'
-                                                : 'text-slate-500 hover:text-slate-800'
-                                        }`}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-200 ${chartType === 'bar'
+                                            ? 'bg-white text-slate-900 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                            }`}
                                     >
                                         <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                                         <span>Batang</span>
@@ -906,13 +899,12 @@ export default function Dashboard({
                                 </div>
                             </div>
                         </div>
-                        
+
                         {displayChartData.length > 0 ? (
                             <div className="relative overflow-hidden rounded-xl sm:rounded-2xl">
                                 {/* Chart Canvas */}
-                                <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${
-                                    !canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
-                                }`}>
+                                <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${!canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
+                                    }`}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         {chartType === 'area' ? (
                                             <AreaChart
@@ -921,68 +913,68 @@ export default function Dashboard({
                                             >
                                                 <defs>
                                                     <linearGradient id="gradientPemasukan" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
-                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                                                     </linearGradient>
                                                     <linearGradient id="gradientPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35}/>
-                                                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
+                                                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35} />
+                                                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
                                                     </linearGradient>
                                                     <linearGradient id="gradientTabungan" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#009bd2" stopOpacity={0.35}/>
-                                                        <stop offset="95%" stopColor="#009bd2" stopOpacity={0.0}/>
+                                                        <stop offset="5%" stopColor="#009bd2" stopOpacity={0.35} />
+                                                        <stop offset="95%" stopColor="#009bd2" stopOpacity={0.0} />
                                                     </linearGradient>
                                                 </defs>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis 
-                                                    dataKey="name" 
-                                                    axisLine={{ stroke: '#f1f5f9' }} 
-                                                    tickLine={false} 
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={{ stroke: '#f1f5f9' }}
+                                                    tickLine={false}
                                                     tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
                                                     dy={8}
                                                     interval={currentFilter === 'bulan' ? 2 : 0}
                                                     tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
                                                 />
-                                                <YAxis 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
+                                                <YAxis
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                     tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
                                                     tickFormatter={formatYAxis}
                                                     width={58}
                                                 />
                                                 <Tooltip content={<ChartTooltipContent currentFilter={currentFilter} selectedMonth={selectedMonth} selectedYear={selectedYear} formatRp={formatRp} />} />
-                                                <Legend 
+                                                <Legend
                                                     iconType="circle"
                                                     wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
                                                 />
-                                                <Area 
-                                                    type="monotone" 
-                                                    dataKey="pemasukan" 
-                                                    name="Pemasukan" 
-                                                    stroke="#10b981" 
-                                                    strokeWidth={2.5} 
-                                                    fillOpacity={1} 
-                                                    fill="url(#gradientPemasukan)" 
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="pemasukan"
+                                                    name="Pemasukan"
+                                                    stroke="#10b981"
+                                                    strokeWidth={2.5}
+                                                    fillOpacity={1}
+                                                    fill="url(#gradientPemasukan)"
                                                     activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#10b981' }}
                                                 />
-                                                <Area 
-                                                    type="monotone" 
-                                                    dataKey="pengeluaran" 
-                                                    name="Pengeluaran" 
-                                                    stroke="#f43f5e" 
-                                                    strokeWidth={2.5} 
-                                                    fillOpacity={1} 
-                                                    fill="url(#gradientPengeluaran)" 
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="pengeluaran"
+                                                    name="Pengeluaran"
+                                                    stroke="#f43f5e"
+                                                    strokeWidth={2.5}
+                                                    fillOpacity={1}
+                                                    fill="url(#gradientPengeluaran)"
                                                     activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#f43f5e' }}
                                                 />
-                                                <Area 
-                                                    type="monotone" 
-                                                    dataKey="tabungan" 
-                                                    name="Tabungan" 
-                                                    stroke="#009bd2" 
-                                                    strokeWidth={2.5} 
-                                                    fillOpacity={1} 
-                                                    fill="url(#gradientTabungan)" 
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="tabungan"
+                                                    name="Tabungan"
+                                                    stroke="#009bd2"
+                                                    strokeWidth={2.5}
+                                                    fillOpacity={1}
+                                                    fill="url(#gradientTabungan)"
                                                     activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#009bd2' }}
                                                 />
                                             </AreaChart>
@@ -994,24 +986,24 @@ export default function Dashboard({
                                                 barCategoryGap={displayChartData.length > 20 ? '15%' : '25%'}
                                             >
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis 
-                                                    dataKey="name" 
-                                                    axisLine={{ stroke: '#f1f5f9' }} 
-                                                    tickLine={false} 
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={{ stroke: '#f1f5f9' }}
+                                                    tickLine={false}
                                                     tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
                                                     dy={8}
                                                     interval={currentFilter === 'bulan' ? 2 : 0}
                                                     tickFormatter={(val) => currentFilter === 'bulan' ? `Tgl ${val}` : val}
                                                 />
-                                                <YAxis 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
+                                                <YAxis
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                     tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
                                                     tickFormatter={formatYAxis}
                                                     width={58}
                                                 />
                                                 <Tooltip content={<ChartTooltipContent currentFilter={currentFilter} selectedMonth={selectedMonth} selectedYear={selectedYear} formatRp={formatRp} />} />
-                                                <Legend 
+                                                <Legend
                                                     iconType="circle"
                                                     wrapperStyle={{ paddingTop: '16px', fontSize: '12px', fontWeight: 700 }}
                                                 />
@@ -1030,7 +1022,7 @@ export default function Dashboard({
                                             <div>
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-amber-800 shadow-2xs text-[10px] sm:text-xs font-black uppercase tracking-wider">
                                                     <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                     </svg>
                                                     <span>Fitur Eksklusif Pro</span>
                                                 </span>
@@ -1154,13 +1146,12 @@ export default function Dashboard({
                                                 className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs flex items-center justify-between gap-3 hover:border-slate-200 transition"
                                             >
                                                 <div className="flex items-center gap-3 min-w-0">
-                                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                                        isPengeluaran
-                                                            ? 'bg-rose-50 text-rose-500'
-                                                            : isPemasukan
-                                                                ? 'bg-emerald-50 text-emerald-500'
-                                                                : 'bg-[#009bd2]/10 text-[#009bd2]'
-                                                    }`}>
+                                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPengeluaran
+                                                        ? 'bg-rose-50 text-rose-500'
+                                                        : isPemasukan
+                                                            ? 'bg-emerald-50 text-emerald-500'
+                                                            : 'bg-[#009bd2]/10 text-[#009bd2]'
+                                                        }`}>
                                                         {isPengeluaran ? (
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                                                         ) : isPemasukan ? (
@@ -1187,13 +1178,12 @@ export default function Dashboard({
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <span className={`font-black text-xs sm:text-sm tracking-tight ${
-                                                        isPengeluaran
-                                                            ? 'text-rose-500'
-                                                            : isPemasukan
-                                                                ? 'text-emerald-600'
-                                                                : 'text-[#009bd2]'
-                                                    }`}>
+                                                    <span className={`font-black text-xs sm:text-sm tracking-tight ${isPengeluaran
+                                                        ? 'text-rose-500'
+                                                        : isPemasukan
+                                                            ? 'text-emerald-600'
+                                                            : 'text-[#009bd2]'
+                                                        }`}>
                                                         {isPengeluaran ? `-${formatRp(trx.amount)}` : isPemasukan ? `+${formatRp(trx.amount)}` : formatRp(trx.amount)}
                                                     </span>
                                                 </div>

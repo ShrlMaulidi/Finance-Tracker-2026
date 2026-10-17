@@ -53,7 +53,7 @@ class BillController extends Controller
             $clampedDay = min($bill->due_day, $daysInMonth);
             $dueDate = Carbon::create($year, $month, $clampedDay);
             $payment = $bill->payments->first();
-            $isPaid = (bool) $payment;
+            $isPaid = $payment && ((float) $payment->amount >= (float) $bill->amount);
 
             // Status and countdown calculation
             $diffDays = (int) $today->diffInDays($dueDate, false); // negative if past
@@ -62,6 +62,11 @@ class BillController extends Controller
                 $status = 'lunas';
                 $countdownText = 'Lunas';
                 $badgeText = 'Sudah Dibayar';
+            } elseif ($payment && (float) $payment->amount > 0) {
+                $status = $diffDays < 0 ? 'terlambat' : 'segera';
+                $remaining = max(0, (float) $bill->amount - (float) $payment->amount);
+                $countdownText = 'Kurang Rp '.number_format($remaining, 0, ',', '.');
+                $badgeText = 'Kurang Rp '.number_format($remaining, 0, ',', '.');
             } elseif ($selectedDate->isPast() && ! $selectedDate->isCurrentMonth()) {
                 $status = 'terlambat';
                 $countdownText = 'Belum dibayar';
@@ -361,17 +366,19 @@ class BillController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'nullable|numeric|min:0',
             'paid_at' => 'required|date',
             'payment_method' => 'required|string|max:255',
             'month' => 'required|string|regex:/^\d{4}-\d{2}$/',
             'notes' => 'nullable|string|max:500',
         ], [
-            'amount.required' => 'Nominal pembayaran wajib diisi.',
             'paid_at.required' => 'Tanggal pembayaran wajib diisi.',
             'payment_method.required' => 'Metode pembayaran wajib dipilih.',
             'month.required' => 'Bulan tagihan tidak valid.',
         ]);
+
+        // Lock amount to the exact bill amount
+        $validated['amount'] = (float) $bill->amount;
 
         Carbon::setLocale('id');
         $monthLabel = Carbon::parse($validated['month'].'-01')->translatedFormat('F Y');

@@ -80,8 +80,8 @@ export default function MobileBottomNav({
                                 }
                             }}
                             className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${active
-                                    ? 'text-[#009bd2]'
-                                    : 'text-slate-400 hover:text-slate-600'
+                                ? 'text-[#009bd2]'
+                                : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
                             {/* Active Top Bar Indicator */}
@@ -109,8 +109,8 @@ export default function MobileBottomNav({
                     aria-label={isMenuOpen ? "Tutup Menu" : "Buka Menu"}
                     aria-expanded={isMenuOpen}
                     className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${isMenuOpen
-                            ? 'text-[#009bd2]'
-                            : 'text-slate-400 hover:text-slate-600'
+                        ? 'text-[#009bd2]'
+                        : 'text-slate-400 hover:text-slate-600'
                         }`}
                 >
                     {isMenuOpen && (

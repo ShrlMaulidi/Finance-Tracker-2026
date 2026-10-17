@@ -9,15 +9,12 @@ export default function AdminLayout({ children, title = 'Super Admin' }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     const currentUrl = usePage().url;
-
-    // Automatically ensure sidebar stays closed on mobile when navigating
     useEffect(() => {
         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setSidebarOpen(false);
         }
     }, [currentUrl]);
 
-    // Flash messages toast
     useEffect(() => {
         if (flash?.success) {
             setToast({ show: true, message: flash.success, type: 'success' });
@@ -86,7 +83,6 @@ export default function AdminLayout({ children, title = 'Super Admin' }) {
                     </button>
                 </div>
             )}
-
             {/* MOBILE SIDEBAR BACKDROP */}
             {sidebarOpen && (
                 <div

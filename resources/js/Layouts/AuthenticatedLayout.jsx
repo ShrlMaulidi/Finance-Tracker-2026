@@ -290,7 +290,16 @@ export default function AuthenticatedLayout({ children }) {
     const isAIAgentLocked = user?.permissions ? !user.permissions.ai_agent : !isProPlus;
 
     // Helper for Menu Items that anchor icons so they never move during width transitions
-    const MenuItem = ({ icon, text, active = false, routeName = "#", isProLocked = false, badgeText = "PRO" }) => (
+    const MenuItem = ({
+        icon,
+        text,
+        active = false,
+        routeName = "#",
+        isProLocked = false,
+        badgeText = "PRO",
+        isPrimary = false,
+        primaryBadge = null,
+    }) => (
         <Link
             href={routeName === '#' ? '#' : route(routeName)}
             cacheFor={0}
@@ -300,18 +309,54 @@ export default function AuthenticatedLayout({ children }) {
                     setSidebarOpen(false);
                 }
             }}
-            className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30' : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'}`}
+            className={`group relative flex items-center h-[40px] mx-3 rounded-xl transition-all duration-300 w-[calc(100%-1.5rem)] ${active
+                ? 'bg-[#009bd2] text-white shadow-md shadow-[#009bd2]/30'
+                : isPrimary
+                    ? 'bg-sky-50/70 border border-[#009bd2]/25 text-slate-800 hover:bg-sky-100/80 hover:border-[#009bd2]/45 hover:-translate-y-0.5 hover:shadow-xs'
+                    : 'text-slate-600 hover:bg-white hover:shadow-[0_8px_15px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:scale-[1.02] hover:z-10 hover:text-slate-900'
+                }`}
         >
-            <div className={`w-10 h-10 flex justify-center items-center shrink-0 transition-all duration-300 ease-out group-hover:scale-[1.1] group-hover:-rotate-[12deg] ${active ? '' : 'group-hover:text-[#009bd2]'}`}>
+            <div
+                className={`w-10 h-10 flex justify-center items-center shrink-0 transition-all duration-300 ease-out group-hover:scale-[1.1] group-hover:-rotate-[12deg] ${active
+                    ? 'text-white'
+                    : isPrimary
+                        ? 'text-[#009bd2]'
+                        : 'group-hover:text-[#009bd2]'
+                    }`}
+            >
                 {icon}
             </div>
-            <div className={`flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ${sidebarOpen ? 'w-[150px] opacity-100' : 'w-0 opacity-0'}`}>
-                <span className={`text-[13px] font-semibold transition-all duration-300 origin-left truncate ${active ? '' : 'group-hover:scale-[1.02] group-hover:font-bold group-hover:tracking-tight'}`}>{text}</span>
+            <div
+                className={`flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ${sidebarOpen ? 'w-[150px] opacity-100 pr-1' : 'w-0 opacity-0'
+                    }`}
+            >
+                <span
+                    className={`text-[13px] transition-all duration-300 origin-left truncate ${active
+                        ? 'font-semibold'
+                        : isPrimary
+                            ? 'font-bold text-slate-800 group-hover:text-[#009bd2]'
+                            : 'font-semibold group-hover:scale-[1.02] group-hover:font-bold group-hover:tracking-tight'
+                        }`}
+                >
+                    {text}
+                </span>
+                {isPrimary && primaryBadge && (
+                    <span
+                        className={`shrink-0 ml-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-tight transition-all duration-200 ${active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-[#009bd2]/10 text-[#009bd2] group-hover:bg-[#009bd2] group-hover:text-white'
+                            }`}
+                    >
+                        {primaryBadge}
+                    </span>
+                )}
                 {isProLocked && (
-                    <span className={`shrink-0 ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-2xs ${badgeText === 'PRO+'
+                    <span
+                        className={`shrink-0 ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-2xs ${badgeText === 'PRO+'
                             ? 'bg-purple-100 text-purple-700 border border-purple-200/80'
                             : 'bg-amber-100 text-amber-700 border border-amber-200/80'
-                        }`}>
+                            }`}
+                    >
                         {badgeText}
                     </span>
                 )}
@@ -412,7 +457,7 @@ export default function AuthenticatedLayout({ children }) {
                         <MenuItem icon={Icons.Hutang} text="Hutang & Piutang" active={route().current('hutang-piutang.*')} routeName="hutang-piutang.index" />
                         <MenuItem icon={Icons.Tagihan} text="Tagihan Rutin" active={route().current('tagihan.*')} routeName="tagihan.index" />
                         <SubMenuParent icon={Icons.Anggaran} text="Anggaran" menuKey="anggaran" active={route().current('anggaran.*')} isProLocked={isBudgetLocked} />
-                        <MenuItem icon={Icons.Pengeluaran} text="Transaksi" active={route().current('transaksi.index')} routeName="transaksi.index" />
+                        <MenuItem icon={Icons.Pengeluaran} text="Transaksi" active={route().current('transaksi.index')} routeName="transaksi.index" isPrimary primaryBadge="+ Catat" />
                         <MenuItem icon={Icons.Transaksi} text="Riwayat Transaksi" active={route().current('transaksi.history*') || usePage().url.startsWith('/transaksi/history')} routeName="transaksi.history" />
                     </div>
 

@@ -5,9 +5,20 @@ import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
 import { ActionButtons, Modal, Button } from '@/Components/UI';
 
-export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods }) {
+export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [] }) {
     const { flash } = usePage().props;
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+
+    const getMatchingBill = (categoryName) => {
+        if (!categoryName || !activeBills || activeBills.length === 0) return null;
+        const clean = categoryName.toLowerCase().replace(/^tagihan:\s*/i, '').trim();
+        return activeBills.find(b => 
+            (b.category_name && b.category_name.toLowerCase().trim() === clean) ||
+            (b.name && b.name.toLowerCase().trim() === clean) ||
+            (b.category_name && b.category_name.toLowerCase().trim() === categoryName.toLowerCase().trim()) ||
+            (b.name && b.name.toLowerCase().trim() === categoryName.toLowerCase().trim())
+        ) || null;
+    };
 
     const tabunganCategories = targets && targets.length > 0 
         ? targets.map(t => ({ id: t.name, label: t.name })) 
@@ -26,6 +37,27 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTx, setEditingTx] = useState(null);
     const [mobileTab, setMobileTab] = useState('catat'); // 'catat' | 'riwayat'
+
+    const selectedBill = data.type === 'pengeluaran' ? getMatchingBill(data.category) : null;
+
+    // Automatically set and lock bill amount when a bill category is chosen
+    useEffect(() => {
+        if (data.type === 'pengeluaran') {
+            const matched = getMatchingBill(data.category);
+            if (matched) {
+                setData(prev => {
+                    const updates = {};
+                    if (Number(prev.amount) !== Number(matched.amount)) {
+                        updates.amount = matched.amount;
+                    }
+                    if (!prev.title) {
+                        updates.title = `Bayar Tagihan ${matched.name}`;
+                    }
+                    return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+                });
+            }
+        }
+    }, [data.category, data.type, activeBills]);
 
     // Pop-up Notification State
     const [popupNotification, setPopupNotification] = useState({
@@ -74,6 +106,21 @@ export default function Index({ transactions, summary, currentMonthName, targets
         description: '',
         date: ''
     });
+
+    const editSelectedBill = editData.type === 'pengeluaran' ? getMatchingBill(editData.category) : null;
+
+    // Automatically sync bill amount in edit modal if editing a bill transaction
+    useEffect(() => {
+        if (editData.type === 'pengeluaran') {
+            const matched = getMatchingBill(editData.category);
+            if (matched && Number(editData.amount) !== Number(matched.amount)) {
+                setEditData(prev => ({
+                    ...prev,
+                    amount: matched.amount
+                }));
+            }
+        }
+    }, [editData.category, editData.type, activeBills]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -325,7 +372,18 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Kategori</label>
                                     <select 
                                         value={data.category}
-                                        onChange={e => setData('category', e.target.value)}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            const matched = data.type === 'pengeluaran' ? getMatchingBill(val) : null;
+                                            setData(prev => ({
+                                                ...prev,
+                                                category: val,
+                                                ...(matched ? {
+                                                    amount: matched.amount,
+                                                    title: prev.title ? prev.title : `Bayar Tagihan ${matched.name}`
+                                                } : {})
+                                            }));
+                                        }}
                                         className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
                                     >
                                         <option value="" disabled>Pilih Kategori</option>
@@ -354,16 +412,41 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 </div>
 
                                 <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Nominal</label>
+                                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600">Nominal</label>
+                                        {selectedBill && (
+                                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-md">
+                                                <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                                Nominal Tagihan Terkunci
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="relative">
                                         <span className="absolute left-3.5 top-2.5 sm:left-4 sm:top-3.5 text-slate-400 font-extrabold text-xs sm:text-sm">Rp</span>
                                         <CurrencyInput 
                                             value={data.amount}
-                                            onValueChange={val => setData('amount', val)}
+                                            onValueChange={val => {
+                                                if (!selectedBill) {
+                                                    setData('amount', val);
+                                                }
+                                            }}
+                                            readOnly={Boolean(selectedBill)}
+                                            disabled={Boolean(selectedBill)}
                                             placeholder="50000" 
-                                            className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-black text-sm sm:text-base transition-all" 
+                                            className={`w-full border-2 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 min-h-[44px] font-black text-sm sm:text-base transition-all ${
+                                                selectedBill 
+                                                    ? 'bg-slate-100/90 border-slate-200 text-slate-600 cursor-not-allowed select-none focus:outline-none' 
+                                                    : 'bg-slate-50 border-slate-100 text-slate-800 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white'
+                                            }`} 
                                         />
                                     </div>
+                                    {selectedBill && (
+                                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                                            Nominal otomatis disesuaikan dan dikunci pada tagihan <strong>{selectedBill.name}</strong> ({formatRp(selectedBill.amount)}).
+                                        </p>
+                                    )}
                                     {errors.amount && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.amount}</p>}
                                 </div>
 
@@ -569,7 +652,15 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1.5 sm:mb-2">Kategori</label>
                                     <select 
                                         value={editData.category}
-                                        onChange={e => setEditData('category', e.target.value)}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            const matched = editData.type === 'pengeluaran' ? getMatchingBill(val) : null;
+                                            setEditData(prev => ({
+                                                ...prev,
+                                                category: val,
+                                                ...(matched ? { amount: matched.amount } : {})
+                                            }));
+                                        }}
                                         className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white transition-colors text-xs sm:text-sm font-bold cursor-pointer"
                                     >
                                         <option value="" disabled>Pilih Kategori</option>
@@ -598,15 +689,40 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 </div>
 
                                 <div>
-                                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1.5 sm:mb-2">Nominal</label>
+                                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                                        <label className="text-xs sm:text-sm font-bold text-slate-700">Nominal</label>
+                                        {editSelectedBill && (
+                                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-md">
+                                                <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                                Terkunci
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="relative">
                                         <span className="absolute left-3.5 top-2 sm:left-4 sm:top-2.5 text-slate-500 font-bold text-xs sm:text-sm">Rp</span>
                                         <CurrencyInput 
                                             value={editData.amount}
-                                            onValueChange={val => setEditData('amount', val)}
-                                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white font-bold transition-colors text-xs sm:text-sm" 
+                                            onValueChange={val => {
+                                                if (!editSelectedBill) {
+                                                    setEditData('amount', val);
+                                                }
+                                            }}
+                                            readOnly={Boolean(editSelectedBill)}
+                                            disabled={Boolean(editSelectedBill)}
+                                            className={`w-full rounded-xl pl-10 sm:pl-12 pr-3.5 py-2 sm:py-2.5 font-bold transition-colors text-xs sm:text-sm ${
+                                                editSelectedBill
+                                                    ? 'bg-slate-100/90 border border-slate-200 text-slate-600 cursor-not-allowed select-none focus:outline-none'
+                                                    : 'bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white'
+                                            }`} 
                                         />
                                     </div>
+                                    {editSelectedBill && (
+                                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                                            Nominal tagihan terkunci ({formatRp(editSelectedBill.amount)}).
+                                        </p>
+                                    )}
                                     {editErrors.amount && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.amount}</p>}
                                 </div>
 

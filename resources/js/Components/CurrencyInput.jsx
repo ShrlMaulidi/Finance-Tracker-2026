@@ -43,6 +43,7 @@ export default function CurrencyInput({ value, onValueChange, className, ...prop
     }, [value]);
 
     const handleChange = (e) => {
+        if (props.readOnly || props.disabled) return;
         const rawValue = e.target.value.replace(/\D/g, '');
         if (!rawValue) {
             setDisplayValue('');

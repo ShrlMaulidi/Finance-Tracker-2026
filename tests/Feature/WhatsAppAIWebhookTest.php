@@ -135,4 +135,37 @@ class WhatsAppAIWebhookTest extends TestCase
             'phone_number' => null,
         ]);
     }
+
+    public function test_check_user_auto_links_lid_and_resolves_via_embedded_phone_in_message(): void
+    {
+        $user = User::factory()->create([
+            'phone_number' => '6281234567890',
+            'whatsapp_lid' => null,
+            'subscription_tier' => 'pro_plus',
+            'role' => 'user',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/webhook/whatsapp/check-user', [
+            'sender_id' => '166129871880419@lid',
+            'message' => 'Halo FinanceTrack! Saya ingin mulai mencatat keuangan. (081234567890)',
+        ], [
+            'X-AI-Secret-Key' => $this->secretToken,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+                'user' => [
+                    'phone' => '6281234567890',
+                    'whatsapp_lid' => '166129871880419@lid',
+                    'can_transact' => true,
+                ],
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'whatsapp_lid' => '166129871880419@lid',
+        ]);
+    }
 }

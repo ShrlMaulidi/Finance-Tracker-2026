@@ -50,6 +50,44 @@ class WhatsAppAIWebhookController extends Controller
     }
 
     /**
+     * Resolve user by sender_id, sender_phone, or phone number embedded in message text.
+     * Also auto-links whatsapp_lid if newly discovered.
+     */
+    protected function resolveUser(Request $request): ?User
+    {
+        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
+        $senderPhone = $request->input('sender_phone');
+        $message = $request->input('message') ?? $request->input('text') ?? $request->input('title') ?? '';
+
+        $user = null;
+        if ($senderId) {
+            $user = User::findByWhatsAppIdentifier($senderId);
+        }
+
+        if (! $user && $senderPhone) {
+            $user = User::findByWhatsAppIdentifier($senderPhone);
+        }
+
+        // 3. Fallback: Check if message contains a registered phone number (e.g. "Halo FinanceTrack! (081234567890)")
+        if (! $user && ! empty($message)) {
+            if (preg_match('/(?:08|628|\+628)\d{7,13}/', (string) $message, $matches)) {
+                $user = User::findByWhatsAppIdentifier($matches[0]);
+            }
+        }
+
+        // Auto-link whatsapp_lid if user was matched by phone and has no LID yet
+        if ($user && empty($user->whatsapp_lid)) {
+            if ($senderId && str_contains($senderId, '@lid')) {
+                $user->update(['whatsapp_lid' => $senderId]);
+            } elseif ($senderPhone && str_contains($senderPhone, '@lid')) {
+                $user->update(['whatsapp_lid' => $senderPhone]);
+            }
+        }
+
+        return $user;
+    }
+
+    /**
      * Store a transaction recorded by WhatsApp AI Agent.
      */
     public function storeTransaction(Request $request): JsonResponse
@@ -81,25 +119,7 @@ class WhatsAppAIWebhookController extends Controller
             ], 422);
         }
 
-        // 1. Prioritize lookup by sender_id / WhatsApp LID
-        $user = null;
-        if ($senderId) {
-            $user = User::findByWhatsAppIdentifier($senderId);
-        }
-
-        // 2. Fallback to sender_phone
-        if (! $user && $senderPhone) {
-            $user = User::findByWhatsAppIdentifier($senderPhone);
-        }
-
-        // Auto-link whatsapp_lid if user was matched by phone and has no LID yet
-        if ($user && empty($user->whatsapp_lid)) {
-            if ($senderId && str_contains($senderId, '@lid')) {
-                $user->update(['whatsapp_lid' => $senderId]);
-            } elseif ($senderPhone && str_contains($senderPhone, '@lid')) {
-                $user->update(['whatsapp_lid' => $senderPhone]);
-            }
-        }
+        $user = $this->resolveUser($request);
 
         // Debug logging to trace transaction attribution
         Log::info('WhatsApp AI Webhook: Incoming transaction request', [
@@ -362,13 +382,18 @@ class WhatsAppAIWebhookController extends Controller
         $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
         $senderPhone = $request->input('sender_phone');
 
-        $user = null;
-        if ($senderId) {
-            $user = User::findByWhatsAppIdentifier($senderId);
-        }
-        if (! $user && $senderPhone) {
-            $user = User::findByWhatsAppIdentifier($senderPhone);
-        }
+        $user = $this->resolveUser($request);
+
+        Log::info('WhatsApp AI Webhook: Check-user request', [
+            'raw_sender_phone' => $senderPhone,
+            'raw_sender_id' => $senderId,
+            'user_found' => (bool) $user,
+            'user_id' => $user?->id,
+            'user_name' => $user?->name,
+            'user_phone' => $user?->phone_number,
+            'user_lid' => $user?->whatsapp_lid,
+            'ip' => $request->ip(),
+        ]);
 
         if (! $user) {
             return response()->json([
@@ -414,6 +439,7 @@ class WhatsAppAIWebhookController extends Controller
             'active_bills' => $bills,
             'current_balance' => $activeBalance,
             'current_balance_formatted' => 'Rp '.number_format($activeBalance, 0, ',', '.'),
+            'message' => "Halo kak {$user->name}! 👋 Selamat datang di FinanceTrack.\n\nAkun Pro Plus Anda sudah aktif dan terhubung. Saya Fina, asisten keuangan pribadi Anda.\n\nAnda bisa langsung mencatat keuangan dengan mengetik santai (contoh: *Makan siang 25rb cash*) atau ketik *Cek saldo*.\n\nAda yang ingin Fina bantu catat hari ini?",
         ]);
     }
 
@@ -432,16 +458,7 @@ class WhatsAppAIWebhookController extends Controller
             'sender_lid' => 'nullable|string',
         ]);
 
-        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
-        $senderPhone = $request->input('sender_phone');
-
-        $user = null;
-        if ($senderId) {
-            $user = User::findByWhatsAppIdentifier($senderId);
-        }
-        if (! $user && $senderPhone) {
-            $user = User::findByWhatsAppIdentifier($senderPhone);
-        }
+        $user = $this->resolveUser($request);
 
         if (! $user || ! $user->canAccess('ai_agent')) {
             return response()->json([

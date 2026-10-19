@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import { KpiCard, TabFilter, SearchInput } from '@/Components/UI';
@@ -16,12 +16,51 @@ export default function Laporan({
     const [categoryTab, setCategoryTab] = useState('pengeluaran'); // 'pengeluaran' | 'pemasukan'
     const [showSavingsDetail, setShowSavingsDetail] = useState(true);
 
-    const formatRp = (num) =>
-        new Intl.NumberFormat('id-ID', {
+    const STORAGE_KEY = 'financetrack_hide_nominal';
+    const [hideNominal, setHideNominal] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(STORAGE_KEY) === 'true';
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        const handleSync = (e) => {
+            if (typeof e?.detail === 'boolean') {
+                setHideNominal(e.detail);
+            } else if (typeof window !== 'undefined') {
+                setHideNominal(localStorage.getItem(STORAGE_KEY) === 'true');
+            }
+        };
+        window.addEventListener('financetrack:toggle-hide-nominal', handleSync);
+        window.addEventListener('storage', handleSync);
+        return () => {
+            window.removeEventListener('financetrack:toggle-hide-nominal', handleSync);
+            window.removeEventListener('storage', handleSync);
+        };
+    }, []);
+
+    const toggleHideNominal = () => {
+        setHideNominal((prev) => {
+            const next = !prev;
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_KEY, String(next));
+                window.dispatchEvent(new CustomEvent('financetrack:toggle-hide-nominal', { detail: next }));
+            }
+            return next;
+        });
+    };
+
+    const formatRp = (num) => {
+        if (hideNominal) {
+            return 'Rp ••••••';
+        }
+        return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
         }).format(num || 0);
+    };
 
     const handleFilterChange = (type) => {
         router.get(route('laporan.index'), { filter_type: type }, { preserveState: true, preserveScroll: true });
@@ -97,8 +136,37 @@ export default function Laporan({
                             </p>
                         </div>
 
-                        {/* Export Buttons */}
+                        {/* Action & Export Buttons */}
                         <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-center shrink-0">
+                            {/* Hide / Show Nominal Eye Toggle Button */}
+                            <button
+                                type="button"
+                                onClick={toggleHideNominal}
+                                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl border font-extrabold text-[11px] sm:text-xs transition shadow-2xs active:scale-95 cursor-pointer ${
+                                    hideNominal
+                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/80'
+                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80'
+                                }`}
+                                title={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                                aria-label={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                            >
+                                {hideNominal ? (
+                                    <>
+                                        <svg className="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                        </svg>
+                                        <span><span className="hidden sm:inline">Nominal </span>Disembunyikan</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span><span className="hidden sm:inline">Sembunyikan </span>Nominal</span>
+                                    </>
+                                )}
+                            </button>
                             <a
                                 href={route('laporan.export.pdf', {
                                     filter_type: filters.type,

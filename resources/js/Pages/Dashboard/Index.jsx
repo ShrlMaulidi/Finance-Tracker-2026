@@ -244,9 +244,50 @@ export default function Dashboard({
         };
     }, []);
 
-    const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+    const STORAGE_KEY = 'financetrack_hide_nominal';
+    const [hideNominal, setHideNominal] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(STORAGE_KEY) === 'true';
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        const handleSync = (e) => {
+            if (typeof e.detail === 'boolean') {
+                setHideNominal(e.detail);
+            } else if (typeof window !== 'undefined') {
+                setHideNominal(localStorage.getItem(STORAGE_KEY) === 'true');
+            }
+        };
+        window.addEventListener('financetrack:toggle-hide-nominal', handleSync);
+        window.addEventListener('storage', handleSync);
+        return () => {
+            window.removeEventListener('financetrack:toggle-hide-nominal', handleSync);
+            window.removeEventListener('storage', handleSync);
+        };
+    }, []);
+
+    const toggleHideNominal = () => {
+        setHideNominal((prev) => {
+            const next = !prev;
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_KEY, String(next));
+                window.dispatchEvent(new CustomEvent('financetrack:toggle-hide-nominal', { detail: next }));
+            }
+            return next;
+        });
+    };
+
+    const formatRp = (num) => {
+        if (hideNominal) {
+            return 'Rp ••••••';
+        }
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+    };
 
     const formatYAxis = (value) => {
+        if (hideNominal) return '•••';
         if (!value || value === 0) return '0';
         if (value >= 1000000000) return `${(value / 1000000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
         if (value >= 1000000) return `${(value / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt`;
@@ -443,8 +484,28 @@ export default function Dashboard({
                     <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-3.5">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Estimasi Saldo Tersisa</p>
-                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1 truncate" title={formatRp(activeSummary?.saldo || 0)}>
+                                <div className="flex items-center gap-1.5">
+                                    <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Estimasi Saldo Tersisa</p>
+                                    <button
+                                        type="button"
+                                        onClick={toggleHideNominal}
+                                        className="p-1 text-slate-400 hover:text-slate-600 transition-colors rounded-lg active:scale-90 cursor-pointer"
+                                        title={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                                        aria-label={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                                    >
+                                        {hideNominal ? (
+                                            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1 truncate" title={hideNominal ? undefined : formatRp(activeSummary?.saldo || 0)}>
                                     {formatRp(activeSummary?.saldo || 0)}
                                 </h2>
                             </div>
@@ -791,6 +852,36 @@ export default function Dashboard({
                                     Semua
                                 </button>
                             </div>
+
+                            {/* Hide / Show Nominal Eye Toggle Button */}
+                            <button
+                                type="button"
+                                onClick={toggleHideNominal}
+                                className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer shrink-0 ${
+                                    hideNominal
+                                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/90'
+                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
+                                }`}
+                                title={hideNominal ? "Tampilkan Semua Nominal" : "Sembunyikan Semua Nominal"}
+                                aria-label={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                            >
+                                {hideNominal ? (
+                                    <>
+                                        <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                        </svg>
+                                        <span className="hidden xl:inline">Tampilkan</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span className="hidden xl:inline">Sembunyikan</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
 
@@ -845,8 +936,28 @@ export default function Dashboard({
                         <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-[#009bd2]/20 rounded-full blur-3xl pointer-events-none"></div>
                         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                             <div>
-                                <p className="text-slate-400 font-bold text-[11px] sm:text-xs md:text-sm uppercase tracking-wider mb-1 sm:mb-2">Estimasi Saldo Tersisa</p>
-                                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight truncate" title={formatRp(activeSummary?.saldo || 0)}>{formatRp(activeSummary?.saldo || 0)}</h2>
+                                <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                                    <p className="text-slate-400 font-bold text-[11px] sm:text-xs md:text-sm uppercase tracking-wider">Estimasi Saldo Tersisa</p>
+                                    <button
+                                        type="button"
+                                        onClick={toggleHideNominal}
+                                        className="p-1 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/10 active:scale-95 cursor-pointer"
+                                        title={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                                        aria-label={hideNominal ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+                                    >
+                                        {hideNominal ? (
+                                            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight truncate" title={hideNominal ? undefined : formatRp(activeSummary?.saldo || 0)}>{formatRp(activeSummary?.saldo || 0)}</h2>
                             </div>
                             <div className="hidden sm:flex items-center gap-2 self-start sm:self-center bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10">
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>

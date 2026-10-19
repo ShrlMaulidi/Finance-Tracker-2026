@@ -22,11 +22,12 @@ class TransactionController extends Controller
     {
         $targets = Target::where('user_id', Auth::id())->get(['id', 'name']);
 
+        // Every transaction of the running month (older months live in /transaksi/history)
         $transactions = Transaction::where('user_id', Auth::id())
+            ->inMonth(Carbon::now()->year, Carbon::now()->month)
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc') // id (not created_at) lets MySQL read the newest rows straight from the (user_id, date) index
-            ->limit(30) // Optimal payload for fast input/edit/delete feedback; full history in /transaksi/history
-            ->get()
+            ->get(['id', 'type', 'amount', 'category', 'debt_id', 'payment_method', 'title', 'description', 'date'])
             ->map(function ($t) {
                 return [
                     'id' => $t->id,
@@ -138,6 +139,7 @@ class TransactionController extends Controller
                 'saldo' => (float) ($totalPemasukan - $totalPengeluaran - $totalTabungan),
             ],
             'currentMonthName' => Carbon::now()->translatedFormat('F Y'),
+            'currentMonthKey' => Carbon::now()->format('Y-m'),
             'targets' => $targets,
             'pemasukanCategories' => $pemasukanCategories,
             'pengeluaranCategories' => $pengeluaranCategories,

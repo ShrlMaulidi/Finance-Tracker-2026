@@ -36,7 +36,7 @@ const TRANSACTION_FORM_THEMES = {
 
 const formFieldClass = 'w-full h-12 bg-slate-50/80 border border-slate-200/80 text-slate-800 rounded-2xl px-3.5 font-bold text-xs sm:text-sm transition-all duration-200 focus:outline-none focus:bg-white';
 
-export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [], activeDebts = [] }) {
+export default function Index({ transactions, summary, currentMonthName, currentMonthKey, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [], activeDebts = [] }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
 
@@ -59,10 +59,10 @@ export default function Index({ transactions, summary, currentMonthName, targets
     // The list and monthly summary update the moment the user submits; requests finish in the background
     // and every pending change falls back to the server data automatically if it fails.
     const optimisticTransactions = useOptimisticList(transactions);
-    const visibleTransactions = optimisticTransactions.items;
+    // This page lists the running month only, so a just-saved entry dated in another month isn't shown here
+    const visibleTransactions = optimisticTransactions.items.filter((item) => String(item.date || '').substring(0, 7) === currentMonthKey);
     const [summaryAdjustments, setSummaryAdjustments] = useState([]);
 
-    const currentMonthKey = new Date().toISOString().substring(0, 7);
     const adjustSummary = (changes) => {
         const relevantChanges = changes.filter((change) => String(change.date || '').substring(0, 7) === currentMonthKey);
         const adjustmentId = Symbol('summary-adjustment');
@@ -725,7 +725,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                         <div className="bg-white rounded-3xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[760px] flex flex-col overflow-hidden">
                             <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 shrink-0">
                                 <div className="flex items-center gap-2 min-w-0">
-                                    <h2 className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight truncate">Riwayat</h2>
+                                    <h2 className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight truncate">Riwayat <span className="text-slate-400 font-bold">{currentMonthName}</span></h2>
                                     <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
                                         {visibleTransactions.length}
                                     </span>

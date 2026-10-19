@@ -434,10 +434,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     {/* Form Kiri */}
                     <div className={`${mobileTab === 'catat' ? 'block' : 'hidden'} sm:block lg:col-span-1`}>
                         <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col">
-                            <h2 className="text-base sm:text-xl font-extrabold text-slate-800 mb-4 sm:mb-6 flex items-center gap-2.5 sm:gap-3 shrink-0">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
-                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
-                                </div>
+                            <h2 className="text-base sm:text-xl font-extrabold text-slate-800 mb-4 sm:mb-6 shrink-0">
                                 Catat Transaksi
                             </h2>
                             

@@ -362,7 +362,7 @@ export default function OnboardingTour({ mobileNavMode = 'bottom' }) {
                     aria-label="Panduan Interaktif Aplikasi"
                     className={`fixed inset-x-3 sm:inset-x-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-full md:max-w-lg z-[115] pointer-events-none transition-all duration-300 ${
                         mobileNavMode === 'bottom' 
-                            ? 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-5' 
+                            ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-5' 
                             : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom))] md:bottom-5'
                     }`}
                 >

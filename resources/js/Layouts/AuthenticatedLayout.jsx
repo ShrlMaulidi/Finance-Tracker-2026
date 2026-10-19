@@ -506,7 +506,7 @@ export default function AuthenticatedLayout({ children }) {
             )}
 
             {/* SIDEBAR */}
-            <aside className={`fixed inset-y-0 left-0 md:relative bg-white border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out z-50 h-full ${mobileNavMode === 'bottom' ? 'pb-16 md:pb-0' : ''} ${sidebarOpen ? 'w-[240px] translate-x-0' : 'w-[240px] md:w-[72px] -translate-x-full md:translate-x-0'}`}>
+            <aside className={`fixed inset-y-0 left-0 md:relative bg-white border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out z-50 h-full ${mobileNavMode === 'bottom' ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0' : ''} ${sidebarOpen ? 'w-[240px] translate-x-0' : 'w-[240px] md:w-[72px] -translate-x-full md:translate-x-0'}`}>
 
                 {/* Logo Area - Fixed Icon Width */}
                 <div className="h-20 md:h-24 flex items-center shrink-0 overflow-hidden">

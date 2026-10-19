@@ -9,7 +9,7 @@ export default function MobileBottomNav({
 }) {
     const handleMenuToggle = onToggleMenu || onOpenMenu;
 
-    // 5 Primary Mobile Tabs: Home | Tagihan | Transaksi (Center Hero) | Target | Menu
+    // Page tabs: Home | Tagihan | Transaksi (emphasized) | Target — plus a separate Menu button
     const navItems = [
         {
             key: 'home',
@@ -60,115 +60,75 @@ export default function MobileBottomNav({
         },
     ];
 
+    const closeMenuIfOpen = () => {
+        if (isMenuOpen && handleMenuToggle) {
+            handleMenuToggle();
+        }
+    };
+
+    // Floating white-glass dock: a pill holding the 4 page tabs plus a separate round Menu button
     return (
         <nav
             aria-label="Mobile Bottom Navigation"
-            className={`fixed bottom-0 inset-x-0 z-[60] bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:hidden transition-transform duration-300 pb-[env(safe-area-inset-bottom)] ${className}`}
+            className={`fixed inset-x-0 bottom-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden pointer-events-none transition-transform duration-300 ${className}`}
         >
-            <div className="h-16 flex items-center justify-around px-2 max-w-lg mx-auto relative">
-                {/* 4 Direct Navigation Tabs */}
-                {navItems.map((item) => {
-                    const active = item.isActive && !isMenuOpen;
+            <div className="max-w-lg mx-auto flex items-center gap-2.5 pointer-events-auto">
+                {/* Page tabs pill */}
+                <div className="flex-1 h-16 flex items-center gap-1 p-1.5 rounded-full bg-white/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 ring-1 ring-slate-900/5 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.18)]">
+                    {navItems.map((item) => {
+                        const active = item.isActive && !isMenuOpen;
 
-                    if (item.isCenter) {
                         return (
                             <Link
                                 key={item.key}
                                 href={route(item.routeName)}
                                 prefetch
-                                onClick={() => {
-                                    if (isMenuOpen && handleMenuToggle) {
-                                        handleMenuToggle();
-                                    }
-                                }}
-                                className="flex flex-col items-center justify-center flex-1 h-full py-1 relative group active:scale-95 transition-transform"
+                                onClick={closeMenuIfOpen}
+                                aria-current={active ? 'page' : undefined}
+                                className={`flex-1 h-full rounded-full flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 ${
+                                    active
+                                        ? 'bg-white text-[#009bd2] shadow-[0_4px_14px_-2px_rgba(0,155,210,0.28)] ring-1 ring-[#009bd2]/10'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
                             >
-                                {/* Center Floating Action Button (Elevated FAB) */}
-                                <div
-                                    className={`w-12 h-12 -mt-5 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
-                                        active
-                                            ? 'bg-gradient-to-tr from-[#0082b2] to-[#009bd2] text-white shadow-lg shadow-[#009bd2]/45 scale-105 ring-[3.5px] ring-white'
-                                            : 'bg-gradient-to-tr from-[#009bd2] to-[#00b5f8] text-white hover:brightness-105 shadow-[#009bd2]/30 ring-[3.5px] ring-white group-hover:scale-105'
-                                    }`}
-                                >
-                                    <div className={`transition-transform duration-200 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
-                                        {item.icon}
-                                    </div>
-                                </div>
-                                <span
-                                    className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${
-                                        active ? 'font-black text-[#009bd2]' : 'font-bold text-slate-600'
-                                    }`}
-                                >
+                                {/* Transaksi keeps its emphasis with a brand-colored icon chip */}
+                                {item.isCenter ? (
+                                    <span className={`w-7 h-7 -my-1 rounded-full flex items-center justify-center text-white bg-gradient-to-tr from-[#0082b2] to-[#00b5f8] shadow-sm shadow-[#009bd2]/40 transition-transform duration-300 ${active ? 'scale-110' : ''}`}>
+                                        <span className="[&>svg]:w-4 [&>svg]:h-4">{item.icon}</span>
+                                    </span>
+                                ) : (
+                                    <span className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`}>{item.icon}</span>
+                                )}
+                                <span className={`text-[10px] leading-none tracking-tight ${active ? 'font-extrabold' : 'font-semibold'}`}>
                                     {item.label}
                                 </span>
                             </Link>
                         );
-                    }
+                    })}
+                </div>
 
-                    return (
-                        <Link
-                            key={item.key}
-                            href={route(item.routeName)}
-                            prefetch
-                            onClick={() => {
-                                if (isMenuOpen && handleMenuToggle) {
-                                    handleMenuToggle();
-                                }
-                            }}
-                            className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${active
-                                ? 'text-[#009bd2]'
-                                : 'text-slate-400 hover:text-slate-600'
-                                }`}
-                        >
-                            {/* Active Top Bar Indicator */}
-                            {active && (
-                                <span className="absolute top-0 w-8 h-[3px] bg-[#009bd2] rounded-full shadow-[0_1px_6px_rgba(0,155,210,0.4)] animate-fadeIn" />
-                            )}
-
-                            <div className={`transition-transform duration-200 ${active ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}`}>
-                                {item.icon}
-                            </div>
-                            <span
-                                className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${active ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
-                                    }`}
-                            >
-                                {item.label}
-                            </span>
-                        </Link>
-                    );
-                })}
-
-                {/* 5th Tab: Menu Drawer Toggle */}
+                {/* Separate round Menu button */}
                 <button
                     type="button"
                     onClick={handleMenuToggle}
-                    aria-label={isMenuOpen ? "Tutup Menu" : "Buka Menu"}
+                    aria-label={isMenuOpen ? 'Tutup Menu' : 'Buka Menu'}
                     aria-expanded={isMenuOpen}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 active:scale-95 relative group ${isMenuOpen
-                        ? 'text-[#009bd2]'
-                        : 'text-slate-400 hover:text-slate-600'
-                        }`}
+                    className={`w-16 h-16 shrink-0 rounded-full flex flex-col items-center justify-center gap-1 backdrop-blur-xl backdrop-saturate-150 border ring-1 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.18)] transition-all duration-300 active:scale-95 ${
+                        isMenuOpen
+                            ? 'bg-white text-[#009bd2] border-white ring-[#009bd2]/15'
+                            : 'bg-white/70 text-slate-500 border-white/80 ring-slate-900/5 hover:text-slate-700'
+                    }`}
                 >
-                    {isMenuOpen && (
-                        <span className="absolute top-0 w-8 h-[3px] bg-[#009bd2] rounded-full shadow-[0_1px_6px_rgba(0,155,210,0.4)] animate-fadeIn" />
+                    {isMenuOpen ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
                     )}
-
-                    <div className={`transition-transform duration-200 ${isMenuOpen ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}`}>
-                        {isMenuOpen ? (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        )}
-                    </div>
-                    <span
-                        className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${isMenuOpen ? 'font-black text-[#009bd2]' : 'font-semibold text-slate-500'
-                            }`}
-                    >
+                    <span className={`text-[10px] leading-none tracking-tight ${isMenuOpen ? 'font-extrabold' : 'font-semibold'}`}>
                         {isMenuOpen ? 'Tutup' : 'Menu'}
                     </span>
                 </button>

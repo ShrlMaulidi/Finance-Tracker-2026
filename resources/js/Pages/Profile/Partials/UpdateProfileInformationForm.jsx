@@ -186,13 +186,21 @@ export default function UpdateProfileInformation({
                 </div>
 
                 <div>
-                    <label htmlFor="name" className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
-                        Nama Lengkap
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                        <label htmlFor="name" className="block text-xs sm:text-sm font-bold text-slate-700">
+                            Nama Lengkap
+                        </label>
+                        <span className={`text-[11px] font-semibold transition-colors ${
+                            (data.name?.length || 0) >= 25 ? 'text-amber-600 font-bold' : 'text-slate-400'
+                        }`}>
+                            {data.name?.length || 0}/25 Karakter
+                        </span>
+                    </div>
 
                     <input
                         id="name"
                         type="text"
+                        maxLength={25}
                         className="w-full bg-slate-50 border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] transition-all"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}

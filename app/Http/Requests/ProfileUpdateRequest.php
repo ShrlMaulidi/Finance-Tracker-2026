@@ -17,7 +17,7 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:25'],
             'email' => [
                 'required',
                 'string',
@@ -29,6 +29,19 @@ class ProfileUpdateRequest extends FormRequest
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:10240'],
             'remove_avatar' => ['nullable', 'boolean'],
             'mood_emoji' => ['nullable', 'string', 'max:20'],
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.max' => 'Nama lengkap maksimal 25 karakter.',
+            'name.required' => 'Nama lengkap wajib diisi.',
         ];
     }
 }

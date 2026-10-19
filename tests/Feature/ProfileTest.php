@@ -61,6 +61,41 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
+    public function test_name_cannot_exceed_25_characters(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => str_repeat('a', 26),
+                'email' => $user->email,
+            ]);
+
+        $response
+            ->assertSessionHasErrors(['name' => 'Nama lengkap maksimal 25 karakter.']);
+    }
+
+    public function test_name_with_up_to_25_characters_is_accepted(): void
+    {
+        $user = User::factory()->create();
+        $name25 = str_repeat('b', 25);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => $name25,
+                'email' => $user->email,
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/profile');
+
+        $user->refresh();
+        $this->assertSame($name25, $user->name);
+    }
+
     public function test_user_can_delete_their_account(): void
     {
         $user = User::factory()->create();

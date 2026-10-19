@@ -45,10 +45,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
         ? (activeBills.find(b => String(b.id) === String(data.bill_id)) || null)
         : null;
 
-    const selectedDebt = data.type === 'pengeluaran' && data.category === 'Hutang'
-        ? (activeDebts.find(d => String(d.id) === String(data.debt_id)) || null)
-        : null;
-
     // Pop-up Notification State
     const [popupNotification, setPopupNotification] = useState({
         show: false,
@@ -114,10 +110,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     const editSelectedBill = editData.type === 'pengeluaran' && editData.category === 'Tagihan Rutin'
         ? (activeBills.find(b => String(b.id) === String(editData.bill_id)) || null)
-        : null;
-
-    const editSelectedDebt = editData.type === 'pengeluaran' && editData.category === 'Hutang'
-        ? (activeDebts.find(d => String(d.id) === String(editData.debt_id)) || null)
         : null;
 
     const submit = (e) => {
@@ -505,10 +497,10 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                 </svg>
-                                                <span>Pilih Hutang yang Ingin Dibayar <span className="text-rose-500">*</span></span>
+                                                <span>Pilih Hutang yang Ingin Dibayar <span className="text-rose-500"></span></span>
                                             </label>
                                             {activeDebts.length > 0 && (
-                                                <span className="text-[10px] font-extrabold text-rose-600 bg-white border border-rose-200 px-2 py-0.5 rounded-full shadow-2xs">
+                                                <span className="text-[8px] font-extrabold text-rose-600 bg-white border border-rose-200 px-2 py-0.5 rounded-full shadow-2xs">
                                                     {activeDebts.length} Belum Lunas
                                                 </span>
                                             )}
@@ -541,7 +533,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             ))}
                                         </select>
 
-                                        {activeDebts.length === 0 ? (
+                                        {activeDebts.length === 0 && (
                                             <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pt-1">
                                                 <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -550,11 +542,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 <Link href={route('hutang-piutang.index')} className="text-rose-600 font-bold underline hover:text-rose-700">
                                                     Tambah Hutang
                                                 </Link>
-                                            </p>
-                                        ) : (
-                                            <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                                                <span>💡</span>
-                                                <span>Nominal di bawah otomatis terisi sisa hutang, namun <strong>bisa Anda ubah</strong> jika ingin membayar cicilan.</span>
                                             </p>
                                         )}
                                     </div>
@@ -588,14 +575,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 Nominal Terkunci ({selectedBill.name})
                                             </span>
                                         )}
-                                        {selectedDebt && (
-                                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md">
-                                                <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                                Bisa Diedit / Cicil ({selectedDebt.name})
-                                            </span>
-                                        )}
                                     </div>
                                     <div className="relative">
                                         <span className="absolute left-3.5 top-2.5 sm:left-4 sm:top-3.5 text-slate-400 font-extrabold text-xs sm:text-sm">Rp</span>
@@ -623,23 +602,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             </svg>
                                             <span>Nominal terkunci sesuai tagihan <strong>{selectedBill.name}</strong> ({formatRp(selectedBill.amount)}).</span>
                                         </p>
-                                    )}
-                                    {selectedDebt && (
-                                        <div className="mt-1.5">
-                                            {Number(data.amount) >= selectedDebt.remaining_amount ? (
-                                                <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 border border-emerald-200/60 rounded-lg px-2.5 py-1">
-                                                    <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    <span>Hutang <strong>{selectedDebt.name}</strong> akan langsung <strong>Lunas</strong> setelah transaksi ini disimpan.</span>
-                                                </p>
-                                            ) : Number(data.amount) > 0 ? (
-                                                <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 bg-amber-50 border border-amber-200/60 rounded-lg px-2.5 py-1">
-                                                    <span>💳</span>
-                                                    <span>Pembayaran cicilan: Sisa hutang akan menjadi <strong>{formatRp(selectedDebt.remaining_amount - Number(data.amount))}</strong>.</span>
-                                                </p>
-                                            ) : null}
-                                        </div>
                                     )}
                                     {errors.amount && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.amount}</p>}
                                 </div>
@@ -936,9 +898,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 </option>
                                             ))}
                                         </select>
-                                        <p className="text-[10px] text-slate-500 font-medium">
-                                            💡 Nominal dapat Anda edit sesuai jumlah cicilan yang dibayar.
-                                        </p>
                                     </div>
                                 )}
 
@@ -970,14 +929,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 Nominal Terkunci ({editSelectedBill.name})
                                             </span>
                                         )}
-                                        {editSelectedDebt && (
-                                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md">
-                                                <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                                Bisa Diedit / Cicil ({editSelectedDebt.name})
-                                            </span>
-                                        )}
                                     </div>
                                     <div className="relative">
                                         <span className="absolute left-3.5 top-2 sm:left-4 sm:top-2.5 text-slate-500 font-bold text-xs sm:text-sm">Rp</span>
@@ -1004,23 +955,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             </svg>
                                             <span>Nominal terkunci sesuai tagihan <strong>{editSelectedBill.name}</strong> ({formatRp(editSelectedBill.amount)}).</span>
                                         </p>
-                                    )}
-                                    {editSelectedDebt && (
-                                        <div className="mt-1.5">
-                                            {Number(editData.amount) >= editSelectedDebt.remaining_amount ? (
-                                                <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 border border-emerald-200/60 rounded-lg px-2.5 py-1">
-                                                    <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    <span>Hutang <strong>{editSelectedDebt.name}</strong> akan berstatus <strong>Lunas</strong>.</span>
-                                                </p>
-                                            ) : Number(editData.amount) > 0 ? (
-                                                <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 bg-amber-50 border border-amber-200/60 rounded-lg px-2.5 py-1">
-                                                    <span>💳</span>
-                                                    <span>Pembayaran cicilan untuk hutang <strong>{editSelectedDebt.name}</strong>.</span>
-                                                </p>
-                                            ) : null}
-                                        </div>
                                     )}
                                     {editErrors.amount && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.amount}</p>}
                                 </div>

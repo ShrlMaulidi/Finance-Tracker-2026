@@ -14,15 +14,19 @@ class WebPushService
      */
     public static function getWebPushClient(): ?WebPush
     {
-        $publicKey = config('services.vapid.public_key');
-        $privateKey = config('services.vapid.private_key');
-        $subject = config('services.vapid.subject', 'mailto:support@financetrack.id');
+        $publicKey = config('services.vapid.public_key') ?: env('VAPID_PUBLIC_KEY');
+        $privateKey = config('services.vapid.private_key') ?: env('VAPID_PRIVATE_KEY');
+        $subject = config('services.vapid.subject') ?: env('VAPID_SUBJECT', 'mailto:support@financetrack.id');
 
         if (! $publicKey || ! $privateKey) {
             Log::warning('[WebPush] VAPID keys not configured in config/services.php or .env');
 
             return null;
         }
+
+        $publicKey = trim($publicKey, " \t\n\r\0\x0B\"'");
+        $privateKey = trim($privateKey, " \t\n\r\0\x0B\"'");
+        $subject = trim($subject, " \t\n\r\0\x0B\"'");
 
         $auth = [
             'VAPID' => [
@@ -32,7 +36,13 @@ class WebPushService
             ],
         ];
 
-        return new WebPush($auth);
+        try {
+            return new WebPush($auth);
+        } catch (\Throwable $e) {
+            Log::error('[WebPush] Failed to initialize WebPush client: '.$e->getMessage());
+
+            return null;
+        }
     }
 
     /**
@@ -83,8 +93,8 @@ class WebPushService
 
         try {
             foreach ($client->flush() as $report) {
-                $endpoint = $report->getRequest()->getUri()->__toString();
-                $subModel = $subscriptions->first(fn ($s) => $s->endpoint === $endpoint);
+                $endpoint = $report->getEndpoint() ?: ($report->getRequest() ? (string) $report->getRequest()->getUri() : null);
+                $subModel = $endpoint ? $subscriptions->first(fn ($s) => $s->endpoint === $endpoint) : null;
 
                 if ($report->isSuccess()) {
                     $successCount++;

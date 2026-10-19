@@ -118,8 +118,11 @@ export default function NotificationPanel({ className = '' }) {
             }
             setTimeout(() => setPushMessage(null), 4000);
         } catch (err) {
-            setPushMessage('Gagal mengirim tes notifikasi.');
-            setTimeout(() => setPushMessage(null), 3000);
+            console.error('Error sending test push:', err);
+            const serverMessage = err.response?.data?.message || err.response?.statusText;
+            const detail = serverMessage ? `${err.message} (${serverMessage})` : (err.message || 'Error');
+            setPushMessage('Gagal mengirim tes notifikasi: ' + detail);
+            setTimeout(() => setPushMessage(null), 5000);
         } finally {
             setIsSubscribing(false);
         }

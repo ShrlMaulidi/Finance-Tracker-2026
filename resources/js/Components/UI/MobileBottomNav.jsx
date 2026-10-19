@@ -75,7 +75,7 @@ export default function MobileBottomNav({
                             <Link
                                 key={item.key}
                                 href={route(item.routeName)}
-                                cacheFor={0}
+                                prefetch
                                 onClick={() => {
                                     if (isMenuOpen && handleMenuToggle) {
                                         handleMenuToggle();
@@ -110,7 +110,7 @@ export default function MobileBottomNav({
                         <Link
                             key={item.key}
                             href={route(item.routeName)}
-                            cacheFor={0}
+                            prefetch
                             onClick={() => {
                                 if (isMenuOpen && handleMenuToggle) {
                                     handleMenuToggle();

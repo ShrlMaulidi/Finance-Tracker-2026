@@ -205,19 +205,8 @@ export default function Dashboard({
             echoChannel.listen('App\\Events\\TransactionRecorded', handleRealtimeTrx);
         }
 
-        // 3. Fast 5-second polling while looking at the Dashboard as a resilient safety net
-        const pollTimer = setInterval(() => {
-            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-                router.reload({
-                    preserveScroll: true,
-                    preserveState: true,
-                });
-            }
-        }, 5000);
-
         return () => {
             window.removeEventListener('finance-realtime-update', handleRealtimeTrx);
-            clearInterval(pollTimer);
             if (echoChannel) {
                 echoChannel.stopListening('.transaction.recorded', handleRealtimeTrx);
                 echoChannel.stopListening('transaction.recorded', handleRealtimeTrx);

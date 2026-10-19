@@ -122,10 +122,11 @@ export default function AuthenticatedLayout({ children }) {
         // Listen for connection state changes from Reverb
         const handleStatusChange = (e) => {
             const state = e.detail?.state;
+            const previous = e.detail?.previous;
             if (state) {
                 setWsStatus(state);
-                // When reconnected, refresh active page to catch any missed updates
-                if (state === 'connected') {
+                // Only reload if reconnecting after an actual disconnection, not on initial fresh mount
+                if (state === 'connected' && (previous === 'disconnected' || previous === 'unavailable')) {
                     router.reload({
                         preserveScroll: true,
                         preserveState: true,
@@ -186,15 +187,18 @@ export default function AuthenticatedLayout({ children }) {
         document.addEventListener('visibilitychange', handleResume);
         window.addEventListener('focus', handleResume);
 
-        // Fallback polling every 20 seconds while tab is active to ensure 100% sync even in strict firewalls
+        // Fallback polling only when WebSocket is NOT connected (e.g. strict firewall)
         const fallbackInterval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-                router.reload({
-                    preserveScroll: true,
-                    preserveState: true,
-                });
+                const isEchoConnected = window.Echo?.connector?.pusher?.connection?.state === 'connected';
+                if (!isEchoConnected) {
+                    router.reload({
+                        preserveScroll: true,
+                        preserveState: true,
+                    });
+                }
             }
-        }, 20000);
+        }, 30000);
 
         return () => {
             window.removeEventListener('reverb-status-change', handleStatusChange);
@@ -304,7 +308,7 @@ export default function AuthenticatedLayout({ children }) {
     }) => (
         <Link
             href={routeName === '#' ? '#' : route(routeName)}
-            cacheFor={0}
+            prefetch
             onClick={() => {
                 saveSidebarScroll();
                 if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -395,19 +399,19 @@ export default function AuthenticatedLayout({ children }) {
                 <div className="pl-[60px] pr-4 py-1 space-y-1">
                     {menuKey === 'anggaran' && (
                         <>
-                            <Link href={route('anggaran.ringkasan')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.ringkasan')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.ringkasan') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Ringkasan Anggaran</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.investasi')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.investasi')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.investasi') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Tabungan & Target</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.hutang')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.hutang')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.hutang') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Anggaran Hutang</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
-                            <Link href={route('anggaran.pengeluaran')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
+                            <Link href={route('anggaran.pengeluaran')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`flex items-center justify-between py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('anggaran.pengeluaran') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>
                                 <span className="truncate">Pengeluaran Bulanan</span>
                                 {isBudgetLocked && <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 py-0.2 rounded shrink-0">PRO</span>}
                             </Link>
@@ -415,8 +419,8 @@ export default function AuthenticatedLayout({ children }) {
                     )}
                     {menuKey === 'kelola' && (
                         <>
-                            <Link href={route('kategori.index')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
-                            <Link href={route('metode.index')} cacheFor={0} onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
+                            <Link href={route('kategori.index')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('kategori.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Kategori</Link>
+                            <Link href={route('metode.index')} prefetch onClick={() => { saveSidebarScroll(); if (typeof window !== 'undefined' && window.innerWidth < 768) setSidebarOpen(false); }} className={`block py-1.5 text-[12.5px] transition-all whitespace-nowrap ${route().current('metode.index') ? 'text-[#009bd2] font-extrabold' : 'font-medium text-slate-500 hover:text-[#009bd2]'}`}>Kelola Jenis Metode</Link>
                         </>
                     )}
                 </div>

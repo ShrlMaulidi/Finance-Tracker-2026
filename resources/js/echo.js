@@ -51,7 +51,7 @@ if (echoKey && typeof window !== 'undefined') {
         if (echoInstance.connector?.pusher?.connection) {
             echoInstance.connector.pusher.connection.bind('state_change', (states) => {
                 console.log(`[Reverb WebSocket] State changed: ${states.previous} -> ${states.current} on host ${currentHost}:${echoPort}`);
-                window.dispatchEvent(new CustomEvent('reverb-status-change', { detail: { state: states.current } }));
+                window.dispatchEvent(new CustomEvent('reverb-status-change', { detail: { state: states.current, previous: states.previous } }));
             });
         }
 

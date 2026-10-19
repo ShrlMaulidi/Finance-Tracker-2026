@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,21 @@ class Bill extends Model
         'reminder_days' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Bill $bill) {
+            if ($bill->user_id) {
+                NotificationService::clearUserReminderCache($bill->user_id);
+            }
+        });
+
+        static::deleted(function (Bill $bill) {
+            if ($bill->user_id) {
+                NotificationService::clearUserReminderCache($bill->user_id);
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {

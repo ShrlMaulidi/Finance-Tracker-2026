@@ -6,11 +6,13 @@ use App\Models\Bill;
 use App\Models\Target;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationService
 {
     /**
-     * Get upcoming, due, and overdue reminders for a user (Bills & Savings Goals).
+     * Get upcoming, due, and overdue reminders for a user (Bills & Savings Goals),
+     * cached to provide fast zero-latency SPA page transitions.
      *
      * @return array{
      *     urgent_count: int,
@@ -22,7 +24,34 @@ class NotificationService
      *     targets: array<int, array<string, mixed>>
      * }
      */
-    public static function getRemindersForUser(User $user): array
+    public static function getRemindersForUser(User $user, bool $forceRefresh = false): array
+    {
+        $cacheKey = "user_{$user->id}_reminders_v1";
+
+        if ($forceRefresh) {
+            Cache::forget($cacheKey);
+        }
+
+        return Cache::remember($cacheKey, 60, function () use ($user) {
+            return self::buildRemindersForUser($user);
+        });
+    }
+
+    /**
+     * Clear cached reminders for a user when bills or targets change.
+     */
+    public static function clearUserReminderCache(int|User $user): void
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+        Cache::forget("user_{$userId}_reminders_v1");
+    }
+
+    /**
+     * Build reminders from database.
+     *
+     * @return array<string, mixed>
+     */
+    public static function buildRemindersForUser(User $user): array
     {
         Carbon::setLocale('id');
         $today = Carbon::today();

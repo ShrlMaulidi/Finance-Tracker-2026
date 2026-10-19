@@ -37,33 +37,38 @@ self.addEventListener('fetch', (event) => {
     // Ignore non-http requests (e.g. chrome-extension://)
     if (!event.request.url.startsWith('http')) return;
 
-    // Network-first with safe cache fallback
-    event.respondWith(
-        fetch(event.request)
-            .then((networkResponse) => {
-                return networkResponse;
-            })
-            .catch(async () => {
-                try {
-                    const cachedResponse = await caches.match(event.request);
-                    if (cachedResponse) {
-                        return cachedResponse;
-                    }
-                    if (event.request.mode === 'navigate') {
-                        const rootCached = await caches.match('/');
-                        if (rootCached) return rootCached;
-                    }
-                } catch (e) {
-                    // ignore
-                }
-                // Return a valid fallback Response so respondWith never throws TypeError
+    // Never intercept Inertia SPA navigation, WebSockets, or API calls to keep navigation instant
+    if (event.request.headers.get('X-Inertia')) return;
+    if (event.request.url.includes('/broadcasting/') || event.request.url.includes('/api/')) return;
+
+    // Only intercept full-page document requests for offline fallback
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(async () => {
+                const rootCached = await caches.match('/');
+                if (rootCached) return rootCached;
+
                 return new Response('Jaringan sedang offline.', {
                     status: 503,
                     statusText: 'Service Unavailable',
                     headers: { 'Content-Type': 'text/plain; charset=utf-8' }
                 });
             })
-    );
+        );
+        return;
+    }
+
+    // Cache-first for precached static assets only
+    try {
+        const url = new URL(event.request.url);
+        if (PRECACHE_ASSETS.includes(url.pathname)) {
+            event.respondWith(
+                caches.match(event.request).then((cached) => cached || fetch(event.request))
+            );
+        }
+    } catch (e) {
+        // ignore and fallback to native fetch
+    }
 });
 
 // Web Push Notification Event Listener (Receives push from server even when app is closed)

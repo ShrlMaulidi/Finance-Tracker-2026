@@ -492,15 +492,15 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 {/* Dropdown Tambahan Ketika Pilih Kategori Hutang */}
                                 {data.type === 'pengeluaran' && data.category === 'Hutang' && (
                                     <div className="p-3.5 bg-rose-50/70 border border-rose-100 rounded-xl sm:rounded-2xl space-y-2 transition-all">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs sm:text-[13px] font-bold text-slate-700 flex items-center gap-1.5">
-                                                <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <label className="text-xs sm:text-[13px] font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
+                                                <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                 </svg>
-                                                <span>Pilih Hutang yang Ingin Dibayar <span className="text-rose-500"></span></span>
+                                                <span>Pilih Hutang</span>
                                             </label>
                                             {activeDebts.length > 0 && (
-                                                <span className="text-[8px] font-extrabold text-rose-600 bg-white border border-rose-200 px-2 py-0.5 rounded-full shadow-2xs">
+                                                <span className="text-[10px] font-extrabold text-rose-600 bg-white border border-rose-200/80 px-2 py-0.5 rounded-full shadow-2xs whitespace-nowrap shrink-0">
                                                     {activeDebts.length} Belum Lunas
                                                 </span>
                                             )}
@@ -521,14 +521,14 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 }));
                                             }}
                                             disabled={activeDebts.length === 0}
-                                            className="w-full bg-white border-2 border-rose-200/80 text-slate-800 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-rose-400 font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-2xs disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                            className="w-full bg-white border-2 border-rose-200/80 text-slate-800 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-rose-400 font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-2xs disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed truncate"
                                         >
                                             <option value="">
                                                 {activeDebts.length === 0 ? '-- Tidak Ada Hutang Belum Lunas --' : '-- Pilih Data Hutang --'}
                                             </option>
                                             {activeDebts.map(d => (
                                                 <option key={d.id} value={d.id}>
-                                                    {d.name} - Sisa: {formatRp(d.remaining_amount)} (Total: {formatRp(d.amount)}) {d.due_date ? `(Tempo: ${d.due_date})` : ''}
+                                                    {d.name} • Sisa {formatRp(d.remaining_amount)}
                                                 </option>
                                             ))}
                                         </select>
@@ -867,14 +867,19 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 {/* Dropdown Tambahan Ketika Pilih Kategori Hutang di Edit Modal */}
                                 {editData.type === 'pengeluaran' && editData.category === 'Hutang' && (
                                     <div className="p-3 bg-rose-50/70 border border-rose-100 rounded-xl space-y-2">
-                                        <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                                            <span>Pilih Hutang yang Ingin Dibayar</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
+                                                <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                                <span>Pilih Hutang</span>
+                                            </label>
                                             {activeDebts.length > 0 && (
-                                                <span className="text-[10px] font-extrabold text-rose-600 bg-white border border-rose-200 px-2 py-0.5 rounded-full">
-                                                    {activeDebts.length} Hutang
+                                                <span className="text-[10px] font-extrabold text-rose-600 bg-white border border-rose-200/80 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                                                    {activeDebts.length} Belum Lunas
                                                 </span>
                                             )}
-                                        </label>
+                                        </div>
                                         <select 
                                             value={editData.debt_id}
                                             onChange={e => {
@@ -889,12 +894,12 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                     } : {})
                                                 }));
                                             }}
-                                            className="w-full bg-white border border-rose-200 text-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-rose-400"
+                                            className="w-full bg-white border border-rose-200 text-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-rose-400 truncate"
                                         >
                                             <option value="">-- Pilih Data Hutang --</option>
                                             {activeDebts.map(d => (
                                                 <option key={d.id} value={d.id}>
-                                                    {d.name} - Sisa: {formatRp(d.remaining_amount)} (Total: {formatRp(d.amount)}) {d.due_date ? `(Tgl ${d.due_date})` : ''}
+                                                    {d.name} • Sisa {formatRp(d.remaining_amount)}
                                                 </option>
                                             ))}
                                         </select>

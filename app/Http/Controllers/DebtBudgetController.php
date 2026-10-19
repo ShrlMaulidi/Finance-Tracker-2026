@@ -40,11 +40,12 @@ class DebtBudgetController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $transactions = Transaction::where('user_id', Auth::id())
+        $usedByCategory = Transaction::where('user_id', Auth::id())
             ->where('type', 'pengeluaran')
-            ->whereMonth('date', $currentMonth)
-            ->whereYear('date', $currentYear)
-            ->get();
+            ->inMonth($currentYear, $currentMonth)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category');
 
         $budgetNames = $budgets->pluck('name')->toArray();
         $debtsList = Debt::where('user_id', Auth::id())
@@ -52,8 +53,8 @@ class DebtBudgetController extends Controller
             ->get()
             ->keyBy('name');
 
-        $currentBudgets = $budgets->map(function ($budget) use ($transactions, $debtsList) {
-            $used = $transactions->where('category', $budget->name)->sum('amount');
+        $currentBudgets = $budgets->map(function ($budget) use ($usedByCategory, $debtsList) {
+            $used = $usedByCategory->get($budget->name, 0);
             $debt = $debtsList[$budget->name] ?? null;
 
             return [
@@ -162,15 +163,12 @@ class DebtBudgetController extends Controller
 
         DebtBudget::create($validated);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'created',
-                source: 'web',
-                message: "Anggaran Hutang '{$validated['name']}' berhasil ditambahkan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'created',
+            source: 'web',
+            message: "Anggaran Hutang '{$validated['name']}' berhasil ditambahkan"
+        );
 
         return redirect()->back()->with('success', 'Anggaran hutang berhasil ditambahkan.');
     }
@@ -202,15 +200,12 @@ class DebtBudgetController extends Controller
 
         $budget->update($validated);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'updated',
-                source: 'web',
-                message: "Anggaran Hutang '{$budget->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'updated',
+            source: 'web',
+            message: "Anggaran Hutang '{$budget->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Anggaran hutang berhasil diperbarui.');
     }
@@ -227,15 +222,12 @@ class DebtBudgetController extends Controller
 
         $budget->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Anggaran hutang berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Anggaran hutang berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Anggaran hutang berhasil dihapus.');
     }

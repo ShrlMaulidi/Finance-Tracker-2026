@@ -53,15 +53,12 @@ class DebtController extends Controller
 
         Debt::create($validated);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'created',
-                source: 'web',
-                message: "Data {$validated['type']} '{$validated['name']}' berhasil dicatat"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'created',
+            source: 'web',
+            message: "Data {$validated['type']} '{$validated['name']}' berhasil dicatat"
+        );
 
         return redirect()->back()->with('success', 'Data berhasil ditambahkan.');
     }
@@ -84,15 +81,12 @@ class DebtController extends Controller
 
         $debt->update($validated);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'updated',
-                source: 'web',
-                message: "Data {$debt->type} '{$debt->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'updated',
+            source: 'web',
+            message: "Data {$debt->type} '{$debt->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Data berhasil diubah.');
     }
@@ -105,15 +99,12 @@ class DebtController extends Controller
 
         $debt->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Data hutang/piutang berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Data hutang/piutang berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Data berhasil dihapus.');
     }

@@ -61,16 +61,14 @@ class BudgetSummaryController extends Controller
         // 2. Query transaksi aktual bulan berjalan menggunakan SQL aggregation (Efisien, 0 N+1)
         $actualExpenses = Transaction::where('user_id', $user->id)
             ->where('type', 'pengeluaran')
-            ->whereMonth('date', $monthNum)
-            ->whereYear('date', $yearNum)
+            ->inMonth($yearNum, $monthNum)
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->pluck('total', 'category');
 
         $actualSavings = Transaction::where('user_id', $user->id)
             ->where('type', 'tabungan')
-            ->whereMonth('date', $monthNum)
-            ->whereYear('date', $yearNum)
+            ->inMonth($yearNum, $monthNum)
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->pluck('total', 'category');

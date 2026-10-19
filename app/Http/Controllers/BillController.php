@@ -270,15 +270,12 @@ class BillController extends Controller
 
         $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'created',
-                source: 'web',
-                message: "Tagihan '{$validated['name']}' berhasil ditambahkan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'created',
+            source: 'web',
+            message: "Tagihan '{$validated['name']}' berhasil ditambahkan"
+        );
 
         return back()->with('success', "Tagihan '{$validated['name']}' berhasil ditambahkan ke Kategori Tagihan Rutin!");
     }
@@ -321,15 +318,12 @@ class BillController extends Controller
 
         $this->autoReconcileBillsForMonth(Auth::id(), Carbon::now()->format('Y-m'));
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'updated',
-                source: 'web',
-                message: "Tagihan '{$bill->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'updated',
+            source: 'web',
+            message: "Tagihan '{$bill->name}' berhasil diperbarui"
+        );
 
         return back()->with('success', "Tagihan '{$bill->name}' berhasil diperbarui!");
     }
@@ -376,7 +370,7 @@ class BillController extends Controller
         Carbon::setLocale('id');
         $monthLabel = Carbon::parse($validated['month'].'-01')->translatedFormat('F Y');
 
-        DB::transaction(function () use ($bill, $validated, $monthLabel) {
+        $transaction = DB::transaction(function () use ($bill, $validated, $monthLabel) {
             // 1. Ensure 'Tagihan Rutin' category exists
             Category::firstOrCreate([
                 'user_id' => Auth::id(),
@@ -411,19 +405,17 @@ class BillController extends Controller
                     'notes' => $validated['notes'] ?? null,
                 ]
             );
+
+            return $transaction;
         });
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                transaction: $transaction ?? null,
-                action: 'created',
-                source: 'web',
-                message: "Pembayaran tagihan '{$bill->name}' berhasil dicatat"
-            ));
-        } catch (\Throwable $e) {
-            // silent fallback
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            transaction: $transaction,
+            action: 'created',
+            source: 'web',
+            message: "Pembayaran tagihan '{$bill->name}' berhasil dicatat"
+        );
 
         return back()->with('success', "Pembayaran tagihan '{$bill->name}' sebesar Rp ".number_format($validated['amount'], 0, ',', '.').' berhasil dicatat ke Pengeluaran!');
     }
@@ -463,8 +455,7 @@ class BillController extends Controller
 
                 Transaction::where('user_id', $userId)
                     ->where('type', 'pengeluaran')
-                    ->whereYear('date', $queryYear)
-                    ->whereMonth('date', $queryMonth)
+                    ->inMonth($queryYear, $queryMonth)
                     ->where(function ($q) use ($cleanBillName) {
                         $q->where(function ($sub) use ($cleanBillName) {
                             $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
@@ -479,82 +470,97 @@ class BillController extends Controller
             }
         });
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'deleted',
-                source: 'web',
-                message: "Riwayat pembayaran tagihan '{$billName}' dihapus"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'deleted',
+            source: 'web',
+            message: "Riwayat pembayaran tagihan '{$billName}' dihapus"
+        );
 
         return redirect()->back()->with('success', "Riwayat pembayaran tagihan '{$billName}' berhasil dihapus. Status tagihan telah direset ke belum bayar.");
     }
 
     /**
      * Automatically reconcile active bills with existing expense transactions for the given month.
+     *
+     * Loads the month's expenses once and matches them in memory, so the page costs two queries
+     * instead of several per bill, and only writes payments that actually changed.
      */
     private function autoReconcileBillsForMonth(int $userId, string $monthQuery): void
     {
         $activeBills = Bill::where('user_id', $userId)
             ->where('is_active', true)
+            ->with(['payments' => fn ($query) => $query->where('month', $monthQuery)])
             ->get();
 
+        if ($activeBills->isEmpty()) {
+            return;
+        }
+
+        $monthParts = explode('-', $monthQuery);
+        $queryYear = (int) ($monthParts[0] ?? date('Y'));
+        $queryMonth = (int) ($monthParts[1] ?? date('m'));
+
+        $monthExpenses = Transaction::where('user_id', $userId)
+            ->where('type', 'pengeluaran')
+            ->inMonth($queryYear, $queryMonth)
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'amount', 'category', 'title', 'description', 'payment_method', 'date']);
+
         foreach ($activeBills as $bill) {
-            $billName = strtolower(trim($bill->name ?? ''));
+            $billName = mb_strtolower(trim($bill->name ?? ''));
+            $existingPayment = $bill->payments->first();
 
-            // Check if existing payment exists
-            $existingPayment = BillPayment::where('bill_id', $bill->id)
-                ->where('month', $monthQuery)
-                ->first();
+            // Either category 'Tagihan Rutin' mentioning the bill name, or a category equal to the bill name
+            $matchingTransactions = $monthExpenses->filter(
+                fn (Transaction $transaction) => $this->transactionMatchesBill($transaction, $billName)
+            );
 
-            $monthParts = explode('-', $monthQuery);
-            $queryYear = (int) ($monthParts[0] ?? date('Y'));
-            $queryMonth = (int) ($monthParts[1] ?? date('m'));
+            if ($matchingTransactions->isEmpty()) {
+                $existingPayment?->delete();
 
-            // Find matching transactions: either category 'Tagihan Rutin' containing bill name, or matching category name
-            $matchingTransactions = Transaction::where('user_id', $userId)
-                ->where('type', 'pengeluaran')
-                ->whereYear('date', $queryYear)
-                ->whereMonth('date', $queryMonth)
-                ->where(function ($q) use ($billName) {
-                    $q->where(function ($sub) use ($billName) {
-                        $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
-                            ->where(function ($inner) use ($billName) {
-                                $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$billName.'%'])
-                                    ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$billName.'%']);
-                            });
-                    })
-                        ->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
-                })
-                ->orderBy('date', 'desc')
-                ->orderBy('id', 'desc')
-                ->get();
+                continue;
+            }
 
-            if ($matchingTransactions->isNotEmpty()) {
-                $totalPaid = (float) $matchingTransactions->sum('amount');
-                $latestTx = $matchingTransactions->first();
+            $latestTx = $matchingTransactions->first();
 
-                BillPayment::updateOrCreate(
-                    [
-                        'bill_id' => $bill->id,
-                        'month' => $monthQuery,
-                    ],
-                    [
-                        'user_id' => $userId,
-                        'transaction_id' => $latestTx->id,
-                        'amount' => $totalPaid,
-                        'paid_at' => $latestTx->date,
-                        'payment_method' => $latestTx->payment_method ?? 'Cash',
-                        'notes' => $latestTx->description ?: "Dibayar via transaksi Pengeluaran: {$latestTx->title}",
-                    ]
-                );
-            } else {
-                if ($existingPayment) {
-                    $existingPayment->delete();
-                }
+            $payment = $existingPayment ?? new BillPayment([
+                'bill_id' => $bill->id,
+                'month' => $monthQuery,
+            ]);
+
+            $payment->fill([
+                'user_id' => $userId,
+                'transaction_id' => $latestTx->id,
+                'amount' => (float) $matchingTransactions->sum('amount'),
+                'paid_at' => $latestTx->date,
+                'payment_method' => $latestTx->payment_method ?? 'Cash',
+                'notes' => $latestTx->description ?: "Dibayar via transaksi Pengeluaran: {$latestTx->title}",
+            ]);
+
+            if (! $payment->exists || $payment->isDirty()) {
+                $payment->save();
             }
         }
+    }
+
+    /**
+     * Determine whether an expense transaction pays the given (lowercased) bill name.
+     */
+    private function transactionMatchesBill(Transaction $transaction, string $billName): bool
+    {
+        $category = mb_strtolower(trim((string) $transaction->category));
+
+        if ($category === $billName) {
+            return true;
+        }
+
+        if ($category !== 'tagihan rutin') {
+            return false;
+        }
+
+        return str_contains(mb_strtolower((string) $transaction->title), $billName)
+            || ($transaction->description !== null && str_contains(mb_strtolower($transaction->description), $billName));
     }
 }

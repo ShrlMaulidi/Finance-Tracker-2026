@@ -76,8 +76,7 @@ class ExpenseBudgetController extends Controller
         // Ambil pengeluaran aktual dari seluruh kategori sekaligus dalam 1 query SQL
         $actualExpenses = Transaction::where('user_id', $user->id)
             ->where('type', 'pengeluaran')
-            ->whereMonth('date', $currentMonthNum)
-            ->whereYear('date', $currentYear)
+            ->inMonth($currentYear, $currentMonthNum)
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->pluck('total', 'category');
@@ -177,15 +176,12 @@ class ExpenseBudgetController extends Controller
             'is_recurring' => $request->boolean('is_recurring', false),
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'created',
-                source: 'web',
-                message: "Anggaran Pengeluaran '{$request->name}' berhasil disimpan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'created',
+            source: 'web',
+            message: "Anggaran Pengeluaran '{$request->name}' berhasil disimpan"
+        );
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil disimpan.');
     }
@@ -223,15 +219,12 @@ class ExpenseBudgetController extends Controller
             'is_recurring' => $request->boolean('is_recurring', false),
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'updated',
-                source: 'web',
-                message: "Anggaran Pengeluaran '{$request->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'updated',
+            source: 'web',
+            message: "Anggaran Pengeluaran '{$request->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil diubah.');
     }
@@ -248,15 +241,12 @@ class ExpenseBudgetController extends Controller
 
         $budget->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Anggaran pengeluaran berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Anggaran pengeluaran berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Anggaran pengeluaran berhasil dihapus.');
     }

@@ -10,6 +10,8 @@ use Inertia\Inertia;
 
 class TransactionHistoryController extends Controller
 {
+    private const PER_PAGE = 50;
+
     public function index(Request $request, $type = 'semua')
     {
         Carbon::setLocale('id');
@@ -35,13 +37,24 @@ class TransactionHistoryController extends Controller
         }
 
         if ($filterType === 'month') {
-            $query->whereMonth('date', $filterMonth)->whereYear('date', $filterYear);
+            $query->inMonth($filterYear, $filterMonth);
         } elseif ($filterType === 'year') {
-            $query->whereYear('date', $filterYear);
+            $query->inYear($filterYear);
         }
 
-        $transactions = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->limit(500)->get()->map(function ($t) {
-            return [
+        // Period totals come from one SQL aggregate, so they stay correct no matter how many rows exist
+        $totals = (clone $query)
+            ->selectRaw('type, SUM(amount) as total, COUNT(*) as count')
+            ->groupBy('type')
+            ->get()
+            ->keyBy('type');
+
+        // Rows are streamed in pages via infinite scroll instead of shipping every transaction at once
+        $transactions = $query->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->simplePaginate(self::PER_PAGE, ['id', 'type', 'amount', 'category', 'payment_method', 'title', 'description', 'date'])
+            ->withQueryString()
+            ->through(fn (Transaction $t) => [
                 'id' => $t->id,
                 'type' => $t->type,
                 'amount' => (float) $t->amount,
@@ -51,20 +64,10 @@ class TransactionHistoryController extends Controller
                 'description' => $t->description,
                 'date' => $t->date,
                 'date_formatted' => Carbon::parse($t->date)->translatedFormat('d F Y'),
-            ];
-        });
+            ]);
 
         // Available options for filter
-        $availableYears = Transaction::where('user_id', $user_id)
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->pluck('year')
-            ->toArray();
-
-        if (empty($availableYears)) {
-            $availableYears = [Carbon::now()->year];
-        }
-        rsort($availableYears);
+        $availableYears = Transaction::availableYearsFor($user_id);
 
         return Inertia::render('Transaksi/History', [
             'title' => $title,
@@ -75,7 +78,13 @@ class TransactionHistoryController extends Controller
                 'year' => (int) $filterYear,
             ],
             'availableYears' => $availableYears,
-            'transactions' => $transactions,
+            'summary' => [
+                'count' => (int) $totals->sum('count'),
+                'pemasukan' => (float) ($totals->get('pemasukan')->total ?? 0),
+                'pengeluaran' => (float) ($totals->get('pengeluaran')->total ?? 0),
+                'tabungan' => (float) ($totals->get('tabungan')->total ?? 0),
+            ],
+            'transactions' => Inertia::scroll($transactions),
         ]);
     }
 }

@@ -56,6 +56,17 @@ if (echoKey && typeof window !== 'undefined') {
         }
 
         window.Echo = echoInstance;
+
+        // Send this tab's socket id with every request (Inertia uses this same axios instance), so the server
+        // can skip broadcasting a change back to the tab that made it — its own redirect already refreshes it.
+        // Echo can't register this itself because ES imports run before bootstrap.js assigns window.axios.
+        axios.interceptors.request.use((config) => {
+            const socketId = echoInstance.socketId();
+            if (socketId) {
+                config.headers['X-Socket-Id'] = socketId;
+            }
+            return config;
+        });
     } catch (e) {
         console.warn('[Echo] WebSocket initialization error:', e);
     }

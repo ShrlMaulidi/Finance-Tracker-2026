@@ -22,7 +22,7 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((keys) => {
             return Promise.all(
                 keys.map((key) => {
-                    if (key !== CACHE_NAME) {
+                    if (key !== CACHE_NAME && key !== ASSET_CACHE_NAME) {
                         return caches.delete(key);
                     }
                 })
@@ -30,6 +30,26 @@ self.addEventListener('activate', (event) => {
         }).then(() => self.clients.claim())
     );
 });
+
+const ASSET_CACHE_NAME = 'financetrack-assets-v1';
+const MAX_CACHED_ASSETS = 120;
+
+// Serve hashed build files from cache; old hashes from previous deploys are trimmed oldest-first
+async function cacheFirstBuildAsset(request) {
+    const cache = await caches.open(ASSET_CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) return cached;
+
+    const response = await fetch(request);
+    if (response.ok) {
+        await cache.put(request, response.clone());
+        const keys = await cache.keys();
+        if (keys.length > MAX_CACHED_ASSETS) {
+            await Promise.all(keys.slice(0, keys.length - MAX_CACHED_ASSETS).map((key) => cache.delete(key)));
+        }
+    }
+    return response;
+}
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
@@ -58,9 +78,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Cache-first for precached static assets only
+    // Cache-first for precached static assets and content-hashed Vite build files (immutable per deploy)
     try {
         const url = new URL(event.request.url);
+        if (url.origin === self.location.origin && url.pathname.startsWith('/build/assets/')) {
+            event.respondWith(cacheFirstBuildAsset(event.request));
+            return;
+        }
         if (PRECACHE_ASSETS.includes(url.pathname)) {
             event.respondWith(
                 caches.match(event.request).then((cached) => cached || fetch(event.request))

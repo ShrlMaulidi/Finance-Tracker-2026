@@ -15,12 +15,13 @@ class AdminDashboardController extends Controller
      */
     public function index(): Response
     {
-        $totalUsers = User::count();
-        $freeUsers = User::where('subscription_tier', 'free')->count();
-        $proUsers = User::where('subscription_tier', 'pro')->count();
-        $proPlusUsers = User::where('subscription_tier', 'pro_plus')->count();
-        $activeUsers = User::where('is_active', true)->count();
-        $suspendedUsers = User::where('is_active', false)->count();
+        $counts = User::subscriptionSummary();
+        $totalUsers = $counts['total'];
+        $freeUsers = $counts['free'];
+        $proUsers = $counts['pro'];
+        $proPlusUsers = $counts['pro_plus'];
+        $activeUsers = $counts['active'];
+        $suspendedUsers = $counts['suspended'];
 
         $pricing = AdminSettingController::getPricingSettings();
         $proMonthly = (int) ($pricing['pro_monthly_price'] ?? 14999);
@@ -58,13 +59,16 @@ class AdminDashboardController extends Controller
         ];
 
         // 6 months user registration trend
+        $registrationsByMonth = User::where('created_at', '>=', Carbon::now()->subMonthsNoOverflow(5)->startOfMonth())
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as ym, COUNT(*) as total")
+            ->groupBy('ym')
+            ->pluck('total', 'ym');
+
         $monthsTrend = [];
         for ($i = 5; $i >= 0; $i--) {
-            $monthDate = Carbon::now()->subMonths($i);
+            $monthDate = Carbon::now()->subMonthsNoOverflow($i);
             $monthKey = $monthDate->translatedFormat('M Y');
-            $count = User::whereYear('created_at', $monthDate->year)
-                ->whereMonth('created_at', $monthDate->month)
-                ->count();
+            $count = (int) $registrationsByMonth->get($monthDate->format('Y-m'), 0);
 
             $monthsTrend[] = [
                 'month' => $monthKey,

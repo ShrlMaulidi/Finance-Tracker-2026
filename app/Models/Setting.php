@@ -14,10 +14,13 @@ class Setting extends Model
 
     /**
      * Get a setting by key with caching and fallback.
+     *
+     * Memoized for the rest of the request, so middleware, shared props and controllers
+     * reading the same setting only hit the cache store once.
      */
     public static function get(string $key, mixed $default = null): mixed
     {
-        return Cache::rememberForever("app_setting_{$key}", function () use ($key, $default) {
+        return Cache::memo()->rememberForever("app_setting_{$key}", function () use ($key, $default) {
             try {
                 $setting = self::where('key', $key)->first();
                 if (! $setting) {
@@ -42,7 +45,7 @@ class Setting extends Model
             ['key' => $key],
             ['value' => $encoded]
         );
-        Cache::forever("app_setting_{$key}", $value);
+        Cache::memo()->forever("app_setting_{$key}", $value);
     }
 
     /**
@@ -51,7 +54,7 @@ class Setting extends Model
     public static function forget(string $key): void
     {
         self::where('key', $key)->delete();
-        Cache::forget("app_setting_{$key}");
+        Cache::memo()->forget("app_setting_{$key}");
     }
 
     /**

@@ -84,8 +84,7 @@ class AIAgentController extends Controller
 
         $aiMonthlyExpense = (float) Transaction::where('user_id', $user->id)
             ->where('type', 'pengeluaran')
-            ->whereMonth('date', Carbon::now()->month)
-            ->whereYear('date', Carbon::now()->year)
+            ->inMonth(Carbon::now()->year, Carbon::now()->month)
             ->where(function ($query) {
                 $query->where('description', 'LIKE', '%WhatsApp%')
                     ->orWhere('description', 'LIKE', '%AI Agent%')
@@ -162,15 +161,12 @@ class AIAgentController extends Controller
         $user->phone_number = $normalized;
         $user->save();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) $user->id,
-                action: 'updated',
-                source: 'web',
-                message: "Nomor WhatsApp (+{$normalized}) berhasil ditautkan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) $user->id,
+            action: 'updated',
+            source: 'web',
+            message: "Nomor WhatsApp (+{$normalized}) berhasil ditautkan"
+        );
 
         return back()->with('success', "Nomor WhatsApp (+{$normalized}) berhasil ditautkan! Anda sudah dapat mengirim pesan transaksi ke bot kami.");
     }
@@ -185,15 +181,12 @@ class AIAgentController extends Controller
         $user->whatsapp_lid = null;
         $user->save();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) $user->id,
-                action: 'updated',
-                source: 'web',
-                message: 'Nomor WhatsApp berhasil diputuskan'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) $user->id,
+            action: 'updated',
+            source: 'web',
+            message: 'Nomor WhatsApp berhasil diputuskan'
+        );
 
         return back()->with('success', 'Nomor WhatsApp berhasil diputuskan dari akun Anda.');
     }

@@ -22,10 +22,9 @@ class DashboardController extends Controller
         $query = Transaction::where('user_id', Auth::id());
 
         if ($filter === 'bulan') {
-            $query->whereMonth('date', $monthQuery)
-                ->whereYear('date', $yearQuery);
+            $query->inMonth($yearQuery, $monthQuery);
         } elseif ($filter === 'tahun') {
-            $query->whereYear('date', $yearQuery);
+            $query->inYear($yearQuery);
         }
 
         $totals = (clone $query)->selectRaw('type, SUM(amount) as total')->groupBy('type')->pluck('total', 'type');
@@ -96,23 +95,25 @@ class DashboardController extends Controller
         }
 
         // 1. Kategori Pengeluaran (Top breakdown for Donut chart & legend)
-        $expenseQuery = (clone $query)->where('type', 'pengeluaran');
-        $expenseTransactions = $expenseQuery->select('category', 'amount')->get();
         $totalPengeluaranFloat = (float) $totalPengeluaran;
 
-        $groupedCategories = $expenseTransactions
+        // Aggregated per category in SQL, so the cost doesn't grow with the number of expense rows
+        $groupedCategories = (clone $query)
+            ->where('type', 'pengeluaran')
+            ->selectRaw('category, SUM(amount) as total, COUNT(*) as count')
             ->groupBy('category')
-            ->map(function ($items, $cat) use ($totalPengeluaranFloat) {
-                $sum = (float) $items->sum('amount');
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($row) use ($totalPengeluaranFloat) {
+                $sum = (float) $row->total;
 
                 return [
-                    'name' => $cat ?: 'Lainnya',
+                    'name' => $row->category ?: 'Lainnya',
                     'amount' => $sum,
-                    'count' => $items->count(),
+                    'count' => (int) $row->count,
                     'percentage' => $totalPengeluaranFloat > 0 ? round(($sum / $totalPengeluaranFloat) * 100) : 0,
                 ];
             })
-            ->sortByDesc('amount')
             ->values();
 
         if ($groupedCategories->count() > 4) {

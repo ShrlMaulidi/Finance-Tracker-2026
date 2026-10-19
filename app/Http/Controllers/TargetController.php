@@ -87,15 +87,12 @@ class TargetController extends Controller
             'status' => 'Berjalan',
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'created',
-                source: 'web',
-                message: "Target Tabungan '{$request->name}' berhasil disimpan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'created',
+            source: 'web',
+            message: "Target Tabungan '{$request->name}' berhasil disimpan"
+        );
 
         return redirect()->back()->with('success', 'Target berhasil disimpan.');
     }
@@ -128,15 +125,12 @@ class TargetController extends Controller
 
         $target->update($data);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'updated',
-                source: 'web',
-                message: "Target Tabungan '{$target->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'updated',
+            source: 'web',
+            message: "Target Tabungan '{$target->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Target berhasil diubah.');
     }
@@ -149,15 +143,12 @@ class TargetController extends Controller
 
         $target->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Target Tabungan berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Target Tabungan berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Target berhasil dihapus.');
     }

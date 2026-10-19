@@ -77,15 +77,12 @@ class CategoryController extends Controller
             'name' => $request->name,
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'created',
-                source: 'web',
-                message: "Kategori '{$request->name}' berhasil ditambahkan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'created',
+            source: 'web',
+            message: "Kategori '{$request->name}' berhasil ditambahkan"
+        );
 
         return redirect()->back()->with('success', 'Kategori berhasil ditambahkan.');
     }
@@ -106,15 +103,12 @@ class CategoryController extends Controller
             'name' => $request->name,
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'updated',
-                source: 'web',
-                message: "Kategori '{$category->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'updated',
+            source: 'web',
+            message: "Kategori '{$category->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
     }
@@ -127,15 +121,12 @@ class CategoryController extends Controller
 
         $category->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Kategori berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Kategori berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Kategori berhasil dihapus.');
     }

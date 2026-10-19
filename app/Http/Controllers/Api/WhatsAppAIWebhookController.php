@@ -280,18 +280,13 @@ class WhatsAppAIWebhookController extends Controller
             }
         });
 
-        // Broadcast realtime update to user's browser via Reverb
-        try {
-            broadcast(new TransactionRecorded(
-                userId: $user->id,
-                transaction: $transaction,
-                action: 'created',
-                source: 'whatsapp',
-                message: "Transaksi baru masuk via WhatsApp Bot: {$transaction->title} (Rp ".number_format($transaction->amount, 0, ',', '.').')'
-            ));
-        } catch (\Throwable $e) {
-            Log::warning('Failed to broadcast transaction to Reverb: '.$e->getMessage());
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: $user->id,
+            transaction: $transaction,
+            action: 'created',
+            source: 'whatsapp',
+            message: "Transaksi baru masuk via WhatsApp Bot: {$transaction->title} (Rp ".number_format($transaction->amount, 0, ',', '.').')'
+        );
 
         // Calculate up-to-date balances for instant user feedback
         $totals = Transaction::where('user_id', $user->id)
@@ -308,8 +303,7 @@ class WhatsAppAIWebhookController extends Controller
         $now = Carbon::parse($trxDate);
         $monthlyExpense = (float) Transaction::where('user_id', $user->id)
             ->where('type', 'pengeluaran')
-            ->whereMonth('date', $now->month)
-            ->whereYear('date', $now->year)
+            ->inMonth($now->year, $now->month)
             ->sum('amount');
 
         Carbon::setLocale('id');
@@ -472,8 +466,7 @@ class WhatsAppAIWebhookController extends Controller
 
         // Current month metrics
         $monthTotals = Transaction::where('user_id', $user->id)
-            ->whereMonth('date', $now->month)
-            ->whereYear('date', $now->year)
+            ->inMonth($now->year, $now->month)
             ->selectRaw('type, SUM(amount) as total')
             ->groupBy('type')
             ->pluck('total', 'type');
@@ -576,8 +569,7 @@ class WhatsAppAIWebhookController extends Controller
 
             $matchingTransactions = Transaction::where('user_id', $userId)
                 ->where('type', 'pengeluaran')
-                ->whereYear('date', $queryYear)
-                ->whereMonth('date', $queryMonth)
+                ->inMonth($queryYear, $queryMonth)
                 ->where(function ($q) use ($billName) {
                     $q->where(function ($sub) use ($billName) {
                         $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])

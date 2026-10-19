@@ -389,6 +389,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Count users per subscription tier and status in a single aggregate query.
+     *
+     * @return array{total: int, free: int, pro: int, pro_plus: int, active: int, suspended: int}
+     */
+    public static function subscriptionSummary(): array
+    {
+        $row = static::query()->toBase()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN subscription_tier = 'free' THEN 1 ELSE 0 END) as free")
+            ->selectRaw("SUM(CASE WHEN subscription_tier = 'pro' THEN 1 ELSE 0 END) as pro")
+            ->selectRaw("SUM(CASE WHEN subscription_tier = 'pro_plus' THEN 1 ELSE 0 END) as pro_plus")
+            ->selectRaw('SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active')
+            ->selectRaw('SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as suspended')
+            ->first();
+
+        return array_map('intval', (array) $row);
+    }
+
+    /**
      * Get the user's avatar url.
      */
     protected function avatar(): Attribute

@@ -9,6 +9,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class TransactionRecorded implements ShouldBroadcastNow
 {
@@ -24,6 +25,30 @@ class TransactionRecorded implements ShouldBroadcastNow
         public string $source = 'web',
         public ?string $message = null
     ) {}
+
+    /**
+     * Broadcast the event after the HTTP response has been sent, so the user never waits on Reverb.
+     *
+     * The browser tab that triggered the change (identified by its X-Socket-ID header) is excluded,
+     * because its own Inertia redirect already refreshes the page with the latest data.
+     */
+    public static function broadcastAfterResponse(
+        int $userId,
+        ?Transaction $transaction = null,
+        string $action = 'created',
+        string $source = 'web',
+        ?string $message = null
+    ): void {
+        $event = (new static($userId, $transaction, $action, $source, $message))->dontBroadcastToCurrentUser();
+
+        defer(function () use ($event): void {
+            try {
+                broadcast($event);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to broadcast realtime update to Reverb: '.$e->getMessage());
+            }
+        });
+    }
 
     /**
      * Get the channels the event should broadcast on.

@@ -71,15 +71,12 @@ class PaymentMethodController extends Controller
             'name' => $request->name,
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'created',
-                source: 'web',
-                message: "Metode pembayaran '{$request->name}' berhasil ditambahkan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'created',
+            source: 'web',
+            message: "Metode pembayaran '{$request->name}' berhasil ditambahkan"
+        );
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil ditambahkan.');
     }
@@ -107,15 +104,12 @@ class PaymentMethodController extends Controller
             'name' => $request->name,
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'updated',
-                source: 'web',
-                message: "Metode pembayaran '{$paymentMethod->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'updated',
+            source: 'web',
+            message: "Metode pembayaran '{$paymentMethod->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil diperbarui.');
     }
@@ -128,15 +122,12 @@ class PaymentMethodController extends Controller
 
         $paymentMethod->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Metode pembayaran berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Metode pembayaran berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Metode pembayaran berhasil dihapus.');
     }

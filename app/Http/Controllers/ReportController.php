@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -25,7 +26,7 @@ class ReportController extends Controller
     /**
      * Helper to gather all report data and summaries based on filters.
      */
-    protected function getReportData(Request $request): array
+    protected function getReportData(Request $request, ?int $transactionLimit = null): array
     {
         Carbon::setLocale('id');
         $user = Auth::user();
@@ -44,12 +45,12 @@ class ReportController extends Controller
         ];
 
         if ($filterType === 'month') {
-            $query->whereMonth('date', $filterMonth)->whereYear('date', $filterYear);
+            $query->inMonth($filterYear, $filterMonth);
             $monthName = $monthNames[$filterMonth] ?? 'Bulan '.$filterMonth;
             $periodLabel = "{$monthName} {$filterYear}";
             $fileSlug = "Bulan_{$monthName}_{$filterYear}";
         } elseif ($filterType === 'year') {
-            $query->whereYear('date', $filterYear);
+            $query->inYear($filterYear);
             $periodLabel = "Tahun {$filterYear}";
             $fileSlug = "Tahun_{$filterYear}";
         } else {
@@ -57,17 +58,28 @@ class ReportController extends Controller
             $fileSlug = 'Semua_Periode';
         }
 
-        $transactions = $query->orderBy('date', 'desc')->get();
+        // Every filtered total below comes from one grouped SQL aggregate (a handful of rows),
+        // instead of loading the whole period into memory just to sum it.
+        $periodGroups = (clone $query)
+            ->selectRaw('type, category, payment_method, SUM(amount) as total, COUNT(*) as count')
+            ->groupBy('type', 'category', 'payment_method')
+            ->get();
+
+        $transactionsQuery = $query->orderBy('date', 'desc')->orderBy('id', 'desc');
+        $transactions = $transactionLimit === null
+            ? $transactionsQuery->get()
+            : $transactionsQuery->limit($transactionLimit)->get();
+        $totalTransactionsCount = (int) $periodGroups->sum('count');
 
         // 1. Total Pemasukan & Pengeluaran (Filtered)
-        $totalPemasukan = (float) $transactions->where('type', 'pemasukan')->sum('amount');
-        $totalPengeluaran = (float) $transactions->where('type', 'pengeluaran')->sum('amount');
-        $totalTabunganTrx = (float) $transactions->where('type', 'tabungan')->sum('amount');
+        $totalPemasukan = (float) $periodGroups->where('type', 'pemasukan')->sum('total');
+        $totalPengeluaran = (float) $periodGroups->where('type', 'pengeluaran')->sum('total');
+        $totalTabunganTrx = (float) $periodGroups->where('type', 'tabungan')->sum('total');
         $netCashflow = $totalPemasukan - $totalPengeluaran - $totalTabunganTrx;
 
         // 2. Breakdown by Payment Method (Filtered)
-        $pemasukanByMethod = $transactions->where('type', 'pemasukan')->groupBy('payment_method')->map->sum('amount');
-        $pengeluaranByMethod = $transactions->where('type', 'pengeluaran')->groupBy('payment_method')->map->sum('amount');
+        $pemasukanByMethod = $periodGroups->where('type', 'pemasukan')->groupBy('payment_method')->map(fn ($rows) => (float) $rows->sum('total'));
+        $pengeluaranByMethod = $periodGroups->where('type', 'pengeluaran')->groupBy('payment_method')->map(fn ($rows) => (float) $rows->sum('total'));
 
         // 3. All-time Balance & Balance by Method (All Time) - dioptimasi via SQL Agregasi
         $methodTotals = Transaction::where('user_id', $user_id)
@@ -96,37 +108,8 @@ class ReportController extends Controller
         }
 
         // 4. Breakdown by Category (Filtered)
-        $pengeluaranByCat = $transactions->where('type', 'pengeluaran')
-            ->groupBy('category')
-            ->map(function ($items, $cat) use ($totalPengeluaran) {
-                $sum = (float) $items->sum('amount');
-
-                return [
-                    'category' => $cat ?: 'Lainnya',
-                    'amount' => $sum,
-                    'count' => $items->count(),
-                    'percentage' => $totalPengeluaran > 0 ? round(($sum / $totalPengeluaran) * 100, 1) : 0,
-                ];
-            })
-            ->sortByDesc('amount')
-            ->values()
-            ->take(6);
-
-        $pemasukanByCat = $transactions->where('type', 'pemasukan')
-            ->groupBy('category')
-            ->map(function ($items, $cat) use ($totalPemasukan) {
-                $sum = (float) $items->sum('amount');
-
-                return [
-                    'category' => $cat ?: 'Lainnya',
-                    'amount' => $sum,
-                    'count' => $items->count(),
-                    'percentage' => $totalPemasukan > 0 ? round(($sum / $totalPemasukan) * 100, 1) : 0,
-                ];
-            })
-            ->sortByDesc('amount')
-            ->values()
-            ->take(6);
+        $pengeluaranByCat = $this->categoryBreakdown($periodGroups->where('type', 'pengeluaran'), $totalPengeluaran);
+        $pemasukanByCat = $this->categoryBreakdown($periodGroups->where('type', 'pemasukan'), $totalPemasukan);
 
         // 5. Total Hutang & Piutang (All Time Active)
         $totalHutang = (float) Debt::where('user_id', $user_id)->where('type', 'hutang')->where('status', 'belum_lunas')->sum('remaining_amount');
@@ -211,16 +194,7 @@ class ReportController extends Controller
         $netWorth = $totalAssets - $totalLiabilities;
 
         // Available options for filter
-        $availableYears = Transaction::where('user_id', $user_id)
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->pluck('year')
-            ->toArray();
-
-        if (empty($availableYears)) {
-            $availableYears = [Carbon::now()->year];
-        }
-        rsort($availableYears);
+        $availableYears = Transaction::availableYearsFor($user_id);
 
         return [
             'user' => $user,
@@ -264,7 +238,33 @@ class ReportController extends Controller
                 'tabungan' => $totalDanaTabungan,
             ],
             'transactions' => $transactions,
+            'totalTransactionsCount' => $totalTransactionsCount,
         ];
+    }
+
+    /**
+     * Build the top-6 category breakdown from grouped (type, category, payment_method) aggregate rows.
+     *
+     * @param  Collection<int, Transaction>  $groups
+     * @return Collection<int, array{category: string, amount: float, count: int, percentage: float|int}>
+     */
+    private function categoryBreakdown(Collection $groups, float $periodTotal): Collection
+    {
+        return $groups
+            ->groupBy('category')
+            ->map(function (Collection $rows, $category) use ($periodTotal) {
+                $sum = (float) $rows->sum('total');
+
+                return [
+                    'category' => $category ?: 'Lainnya',
+                    'amount' => $sum,
+                    'count' => (int) $rows->sum('count'),
+                    'percentage' => $periodTotal > 0 ? round(($sum / $periodTotal) * 100, 1) : 0,
+                ];
+            })
+            ->sortByDesc('amount')
+            ->values()
+            ->take(6);
     }
 
     public function index(Request $request)
@@ -286,7 +286,7 @@ class ReportController extends Controller
             ]);
         }
 
-        $data = $this->getReportData($request);
+        $data = $this->getReportData($request, transactionLimit: 100);
 
         return Inertia::render('Laporan/Index', [
             'filters' => [
@@ -297,8 +297,8 @@ class ReportController extends Controller
             'periodLabel' => $data['periodLabel'],
             'availableYears' => $data['availableYears'],
             'summary' => $data['summary'],
-            'transactions' => $data['transactions']->values()->take(100),
-            'totalTransactionsCount' => $data['transactions']->count(),
+            'transactions' => $data['transactions']->values(),
+            'totalTransactionsCount' => $data['totalTransactionsCount'],
         ]);
     }
 

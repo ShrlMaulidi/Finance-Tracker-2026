@@ -68,15 +68,12 @@ class ProfileController extends Controller
 
         $user->save();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) $user->id,
-                action: 'updated',
-                source: 'web',
-                message: 'Profil Anda berhasil diperbarui'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) $user->id,
+            action: 'updated',
+            source: 'web',
+            message: 'Profil Anda berhasil diperbarui'
+        );
 
         return Redirect::route('profile.edit');
     }

@@ -14,6 +14,8 @@ class NewsController extends Controller
         $ihsg = Cache::remember('ihsg_data', 300, function () {
             try {
                 $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                    ->connectTimeout(3)
+                    ->timeout(5)
                     ->get('https://query1.finance.yahoo.com/v8/finance/chart/^JKSE');
                 if ($response->successful()) {
                     $data = $response->json();
@@ -35,7 +37,7 @@ class NewsController extends Controller
         // Fetch USD to IDR
         $exchange = Cache::remember('usd_idr_data', 3600, function () {
             try {
-                $response = Http::get('https://api.exchangerate-api.com/v4/latest/USD');
+                $response = Http::connectTimeout(3)->timeout(5)->get('https://api.exchangerate-api.com/v4/latest/USD');
                 if ($response->successful()) {
                     return $response->json()['rates']['IDR'] ?? null;
                 }
@@ -48,7 +50,7 @@ class NewsController extends Controller
         // Fetch News (CNBC Indonesia RSS)
         $news = Cache::remember('cnbc_news', 1800, function () {
             try {
-                $response = Http::get('https://www.cnbcindonesia.com/market/rss');
+                $response = Http::connectTimeout(3)->timeout(5)->get('https://www.cnbcindonesia.com/market/rss');
                 if ($response->successful()) {
                     $xml = simplexml_load_string($response->body(), 'SimpleXMLElement', LIBXML_NOCDATA);
                     $items = [];

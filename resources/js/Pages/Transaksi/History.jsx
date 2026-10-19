@@ -1,8 +1,8 @@
 import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, InfiniteScroll } from '@inertiajs/react';
 
-export default function TransactionHistory({ auth, title, currentType, filters, availableYears, transactions }) {
+export default function TransactionHistory({ auth, title, currentType, filters, availableYears, summary, transactions }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
     const handleFilterChange = (type) => {
@@ -37,21 +37,9 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
         return route('transaksi.history', params);
     };
 
-    // Aggregate statistics with single-pass memoization
-    const { totalCount, totalPemasukan, totalPengeluaran, totalTabungan } = React.useMemo(() => {
-        let count = transactions.length;
-        let masuk = 0;
-        let keluar = 0;
-        let tabung = 0;
-        for (let i = 0; i < count; i++) {
-            const t = transactions[i];
-            const amt = Number(t.amount) || 0;
-            if (t.type === 'pemasukan') masuk += amt;
-            else if (t.type === 'pengeluaran') keluar += amt;
-            else if (t.type === 'tabungan') tabung += amt;
-        }
-        return { totalCount: count, totalPemasukan: masuk, totalPengeluaran: keluar, totalTabungan: tabung };
-    }, [transactions]);
+    // Period totals are aggregated on the server so they cover every row, not only the pages loaded so far
+    const { count: totalCount, pemasukan: totalPemasukan, pengeluaran: totalPengeluaran, tabungan: totalTabungan } = summary;
+    const rows = transactions.data;
 
     return (
         <AuthenticatedLayout>
@@ -194,9 +182,20 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
                     )}
                 </div>
 
+                {/* Rows load 50 at a time as the user scrolls, so long histories stay light on mobile */}
+                <InfiniteScroll
+                    data="transactions"
+                    onlyNext
+                    preserveUrl
+                    buffer={600}
+                    className="space-y-4 sm:space-y-6"
+                    loading={() => (
+                        <div className="py-4 text-center text-xs font-bold text-slate-400 animate-pulse">Memuat transaksi berikutnya...</div>
+                    )}
+                >
                 {/* MOBILE VIEW: Touch-Friendly Card Feed (Clean & Native) */}
                 <div className="block md:hidden space-y-2.5">
-                    {transactions.length === 0 ? (
+                    {rows.length === 0 ? (
                         <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center shadow-xs">
                             <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-300 flex items-center justify-center mx-auto mb-3">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -205,8 +204,8 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
                             <p className="text-xs text-slate-400 mt-1">Tidak ada catatan untuk filter yang dipilih.</p>
                         </div>
                     ) : (
-                        transactions.map((t, idx) => (
-                            <div key={idx} className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col gap-2">
+                        rows.map((t) => (
+                            <div key={t.id} className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col gap-2">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-2.5 min-w-0">
                                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
@@ -279,7 +278,7 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
                                 </tr>
                             </thead>
                             <tbody className="text-xs sm:text-sm">
-                                {transactions.length === 0 ? (
+                                {rows.length === 0 ? (
                                     <tr>
                                         <td colSpan="5" className="py-12 text-center">
                                             <div className="flex flex-col items-center justify-center text-slate-400">
@@ -290,8 +289,8 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
                                         </td>
                                     </tr>
                                 ) : (
-                                    transactions.map((t, idx) => (
-                                        <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                    rows.map((t) => (
+                                        <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                                             <td className="py-3.5 px-4 font-bold text-slate-700 whitespace-nowrap">
                                                 {t.date_formatted}
                                             </td>
@@ -323,6 +322,7 @@ export default function TransactionHistory({ auth, title, currentType, filters, 
                         </table>
                     </div>
                 </div>
+                </InfiniteScroll>
 
             </div>
         </AuthenticatedLayout>

@@ -78,8 +78,7 @@ class BudgetController extends Controller
         $actualSavings = Transaction::where('user_id', $user->id)
             ->where('type', 'tabungan')
             ->whereIn('category', $budgetNames)
-            ->whereMonth('date', $currentMonthNum)
-            ->whereYear('date', $currentYear)
+            ->inMonth($currentYear, $currentMonthNum)
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->pluck('total', 'category');
@@ -191,15 +190,12 @@ class BudgetController extends Controller
             'is_recurring' => $request->boolean('is_recurring', false),
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'created',
-                source: 'web',
-                message: "Anggaran '{$request->name}' berhasil disimpan"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'created',
+            source: 'web',
+            message: "Anggaran '{$request->name}' berhasil disimpan"
+        );
 
         return redirect()->back()->with('success', 'Anggaran baru berhasil disimpan.');
     }
@@ -240,15 +236,12 @@ class BudgetController extends Controller
             'is_recurring' => $request->boolean('is_recurring', false),
         ]);
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'updated',
-                source: 'web',
-                message: "Anggaran '{$request->name}' berhasil diperbarui"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'updated',
+            source: 'web',
+            message: "Anggaran '{$request->name}' berhasil diperbarui"
+        );
 
         return redirect()->back()->with('success', 'Anggaran berhasil diubah.');
     }
@@ -265,15 +258,12 @@ class BudgetController extends Controller
 
         $budget->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) auth()->id(),
-                action: 'deleted',
-                source: 'web',
-                message: 'Anggaran berhasil dihapus'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) auth()->id(),
+            action: 'deleted',
+            source: 'web',
+            message: 'Anggaran berhasil dihapus'
+        );
 
         return redirect()->back()->with('success', 'Anggaran berhasil dihapus.');
     }

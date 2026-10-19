@@ -122,7 +122,8 @@ export default function Dashboard({
     const activeSummary = liveSummary || summary;
     const activeRecent = liveRecent || recentTransactions;
 
-    // Direct Reverb Realtime Listener & Window Event Listener on Dashboard
+    // Realtime updates arrive once via the 'finance-realtime-update' window event dispatched by AuthenticatedLayout,
+    // which also reloads the page props from the server afterwards.
     useEffect(() => {
         if (!user?.id || typeof window === 'undefined') {
             return;
@@ -133,7 +134,8 @@ export default function Dashboard({
             const trx = eventData?.transaction;
             const action = eventData?.action || 'created';
 
-            if (trx) {
+            // 'updated' events carry no previous amount, so they are left to the server reload
+            if (trx && (action === 'created' || action === 'deleted')) {
                 const amount = Number(trx.amount) || 0;
                 const type = trx.type; // 'pemasukan' | 'pengeluaran' | 'tabungan'
 
@@ -183,37 +185,12 @@ export default function Dashboard({
                     setLiveRecent(prev => (prev || []).filter(item => item.id !== trx.id));
                 }
             }
-
-            // Also reload props from server to refresh chart and ensure full database reconciliation
-            router.reload({
-                preserveScroll: true,
-                preserveState: true,
-            });
         };
 
-        // 1. Listen to global window event dispatched by AuthenticatedLayout (guaranteed delivery)
         window.addEventListener('finance-realtime-update', handleRealtimeTrx);
-
-        // 2. Also listen to Echo channel directly, passing the callback so cleanup doesn't wipe out layout listeners
-        let echoChannel = null;
-        if (window.Echo) {
-            echoChannel = window.Echo.private(`user.${user.id}`);
-            echoChannel.listen('.transaction.recorded', handleRealtimeTrx);
-            echoChannel.listen('transaction.recorded', handleRealtimeTrx);
-            echoChannel.listen('TransactionRecorded', handleRealtimeTrx);
-            echoChannel.listen('.TransactionRecorded', handleRealtimeTrx);
-            echoChannel.listen('App\\Events\\TransactionRecorded', handleRealtimeTrx);
-        }
 
         return () => {
             window.removeEventListener('finance-realtime-update', handleRealtimeTrx);
-            if (echoChannel) {
-                echoChannel.stopListening('.transaction.recorded', handleRealtimeTrx);
-                echoChannel.stopListening('transaction.recorded', handleRealtimeTrx);
-                echoChannel.stopListening('TransactionRecorded', handleRealtimeTrx);
-                echoChannel.stopListening('.TransactionRecorded', handleRealtimeTrx);
-                echoChannel.stopListening('App\\Events\\TransactionRecorded', handleRealtimeTrx);
-            }
         };
     }, [user?.id]);
 

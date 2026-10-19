@@ -119,6 +119,18 @@ export default function AuthenticatedLayout({ children }) {
             return;
         }
 
+        // Coalesce bursts of realtime events / resume signals into a single background props reload
+        let reloadTimer = null;
+        const scheduleReload = () => {
+            clearTimeout(reloadTimer);
+            reloadTimer = setTimeout(() => {
+                router.reload({
+                    preserveScroll: true,
+                    preserveState: true,
+                });
+            }, 250);
+        };
+
         // Listen for connection state changes from Reverb
         const handleStatusChange = (e) => {
             const state = e.detail?.state;
@@ -127,10 +139,7 @@ export default function AuthenticatedLayout({ children }) {
                 setWsStatus(state);
                 // Only reload if reconnecting after an actual disconnection, not on initial fresh mount
                 if (state === 'connected' && (previous === 'disconnected' || previous === 'unavailable')) {
-                    router.reload({
-                        preserveScroll: true,
-                        preserveState: true,
-                    });
+                    scheduleReload();
                 }
             }
         };
@@ -146,11 +155,8 @@ export default function AuthenticatedLayout({ children }) {
                     window.dispatchEvent(new CustomEvent('finance-realtime-update', { detail: e }));
                 }
 
-                // Instantly refresh current page props without scroll/state jump
-                router.reload({
-                    preserveScroll: true,
-                    preserveState: true,
-                });
+                // Refresh current page props without scroll/state jump
+                scheduleReload();
             };
 
             // Listen to all possible event name variations to guarantee 100% catch rate
@@ -171,12 +177,10 @@ export default function AuthenticatedLayout({ children }) {
         const handleResume = () => {
             if (document.visibilityState === 'visible') {
                 const now = Date.now();
-                if (now - lastVisibleTime > 1500) {
+                // Throttled so simply clicking between windows doesn't refetch every page prop each time
+                if (now - lastVisibleTime > 15000) {
                     lastVisibleTime = now;
-                    router.reload({
-                        preserveScroll: true,
-                        preserveState: true,
-                    });
+                    scheduleReload();
                 }
                 if (window.Echo?.connector?.pusher?.connection?.state === 'disconnected') {
                     window.Echo.connector.pusher.connect();
@@ -192,10 +196,7 @@ export default function AuthenticatedLayout({ children }) {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
                 const isEchoConnected = window.Echo?.connector?.pusher?.connection?.state === 'connected';
                 if (!isEchoConnected) {
-                    router.reload({
-                        preserveScroll: true,
-                        preserveState: true,
-                    });
+                    scheduleReload();
                 }
             }
         }, 30000);
@@ -205,6 +206,7 @@ export default function AuthenticatedLayout({ children }) {
             document.removeEventListener('visibilitychange', handleResume);
             window.removeEventListener('focus', handleResume);
             clearInterval(fallbackInterval);
+            clearTimeout(reloadTimer);
             if (window.Echo) {
                 window.Echo.leave(`user.${user.id}`);
             }

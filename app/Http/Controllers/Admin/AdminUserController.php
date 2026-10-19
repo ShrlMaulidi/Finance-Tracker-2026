@@ -56,14 +56,7 @@ class AdminUserController extends Controller
             ->withQueryString();
 
         // Count totals for quick summary tabs
-        $counts = [
-            'total' => User::count(),
-            'free' => User::where('subscription_tier', 'free')->count(),
-            'pro' => User::where('subscription_tier', 'pro')->count(),
-            'pro_plus' => User::where('subscription_tier', 'pro_plus')->count(),
-            'active' => User::where('is_active', true)->count(),
-            'suspended' => User::where('is_active', false)->count(),
-        ];
+        $counts = User::subscriptionSummary();
 
         return Inertia::render('Admin/Users', [
             'users' => $users,
@@ -89,15 +82,12 @@ class AdminUserController extends Controller
         $user->is_active = ! $user->is_active;
         $user->save();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) $user->id,
-                action: 'status_updated',
-                source: 'admin',
-                message: $user->is_active ? 'Akun Anda telah diaktifkan kembali oleh Admin' : 'Akun Anda telah dinonaktifkan sementara oleh Admin'
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) $user->id,
+            action: 'status_updated',
+            source: 'admin',
+            message: $user->is_active ? 'Akun Anda telah diaktifkan kembali oleh Admin' : 'Akun Anda telah dinonaktifkan sementara oleh Admin'
+        );
 
         $statusText = $user->is_active ? 'diaktifkan kembali' : 'dinonaktifkan sementara';
 
@@ -122,15 +112,12 @@ class AdminUserController extends Controller
             'pro_plus' => 'Paket Pro Plus',
         ];
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) $user->id,
-                action: 'subscription_updated',
-                source: 'admin',
-                message: "Paket langganan Anda telah diperbarui ke {$tierNames[$validated['tier']]}!"
-            ));
-        } catch (\Throwable $e) {
-        }
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) $user->id,
+            action: 'subscription_updated',
+            source: 'admin',
+            message: "Paket langganan Anda telah diperbarui ke {$tierNames[$validated['tier']]}!"
+        );
 
         return back()->with('success', "Paket langganan pengguna '{$user->name}' berhasil diubah ke {$tierNames[$validated['tier']]}.");
     }

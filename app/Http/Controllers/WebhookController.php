@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Jobs\ProcessWhatsAppWebhookJob;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class WebhookController extends Controller
 {
@@ -13,8 +13,8 @@ class WebhookController extends Controller
         ProcessWhatsAppWebhookJob::dispatch($request->all());
 
         return response()->json([
-            'status' => 'success', 
-            'message' => 'Webhook received & queued'
+            'status' => 'success',
+            'message' => 'Webhook received & queued',
         ]);
     }
 }

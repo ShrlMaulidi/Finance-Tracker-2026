@@ -3,7 +3,7 @@ import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { Button, KpiCard, TabFilter, ActionButtons, Modal, AlertBanner } from '@/Components/UI';
+import { Button, KpiCard, TabFilter, ActionButtons, Modal, AlertBanner, DeleteConfirmModal } from '@/Components/UI';
 
 export default function TagihanIndex({
     bills = [],
@@ -28,11 +28,15 @@ export default function TagihanIndex({
     const [isBillModalOpen, setIsBillModalOpen] = useState(false);
     const [editingBill, setEditingBill] = useState(null);
 
+    // Modal Delete Confirmation
+    const [billToDelete, setBillToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const billForm = useForm({
         name: '',
         amount: '',
         due_day: 1,
-        category_name: '',
+        category_name: 'Tagihan Rutin',
         reminder_days: 3,
         account_number: '',
         notes: '',
@@ -72,7 +76,7 @@ export default function TagihanIndex({
             name: '',
             amount: '',
             due_day: 10,
-            category_name: '',
+            category_name: 'Tagihan Rutin',
             reminder_days: 3,
             account_number: '',
             notes: '',
@@ -87,7 +91,7 @@ export default function TagihanIndex({
             name: bill.name,
             amount: bill.amount,
             due_day: bill.due_day,
-            category_name: bill.category_name,
+            category_name: 'Tagihan Rutin',
             reminder_days: bill.reminder_days,
             account_number: bill.account_number || '',
             notes: bill.notes || '',
@@ -118,11 +122,24 @@ export default function TagihanIndex({
     };
 
     const handleDeleteBill = (bill) => {
-        if (confirm(`Apakah Anda yakin ingin menghapus tagihan '${bill.name}'?`)) {
-            router.delete(route('tagihan.destroy', bill.id), {
-                preserveScroll: true,
-            });
-        }
+        setBillToDelete(bill);
+    };
+
+    const confirmDeleteBill = () => {
+        if (!billToDelete) return;
+
+        router.delete(route('tagihan.destroy', billToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeleting(true),
+            onSuccess: () => {
+                setBillToDelete(null);
+                setIsBillModalOpen(false);
+                setEditingBill(null);
+            },
+            onFinish: () => {
+                setIsDeleting(false);
+            },
+        });
     };
 
     // Open Quick Pay Modal
@@ -950,7 +967,7 @@ export default function TagihanIndex({
                     isOpen={isBillModalOpen}
                     onClose={() => setIsBillModalOpen(false)}
                     title={editingBill ? 'Ubah Tagihan Rutin' : 'Tambah Tagihan Rutin'}
-                    subtitle="Setiap tagihan akan otomatis dimasukkan ke Kategori Pengeluaran."
+                    subtitle="Setiap tagihan akan otomatis dimasukkan ke Kategori Tagihan Rutin."
                     maxWidth="lg"
                 >
                     <form onSubmit={submitBillForm} className="space-y-4">
@@ -963,12 +980,7 @@ export default function TagihanIndex({
                                         type="text"
                                         placeholder="Misal: WiFi Indihome, Listrik PLN, Sewa Rumah, BPJS"
                                         value={billForm.data.name}
-                                        onChange={(e) => {
-                                            billForm.setData('name', e.target.value);
-                                            if (!editingBill && !billForm.data.category_name) {
-                                                billForm.setData('category_name', e.target.value);
-                                            }
-                                        }}
+                                        onChange={(e) => billForm.setData('name', e.target.value)}
                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#009bd2] focus:bg-white"
                                         required
                                     />
@@ -1032,32 +1044,22 @@ export default function TagihanIndex({
                                     </div>
                                 </div>
 
-                                {/* Kategori Pengeluaran */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="text-xs font-bold text-slate-700">
-                                            Kategori Pengeluaran
-                                        </label>
-                                        <span className="text-[10px] font-semibold text-[#009bd2] bg-sky-50 px-2 py-0.5 rounded-full">
-                                            Otomatis sinkron transaksi
-                                        </span>
+                                {/* Kategori Pengeluaran (Otomatis Tagihan Rutin) */}
+                                <div className="p-3 bg-sky-50/80 border border-sky-100 rounded-xl flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-800">Kategori Transaksi</p>
+                                            <p className="text-[11px] text-slate-500 font-medium">Otomatis masuk ke kategori <span className="font-bold text-[#009bd2]">Tagihan Rutin</span></p>
+                                        </div>
                                     </div>
-                                    <input
-                                        type="text"
-                                        list="existing-categories"
-                                        placeholder="Pilih atau ketik kategori baru..."
-                                        value={billForm.data.category_name}
-                                        onChange={(e) => billForm.setData('category_name', e.target.value)}
-                                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#009bd2] focus:bg-white"
-                                    />
-                                    <datalist id="existing-categories">
-                                        {categories.map((c, i) => (
-                                            <option key={i} value={c} />
-                                        ))}
-                                    </datalist>
-                                    <p className="text-[11px] text-slate-400 mt-1">
-                                        Kategori ini akan otomatis didaftarkan dan dapat dipilih pada form input transaksi pengeluaran.
-                                    </p>
+                                    <span className="text-xs font-extrabold text-[#009bd2] bg-white px-3 py-1 rounded-lg border border-sky-100 shadow-2xs shrink-0">
+                                        Tagihan Rutin
+                                    </span>
                                 </div>
 
                                 {/* Nomor Pelanggan / Rekening */}
@@ -1089,21 +1091,41 @@ export default function TagihanIndex({
                                 </div>
 
                                 {/* Actions */}
-                                <div className="pt-3 sm:pt-4 flex gap-2.5 sm:gap-3">
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => setIsBillModalOpen(false)}
-                                        className="flex-1 !py-2.5 sm:!py-3"
-                                    >
-                                        Batal
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        loading={billForm.processing}
-                                        className="flex-[2] !py-2.5 sm:!py-3"
-                                    >
-                                        {editingBill ? 'Simpan Perubahan' : 'Tambah Tagihan'}
-                                    </Button>
+                                <div className="pt-3 sm:pt-4 flex items-center justify-between gap-2.5 sm:gap-3">
+                                    {editingBill ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const target = editingBill;
+                                                setIsBillModalOpen(false);
+                                                setBillToDelete(target);
+                                            }}
+                                            className="px-3.5 py-2.5 sm:py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors border border-rose-200/70 shrink-0"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            <span>Hapus</span>
+                                        </button>
+                                    ) : (
+                                        <div />
+                                    )}
+                                    <div className="flex items-center gap-2 sm:gap-3 justify-end flex-1">
+                                        <Button
+                                            variant="secondary"
+                                            onClick={() => setIsBillModalOpen(false)}
+                                            className="!py-2.5 sm:!py-3"
+                                        >
+                                            Batal
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            loading={billForm.processing}
+                                            className="!py-2.5 sm:!py-3"
+                                        >
+                                            {editingBill ? 'Simpan Perubahan' : 'Tambah Tagihan'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </form>
                 </Modal>
@@ -1252,6 +1274,21 @@ export default function TagihanIndex({
                         </>
                     )}
                 </Modal>
+
+                {/* MODAL: KONFIRMASI HAPUS TAGIHAN */}
+                <DeleteConfirmModal
+                    isOpen={!!billToDelete}
+                    onClose={() => setBillToDelete(null)}
+                    onConfirm={confirmDeleteBill}
+                    loading={isDeleting}
+                    title="Hapus Tagihan"
+                    subtitle="Tindakan ini tidak dapat dibatalkan."
+                    itemTitle={billToDelete?.name}
+                    itemSubtitle={billToDelete ? `Setiap tanggal ${billToDelete.due_day}` : ''}
+                    itemExtra={billToDelete ? formatRp(billToDelete.amount) : ''}
+                    message="Tagihan ini beserta seluruh riwayat pembayarannya akan dihapus secara permanen."
+                    confirmText="Hapus Tagihan"
+                />
             </div>
         </AuthenticatedLayout>
     );

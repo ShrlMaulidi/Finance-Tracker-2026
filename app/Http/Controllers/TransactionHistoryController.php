@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
 use App\Models\Transaction;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class TransactionHistoryController extends Controller
 {
@@ -14,13 +14,13 @@ class TransactionHistoryController extends Controller
     {
         Carbon::setLocale('id');
         $user_id = Auth::id();
-        
+
         $filterType = $request->input('filter_type', 'month'); // month, year, all
         $filterMonth = $request->input('filter_month', Carbon::now()->month);
         $filterYear = $request->input('filter_year', Carbon::now()->year);
 
         $query = Transaction::where('user_id', $user_id);
-        
+
         if ($type === 'pengeluaran') {
             $query->where('type', 'pengeluaran');
             $title = 'Riwayat Pengeluaran';
@@ -33,7 +33,7 @@ class TransactionHistoryController extends Controller
         } else {
             $title = 'Semua Transaksi';
         }
-        
+
         if ($filterType === 'month') {
             $query->whereMonth('date', $filterMonth)->whereYear('date', $filterYear);
         } elseif ($filterType === 'year') {
@@ -44,7 +44,7 @@ class TransactionHistoryController extends Controller
             return [
                 'id' => $t->id,
                 'type' => $t->type,
-                'amount' => (float)$t->amount,
+                'amount' => (float) $t->amount,
                 'category' => $t->category,
                 'payment_method' => $t->payment_method,
                 'title' => $t->title,
@@ -60,7 +60,7 @@ class TransactionHistoryController extends Controller
             ->distinct()
             ->pluck('year')
             ->toArray();
-            
+
         if (empty($availableYears)) {
             $availableYears = [Carbon::now()->year];
         }
@@ -71,8 +71,8 @@ class TransactionHistoryController extends Controller
             'currentType' => $type, // semua, pengeluaran, pemasukan
             'filters' => [
                 'type' => $filterType,
-                'month' => (int)$filterMonth,
-                'year' => (int)$filterYear,
+                'month' => (int) $filterMonth,
+                'year' => (int) $filterYear,
             ],
             'availableYears' => $availableYears,
             'transactions' => $transactions,

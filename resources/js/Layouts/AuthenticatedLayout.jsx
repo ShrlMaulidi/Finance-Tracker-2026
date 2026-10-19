@@ -6,6 +6,7 @@ import UserAvatar from '@/Components/UserAvatar';
 import MobileBottomNav from '@/Components/UI/MobileBottomNav';
 import PwaInstallBanner from '@/Components/UI/PwaInstallBanner';
 import OnboardingTour from '@/Components/UI/OnboardingTour';
+import NotificationPanel from '@/Components/UI/NotificationPanel';
 
 const Icons = {
     Dashboard: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
@@ -29,6 +30,7 @@ const Icons = {
 
 export default function AuthenticatedLayout({ children }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
+    const userMoodEmoji = user?.mood_emoji || (typeof window !== 'undefined' ? localStorage.getItem('user_mood_emoji') : null) || '👋';
 
     const isSubscribed = Boolean(
         user?.is_pro ||
@@ -516,7 +518,12 @@ export default function AuthenticatedLayout({ children }) {
                     {/* User Profile */}
                     <div className="flex items-center h-[64px] hover:bg-slate-50 transition-colors overflow-hidden">
                         <div className="w-[72px] h-full flex justify-center items-center shrink-0">
-                            <UserAvatar user={user} size="sm" className="w-8 h-8" />
+                            <div className="relative">
+                                <UserAvatar user={user} size="sm" className="w-8 h-8" />
+                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-[1.5px] shadow-2xs">
+                                    <span className="text-[9px] leading-none block">{userMoodEmoji}</span>
+                                </div>
+                            </div>
                         </div>
                         <div className={`flex items-center justify-between overflow-hidden transition-all duration-300 whitespace-nowrap ${sidebarOpen ? 'w-[160px] opacity-100' : 'w-0 opacity-0'}`}>
                             <div className="overflow-hidden pr-2">
@@ -617,10 +624,7 @@ export default function AuthenticatedLayout({ children }) {
 
                         <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
 
-                        <button className="relative text-slate-400 hover:text-[#009bd2] transition-colors p-1">
-                            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                            <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white"></span>
-                        </button>
+                        <NotificationPanel />
 
                         <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
 
@@ -630,7 +634,7 @@ export default function AuthenticatedLayout({ children }) {
                                     <div className="relative">
                                         <UserAvatar user={user} size="md" className="w-10 h-10" />
                                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-[2px] shadow-sm">
-                                            <span className="text-[10px] leading-none block">👋</span>
+                                            <span className="text-[10px] leading-none block">{userMoodEmoji}</span>
                                         </div>
                                     </div>
                                     <div className="hidden lg:block">

@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Inertia\Inertia;
 
 class NewsController extends Controller
 {
@@ -27,7 +26,9 @@ class NewsController extends Controller
                         ];
                     }
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
+
             return null;
         });
 
@@ -38,7 +39,9 @@ class NewsController extends Controller
                 if ($response->successful()) {
                     return $response->json()['rates']['IDR'] ?? null;
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
+
             return null;
         });
 
@@ -51,37 +54,42 @@ class NewsController extends Controller
                     $items = [];
                     $count = 0;
                     foreach ($xml->channel->item as $item) {
-                        if ($count >= 15) break;
-                        
+                        if ($count >= 15) {
+                            break;
+                        }
+
                         // Extract image from description or enclosure
                         $image = null;
                         if (isset($item->enclosure) && isset($item->enclosure['url'])) {
-                            $image = (string)$item->enclosure['url'];
-                        } else if (preg_match('/<img[^>]+src="([^">]+)"/', (string)$item->description, $matches)) {
+                            $image = (string) $item->enclosure['url'];
+                        } elseif (preg_match('/<img[^>]+src="([^">]+)"/', (string) $item->description, $matches)) {
                             $image = $matches[1];
                         }
-                        
-                        $description = strip_tags((string)$item->description);
-                        
+
+                        $description = strip_tags((string) $item->description);
+
                         $items[] = [
-                            'title' => (string)$item->title,
-                            'link' => (string)$item->link,
-                            'pubDate' => date('d M Y, H:i', strtotime((string)$item->pubDate)),
+                            'title' => (string) $item->title,
+                            'link' => (string) $item->link,
+                            'pubDate' => date('d M Y, H:i', strtotime((string) $item->pubDate)),
                             'description' => $description,
                             'image' => $image,
                         ];
                         $count++;
                     }
+
                     return $items;
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
+
             return [];
         });
 
         return Inertia::render('News/Index', [
             'ihsg' => $ihsg,
             'usdToIdr' => $exchange,
-            'news' => $news
+            'news' => $news,
         ]);
     }
 }

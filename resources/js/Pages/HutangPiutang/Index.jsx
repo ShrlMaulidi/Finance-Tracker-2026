@@ -3,7 +3,7 @@ import { Head, useForm, router } from '@inertiajs/react';
 import CurrencyInput from '@/Components/CurrencyInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
-import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Components/UI';
+import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
 
 export default function Hutang({ debts }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
@@ -68,12 +68,22 @@ export default function Hutang({ debts }) {
         }
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-            router.delete(route('hutang-piutang.destroy', id), {
-                preserveScroll: true
-            });
-        }
+    const [debtToDelete, setDebtToDelete] = useState(null);
+    const [isDeletingDebt, setIsDeletingDebt] = useState(false);
+
+    const handleDelete = (item) => {
+        setDebtToDelete(item);
+    };
+
+    const confirmDeleteDebt = () => {
+        if (!debtToDelete) return;
+
+        router.delete(route('hutang-piutang.destroy', debtToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingDebt(true),
+            onSuccess: () => setDebtToDelete(null),
+            onFinish: () => setIsDeletingDebt(false),
+        });
     };
 
     const activeDebts = debts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
@@ -163,7 +173,7 @@ export default function Hutang({ debts }) {
                                                             <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
                                                                 <ActionButtons
                                                                     onEdit={() => openEditModal(item)}
-                                                                    onDelete={() => handleDelete(item.id)}
+                                                                    onDelete={() => handleDelete(item)}
                                                                 />
                                                             </Dropdown.Content>
                                                         </Dropdown>
@@ -339,6 +349,21 @@ export default function Hutang({ debts }) {
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Hutang / Piutang */}
+            <DeleteConfirmModal
+                isOpen={!!debtToDelete}
+                onClose={() => setDebtToDelete(null)}
+                onConfirm={confirmDeleteDebt}
+                loading={isDeletingDebt}
+                title={debtToDelete?.type === 'hutang' ? 'Hapus Hutang' : 'Hapus Piutang'}
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={debtToDelete?.name}
+                itemSubtitle={debtToDelete ? `Sisa: ${formatRp(debtToDelete.remaining_amount)}` : ''}
+                itemExtra={debtToDelete ? formatRp(debtToDelete.amount) : ''}
+                message="Data hutang/piutang ini beserta riwayat pembayarannya akan dihapus secara permanen."
+                confirmText={debtToDelete?.type === 'hutang' ? 'Hapus Hutang' : 'Hapus Piutang'}
+            />
         </AuthenticatedLayout>
     );
 }

@@ -3,7 +3,7 @@ import { Head, Link, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Components/UI';
+import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
 import { compressImage } from '@/Utils/imageCompressor';
 
 export default function Target({ dbTargets = [], isFree = false, canAdd = true, currentCount = 0 }) {
@@ -48,12 +48,22 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         setIsModalOpen(true);
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus target ini?')) {
-            router.delete(route('tabungan.target.destroy', id), {
-                preserveScroll: true
-            });
-        }
+    const [targetToDelete, setTargetToDelete] = useState(null);
+    const [isDeletingTarget, setIsDeletingTarget] = useState(false);
+
+    const handleDelete = (item) => {
+        setTargetToDelete(item);
+    };
+
+    const confirmDeleteTarget = () => {
+        if (!targetToDelete) return;
+
+        router.delete(route('tabungan.target.destroy', targetToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingTarget(true),
+            onSuccess: () => setTargetToDelete(null),
+            onFinish: () => setIsDeletingTarget(false),
+        });
     };
 
     const handleImageChange = async (e) => {
@@ -240,7 +250,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                                                 <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
                                                                     <ActionButtons
                                                                         onEdit={() => openEditModal(item)}
-                                                                        onDelete={() => handleDelete(item.id)}
+                                                                        onDelete={() => handleDelete(item)}
                                                                     />
                                                                 </Dropdown.Content>
                                                             </Dropdown>
@@ -323,7 +333,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                                     </Dropdown.Trigger>
                                                         <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
                                                             <ActionButtons
-                                                                onDelete={() => handleDelete(item.id)}
+                                                                onDelete={() => handleDelete(item)}
                                                             />
                                                         </Dropdown.Content>
                                                 </Dropdown>
@@ -473,6 +483,21 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Target */}
+            <DeleteConfirmModal
+                isOpen={!!targetToDelete}
+                onClose={() => setTargetToDelete(null)}
+                onConfirm={confirmDeleteTarget}
+                loading={isDeletingTarget}
+                title="Hapus Target Tabungan"
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={targetToDelete?.name}
+                itemSubtitle={targetToDelete ? `Kategori: ${targetToDelete.category}` : ''}
+                itemExtra={targetToDelete ? formatRp(targetToDelete.target) : ''}
+                message="Target tabungan ini akan dihapus secara permanen dari sistem."
+                confirmText="Hapus Target"
+            />
             
             <style jsx>{`
                 .animate-fade-in {

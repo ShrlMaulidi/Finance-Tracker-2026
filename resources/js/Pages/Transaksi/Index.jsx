@@ -3,22 +3,12 @@ import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { ActionButtons, Modal, Button } from '@/Components/UI';
+import { ActionButtons, Modal, Button, DeleteConfirmModal } from '@/Components/UI';
 
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [] }) {
     const { flash } = usePage().props;
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
-    const getMatchingBill = (categoryName) => {
-        if (!categoryName || !activeBills || activeBills.length === 0) return null;
-        const clean = categoryName.toLowerCase().replace(/^tagihan:\s*/i, '').trim();
-        return activeBills.find(b => 
-            (b.category_name && b.category_name.toLowerCase().trim() === clean) ||
-            (b.name && b.name.toLowerCase().trim() === clean) ||
-            (b.category_name && b.category_name.toLowerCase().trim() === categoryName.toLowerCase().trim()) ||
-            (b.name && b.name.toLowerCase().trim() === categoryName.toLowerCase().trim())
-        ) || null;
-    };
 
     const tabunganCategories = targets && targets.length > 0 
         ? targets.map(t => ({ id: t.name, label: t.name })) 
@@ -28,6 +18,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
         type: 'pengeluaran',
         amount: '',
         category: '',
+        bill_id: '',
         payment_method: '',
         title: '',
         description: '',
@@ -38,26 +29,20 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const [editingTx, setEditingTx] = useState(null);
     const [mobileTab, setMobileTab] = useState('catat'); // 'catat' | 'riwayat'
 
-    const selectedBill = data.type === 'pengeluaran' ? getMatchingBill(data.category) : null;
+    const currentMonthStr = new Date().toISOString().substring(0, 7);
+    const selectedInputMonth = data.date ? String(data.date).substring(0, 7) : currentMonthStr;
 
-    // Automatically set and lock bill amount when a bill category is chosen
-    useEffect(() => {
-        if (data.type === 'pengeluaran') {
-            const matched = getMatchingBill(data.category);
-            if (matched) {
-                setData(prev => {
-                    const updates = {};
-                    if (Number(prev.amount) !== Number(matched.amount)) {
-                        updates.amount = matched.amount;
-                    }
-                    if (!prev.title) {
-                        updates.title = `Bayar Tagihan ${matched.name}`;
-                    }
-                    return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
-                });
-            }
+    // Filter bills: hide bills that have status 'lunas' (fully paid) for the selected input period
+    const availableBillsForInput = activeBills.filter(b => {
+        if (b.paid_months && Array.isArray(b.paid_months)) {
+            return !b.paid_months.includes(selectedInputMonth);
         }
-    }, [data.category, data.type, activeBills]);
+        return !b.is_paid;
+    });
+
+    const selectedBill = data.type === 'pengeluaran' && data.category === 'Tagihan Rutin'
+        ? (activeBills.find(b => String(b.id) === String(data.bill_id)) || null)
+        : null;
 
     // Pop-up Notification State
     const [popupNotification, setPopupNotification] = useState({
@@ -101,26 +86,29 @@ export default function Index({ transactions, summary, currentMonthName, targets
         type: 'pengeluaran',
         amount: '',
         category: '',
+        bill_id: '',
         payment_method: '',
         title: '',
         description: '',
         date: ''
     });
 
-    const editSelectedBill = editData.type === 'pengeluaran' ? getMatchingBill(editData.category) : null;
+    const selectedEditMonth = editData.date ? String(editData.date).substring(0, 7) : currentMonthStr;
 
-    // Automatically sync bill amount in edit modal if editing a bill transaction
-    useEffect(() => {
-        if (editData.type === 'pengeluaran') {
-            const matched = getMatchingBill(editData.category);
-            if (matched && Number(editData.amount) !== Number(matched.amount)) {
-                setEditData(prev => ({
-                    ...prev,
-                    amount: matched.amount
-                }));
-            }
+    // In edit mode: keep the currently linked bill, while hiding other already-paid bills for the period
+    const availableBillsForEdit = activeBills.filter(b => {
+        if (String(b.id) === String(editData.bill_id)) {
+            return true;
         }
-    }, [editData.category, editData.type, activeBills]);
+        if (b.paid_months && Array.isArray(b.paid_months)) {
+            return !b.paid_months.includes(selectedEditMonth);
+        }
+        return !b.is_paid;
+    });
+
+    const editSelectedBill = editData.type === 'pengeluaran' && editData.category === 'Tagihan Rutin'
+        ? (activeBills.find(b => String(b.id) === String(editData.bill_id)) || null)
+        : null;
 
     const submit = (e) => {
         e.preventDefault();
@@ -131,7 +119,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
         post(route('transaksi.store'), {
             preserveScroll: true,
             onSuccess: () => {
-                reset('amount', 'category', 'title', 'description', 'payment_method');
+                reset('amount', 'category', 'bill_id', 'title', 'description', 'payment_method');
                 if (typeof window !== 'undefined' && window.innerWidth < 640) {
                     setMobileTab('riwayat');
                 }
@@ -150,10 +138,23 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const openEditModal = (item) => {
         setEditingTx(item);
         clearEditErrors();
+
+        let matchedBillId = '';
+        if (item.type === 'pengeluaran' && item.category === 'Tagihan Rutin') {
+            const found = activeBills.find(b => 
+                (item.title && item.title.toLowerCase().includes(b.name.toLowerCase())) ||
+                (item.description && item.description.toLowerCase().includes(b.name.toLowerCase()))
+            );
+            if (found) {
+                matchedBillId = found.id;
+            }
+        }
+
         setEditData({
             type: item.type,
             amount: item.amount,
             category: item.category,
+            bill_id: matchedBillId,
             payment_method: item.payment_method || '',
             title: item.title,
             description: item.description || '',
@@ -180,20 +181,32 @@ export default function Index({ transactions, summary, currentMonthName, targets
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
-            router.delete(route('transaksi.destroy', id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setPopupNotification({
-                        show: true,
-                        title: 'Transaksi Dihapus',
-                        message: 'Catatan transaksi telah berhasil dihapus.',
-                        type: 'info',
-                    });
-                }
-            });
-        }
+    const [txToDelete, setTxToDelete] = useState(null);
+    const [isDeletingTx, setIsDeletingTx] = useState(false);
+
+    const handleDelete = (tx) => {
+        setTxToDelete(tx);
+    };
+
+    const confirmDeleteTx = () => {
+        if (!txToDelete) return;
+
+        router.delete(route('transaksi.destroy', txToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingTx(true),
+            onSuccess: () => {
+                setTxToDelete(null);
+                setPopupNotification({
+                    show: true,
+                    title: 'Transaksi Dihapus',
+                    message: 'Catatan transaksi telah berhasil dihapus.',
+                    type: 'info',
+                });
+            },
+            onFinish: () => {
+                setIsDeletingTx(false);
+            },
+        });
     };
 
     return (
@@ -374,14 +387,10 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         value={data.category}
                                         onChange={e => {
                                             const val = e.target.value;
-                                            const matched = data.type === 'pengeluaran' ? getMatchingBill(val) : null;
                                             setData(prev => ({
                                                 ...prev,
                                                 category: val,
-                                                ...(matched ? {
-                                                    amount: matched.amount,
-                                                    title: prev.title ? prev.title : `Bayar Tagihan ${matched.name}`
-                                                } : {})
+                                                bill_id: val === 'Tagihan Rutin' ? prev.bill_id : '',
                                             }));
                                         }}
                                         className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
@@ -393,6 +402,77 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     </select>
                                     {errors.category && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.category}</p>}
                                 </div>
+
+                                {/* Dropdown Tambahan Ketika Pilih Kategori Tagihan Rutin */}
+                                {data.type === 'pengeluaran' && data.category === 'Tagihan Rutin' && (
+                                    <div className="p-3.5 bg-sky-50/70 border border-sky-100 rounded-xl sm:rounded-2xl space-y-2 transition-all">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs sm:text-[13px] font-bold text-slate-700 flex items-center gap-1.5">
+                                                <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                </svg>
+                                                <span>Pilih Tagihan Rutin <span className="text-rose-500">*</span></span>
+                                            </label>
+                                            {availableBillsForInput.length > 0 && (
+                                                <span className="text-[10px] font-extrabold text-[#009bd2] bg-white border border-sky-200/60 px-2 py-0.5 rounded-full shadow-2xs">
+                                                    {availableBillsForInput.length} Belum Lunas
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <select 
+                                            value={data.bill_id}
+                                            onChange={e => {
+                                                const billId = e.target.value;
+                                                const matched = activeBills.find(b => String(b.id) === String(billId));
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    bill_id: billId,
+                                                    ...(matched ? {
+                                                        amount: matched.amount,
+                                                        title: `Bayar Tagihan ${matched.name}`
+                                                    } : {})
+                                                }));
+                                            }}
+                                            disabled={availableBillsForInput.length === 0}
+                                            className="w-full bg-white border-2 border-sky-200/80 text-slate-800 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-2xs disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">
+                                                {availableBillsForInput.length === 0 ? '-- Semua Tagihan Periode Ini Sudah Lunas --' : '-- Pilih Tagihan Rutin --'}
+                                            </option>
+                                            {availableBillsForInput.map(b => (
+                                                <option key={b.id} value={b.id}>
+                                                    {b.name} - {formatRp(b.amount)} {b.due_day ? `(Jatuh tempo tgl ${b.due_day})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        {availableBillsForInput.length === 0 ? (
+                                            activeBills.length === 0 ? (
+                                                <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pt-1">
+                                                    <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                    <span>Belum ada data tagihan rutin.</span>
+                                                    <Link href={route('tagihan.index')} className="text-[#009bd2] font-bold underline hover:text-[#0086b6]">
+                                                        Tambah Tagihan
+                                                    </Link>
+                                                </p>
+                                            ) : (
+                                                <div className="p-2.5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl text-emerald-800 text-[11px] font-semibold flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span>Semua tagihan rutin untuk periode ini sudah lunas!</span>
+                                                </div>
+                                            )
+                                        ) : (
+                                            <p className="text-[11px] text-slate-500 font-medium">
+                                                Hanya menampilkan tagihan rutin yang belum lunas pada periode ini.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Metode Pembayaran</label>
@@ -419,7 +499,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                 </svg>
-                                                Nominal Tagihan Terkunci
+                                                Nominal Terkunci ({selectedBill.name})
                                             </span>
                                         )}
                                     </div>
@@ -436,15 +516,18 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             disabled={Boolean(selectedBill)}
                                             placeholder="50000" 
                                             className={`w-full border-2 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 min-h-[44px] font-black text-sm sm:text-base transition-all ${
-                                                selectedBill 
-                                                    ? 'bg-slate-100/90 border-slate-200 text-slate-600 cursor-not-allowed select-none focus:outline-none' 
+                                                selectedBill
+                                                    ? 'bg-slate-100/90 border-slate-200 text-slate-600 cursor-not-allowed select-none focus:outline-none'
                                                     : 'bg-slate-50 border-slate-100 text-slate-800 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white'
                                             }`} 
                                         />
                                     </div>
                                     {selectedBill && (
-                                        <p className="text-[11px] text-slate-500 font-medium mt-1">
-                                            Nominal otomatis disesuaikan dan dikunci pada tagihan <strong>{selectedBill.name}</strong> ({formatRp(selectedBill.amount)}).
+                                        <p className="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                                            <svg className="w-3 h-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            <span>Nominal terkunci sesuai tagihan <strong>{selectedBill.name}</strong> ({formatRp(selectedBill.amount)}).</span>
                                         </p>
                                     )}
                                     {errors.amount && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.amount}</p>}
@@ -568,7 +651,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDelete(item.id)}
+                                                    onClick={() => handleDelete(item)}
                                                     className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 border border-rose-200/60 flex items-center justify-center transition-all active:scale-95 shadow-2xs group/btn"
                                                     title="Hapus Transaksi"
                                                     aria-label="Hapus Transaksi"
@@ -654,11 +737,10 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         value={editData.category}
                                         onChange={e => {
                                             const val = e.target.value;
-                                            const matched = editData.type === 'pengeluaran' ? getMatchingBill(val) : null;
                                             setEditData(prev => ({
                                                 ...prev,
                                                 category: val,
-                                                ...(matched ? { amount: matched.amount } : {})
+                                                bill_id: val === 'Tagihan Rutin' ? prev.bill_id : '',
                                             }));
                                         }}
                                         className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-3.5 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2] focus:bg-white transition-colors text-xs sm:text-sm font-bold cursor-pointer"
@@ -670,6 +752,43 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                     </select>
                                     {editErrors.category && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.category}</p>}
                                 </div>
+
+                                {/* Dropdown Tambahan Ketika Pilih Kategori Tagihan Rutin di Edit Modal */}
+                                {editData.type === 'pengeluaran' && editData.category === 'Tagihan Rutin' && (
+                                    <div className="p-3 bg-sky-50/70 border border-sky-100 rounded-xl space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                                            <span>Pilih Tagihan Rutin</span>
+                                            {availableBillsForEdit.length > 0 && (
+                                                <span className="text-[10px] font-extrabold text-[#009bd2] bg-white border border-sky-200/60 px-2 py-0.5 rounded-full">
+                                                    {availableBillsForEdit.length} Tagihan
+                                                </span>
+                                            )}
+                                        </label>
+                                        <select 
+                                            value={editData.bill_id}
+                                            onChange={e => {
+                                                const billId = e.target.value;
+                                                const matched = activeBills.find(b => String(b.id) === String(billId));
+                                                setEditData(prev => ({
+                                                    ...prev,
+                                                    bill_id: billId,
+                                                    ...(matched ? {
+                                                        amount: matched.amount,
+                                                        title: prev.title && !prev.title.startsWith('Bayar Tagihan ') ? prev.title : `Bayar Tagihan ${matched.name}`
+                                                    } : {})
+                                                }));
+                                            }}
+                                            className="w-full bg-white border border-sky-200 text-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#009bd2]"
+                                        >
+                                            <option value="">-- Pilih Tagihan Rutin --</option>
+                                            {availableBillsForEdit.map(b => (
+                                                <option key={b.id} value={b.id}>
+                                                    {b.name} - {formatRp(b.amount)} {b.due_day ? `(Tgl ${b.due_day})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1.5 sm:mb-2">Metode Pembayaran</label>
@@ -696,7 +815,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                                 <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                 </svg>
-                                                Terkunci
+                                                Nominal Terkunci ({editSelectedBill.name})
                                             </span>
                                         )}
                                     </div>
@@ -719,8 +838,11 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                         />
                                     </div>
                                     {editSelectedBill && (
-                                        <p className="text-[11px] text-slate-500 font-medium mt-1">
-                                            Nominal tagihan terkunci ({formatRp(editSelectedBill.amount)}).
+                                        <p className="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                                            <svg className="w-3 h-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            <span>Nominal terkunci sesuai tagihan <strong>{editSelectedBill.name}</strong> ({formatRp(editSelectedBill.amount)}).</span>
                                         </p>
                                     )}
                                     {editErrors.amount && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.amount}</p>}
@@ -767,6 +889,21 @@ export default function Index({ transactions, summary, currentMonthName, targets
                             </div>
                         </form>
             </Modal>
+
+            {/* MODAL: KONFIRMASI HAPUS TRANSAKSI */}
+            <DeleteConfirmModal
+                isOpen={!!txToDelete}
+                onClose={() => setTxToDelete(null)}
+                onConfirm={confirmDeleteTx}
+                loading={isDeletingTx}
+                title="Hapus Transaksi"
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={txToDelete?.title}
+                itemSubtitle={txToDelete ? `${txToDelete.date_formatted || txToDelete.date} • ${txToDelete.category}` : ''}
+                itemExtra={txToDelete ? formatRp(txToDelete.amount) : ''}
+                message="Catatan transaksi ini akan dihapus secara permanen dari riwayat keuangan Anda."
+                confirmText="Hapus Transaksi"
+            />
             
             {/* Simple animation keyframes */}
             <style jsx>{`

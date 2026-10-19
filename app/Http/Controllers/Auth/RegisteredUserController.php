@@ -22,7 +22,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response|RedirectResponse
     {
-        if (!AdminSettingController::isRegistrationAllowed()) {
+        if (! AdminSettingController::isRegistrationAllowed()) {
             return redirect()->route('login')->with('error', 'Pendaftaran akun baru saat ini sedang ditutup oleh administrator.');
         }
 
@@ -36,7 +36,7 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        if (!AdminSettingController::isRegistrationAllowed()) {
+        if (! AdminSettingController::isRegistrationAllowed()) {
             return redirect()->route('login')->with('error', 'Pendaftaran akun baru saat ini sedang ditutup oleh administrator.');
         }
         $request->validate([

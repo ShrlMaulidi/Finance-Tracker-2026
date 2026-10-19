@@ -1,23 +1,44 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function Login({ status, canResetPassword, canRegister = true }) {
-    const { flash } = usePage().props;
+export default function Login({ status, canResetPassword, canRegister = true, flash: propFlash }) {
+    const page = usePage();
+    const flash = propFlash || page?.props?.flash || {};
+
+    const MOOD_EMOJIS = {
+        happy: '😁',
+        sad: '😥',
+        angry: '😠',
+        surprised: '😲',
+    };
+
+    const [mood, setMood] = useState('happy');
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
         remember: false,
+        mood_emoji: '😁',
     });
 
-    const [mood, setMood] = useState('happy');
     const [showPassword, setShowPassword] = useState(false);
+
+    const handleMoodSelect = (moodKey) => {
+        setMood(moodKey);
+        const emoji = MOOD_EMOJIS[moodKey] || '😁';
+        setData('mood_emoji', emoji);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('user_mood_emoji', emoji);
+        }
+    };
 
     const submit = (e) => {
         e.preventDefault();
+        const selectedEmoji = MOOD_EMOJIS[mood] || '😁';
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem('hasSeenOffer');
             sessionStorage.setItem('justLoggedIn', 'true');
             sessionStorage.setItem('justLoggedInForPwa', 'true');
+            localStorage.setItem('user_mood_emoji', selectedEmoji);
         }
         post(route('login'), {
             onFinish: () => reset('password'),
@@ -191,53 +212,53 @@ export default function Login({ status, canResetPassword, canRegister = true }) 
                                 <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-50 border border-slate-100">
                                     <button 
                                         type="button" 
-                                        onClick={() => setMood('happy')} 
+                                        onClick={() => handleMoodSelect('happy')} 
                                         title="Senang"
                                         className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
                                             mood === 'happy' 
-                                                ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
-                                                : 'hover:bg-white/60 opacity-60 hover:opacity-100'
-                                        }`}
-                                    >
-                                        😁
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setMood('sad')} 
-                                        title="Sedih"
-                                        className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
-                                            mood === 'sad' 
-                                                ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
-                                                : 'hover:bg-white/60 opacity-60 hover:opacity-100'
-                                        }`}
-                                    >
-                                        😥
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setMood('angry')} 
-                                        title="Kesal"
-                                        className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
-                                            mood === 'angry' 
-                                                ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
-                                                : 'hover:bg-white/60 opacity-60 hover:opacity-100'
-                                        }`}
-                                    >
-                                        😠
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setMood('surprised')} 
-                                        title="Kaget"
-                                        className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
-                                            mood === 'surprised' 
-                                                ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
-                                                : 'hover:bg-white/60 opacity-60 hover:opacity-100'
-                                        }`}
-                                    >
-                                        😲
-                                    </button>
-                                </div>
+                                                 ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
+                                                 : 'hover:bg-white/60 opacity-60 hover:opacity-100'
+                                         }`}
+                                     >
+                                         😁
+                                     </button>
+                                     <button 
+                                         type="button" 
+                                         onClick={() => handleMoodSelect('sad')} 
+                                         title="Sedih"
+                                         className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
+                                             mood === 'sad' 
+                                                 ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
+                                                 : 'hover:bg-white/60 opacity-60 hover:opacity-100'
+                                         }`}
+                                     >
+                                         😥
+                                     </button>
+                                     <button 
+                                         type="button" 
+                                         onClick={() => handleMoodSelect('angry')} 
+                                         title="Kesal"
+                                         className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
+                                             mood === 'angry' 
+                                                 ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
+                                                 : 'hover:bg-white/60 opacity-60 hover:opacity-100'
+                                         }`}
+                                     >
+                                         😠
+                                     </button>
+                                     <button 
+                                         type="button" 
+                                         onClick={() => handleMoodSelect('surprised')} 
+                                         title="Kaget"
+                                         className={`py-1.5 text-lg sm:text-xl flex justify-center items-center rounded-lg transition-all ${
+                                             mood === 'surprised' 
+                                                 ? 'bg-white shadow-sm border border-[#009bd2]/30 scale-[1.03]' 
+                                                 : 'hover:bg-white/60 opacity-60 hover:opacity-100'
+                                         }`}
+                                     >
+                                         😲
+                                     </button>
+                                 </div>
                             </div>
 
                             {/* Submit Button */}

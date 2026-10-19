@@ -20,10 +20,11 @@ class Setting extends Model
         return Cache::rememberForever("app_setting_{$key}", function () use ($key, $default) {
             try {
                 $setting = self::where('key', $key)->first();
-                if (!$setting) {
+                if (! $setting) {
                     return $default;
                 }
                 $decoded = json_decode($setting->value, true);
+
                 return json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->value;
             } catch (\Throwable $e) {
                 return $default;
@@ -103,7 +104,7 @@ class Setting extends Model
         $defaults = self::defaultTierRules();
         $stored = self::get('tier_rules', $defaults);
 
-        if (!is_array($stored)) {
+        if (! is_array($stored)) {
             return $defaults;
         }
 
@@ -111,12 +112,12 @@ class Setting extends Model
         $merged = [];
         foreach ($defaults as $tier => $tierDefaults) {
             $merged[$tier] = array_merge($tierDefaults, $stored[$tier] ?? []);
-            
+
             // Normalize limits to integers (-1 for unlimited)
             foreach (['target_limit', 'bill_limit', 'category_limit', 'payment_method_limit'] as $limitKey) {
                 if (isset($merged[$tier][$limitKey])) {
                     $val = $merged[$tier][$limitKey];
-                    $merged[$tier][$limitKey] = ($val === '' || $val === null || (int)$val < 0) ? -1 : (int)$val;
+                    $merged[$tier][$limitKey] = ($val === '' || $val === null || (int) $val < 0) ? -1 : (int) $val;
                 }
             }
 

@@ -28,6 +28,7 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:10240'],
             'remove_avatar' => ['nullable', 'boolean'],
+            'mood_emoji' => ['nullable', 'string', 'max:20'],
         ];
     }
 }

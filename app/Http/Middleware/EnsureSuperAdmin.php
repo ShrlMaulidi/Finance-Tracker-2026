@@ -15,7 +15,7 @@ class EnsureSuperAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->user() || !$request->user()->isSuperAdmin()) {
+        if (! $request->user() || ! $request->user()->isSuperAdmin()) {
             abort(403, 'Akses terbatas hanya untuk Super Admin.');
         }
 

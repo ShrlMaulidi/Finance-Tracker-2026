@@ -37,6 +37,7 @@ class AdminSettingController extends Controller
     public static function isRegistrationAllowed(): bool
     {
         $settings = self::getPricingSettings();
+
         return (bool) ($settings['allow_registration'] ?? true);
     }
 
@@ -46,6 +47,7 @@ class AdminSettingController extends Controller
     public static function isMaintenanceMode(): bool
     {
         $settings = self::getPricingSettings();
+
         return (bool) ($settings['maintenance_mode'] ?? false);
     }
 
@@ -131,6 +133,7 @@ class AdminSettingController extends Controller
     public function resetTierRules(): RedirectResponse
     {
         Setting::resetTierRules();
+
         return back()->with('success', 'Matriks aturan hak akses berhasil di-reset ke setelan awal default.');
     }
 }

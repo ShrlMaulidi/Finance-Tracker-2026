@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Budget;
-use App\Models\DebtBudget;
 use App\Models\Debt;
+use App\Models\DebtBudget;
 use App\Models\Transaction;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class BudgetSummaryController extends Controller
 {
@@ -17,7 +17,7 @@ class BudgetSummaryController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->canAccess('budget')) {
+        if (! $user->canAccess('budget')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'anggaran',
                 'title' => 'Menu Ringkasan Anggaran Terkunci',
@@ -97,7 +97,7 @@ class BudgetSummaryController extends Controller
             }
 
             return [
-                'id' => 'expense_' . $b->id,
+                'id' => 'expense_'.$b->id,
                 'raw_id' => $b->id,
                 'source_menu' => 'pengeluaran',
                 'source_label' => 'Pengeluaran Bulanan',
@@ -139,7 +139,7 @@ class BudgetSummaryController extends Controller
             $debtInfo = $debtsList[$b->name] ?? null;
 
             return [
-                'id' => 'debt_' . $b->id,
+                'id' => 'debt_'.$b->id,
                 'raw_id' => $b->id,
                 'source_menu' => 'hutang',
                 'source_label' => 'Anggaran Hutang',
@@ -176,7 +176,7 @@ class BudgetSummaryController extends Controller
             }
 
             return [
-                'id' => 'savings_' . $b->id,
+                'id' => 'savings_'.$b->id,
                 'raw_id' => $b->id,
                 'source_menu' => 'investasi',
                 'source_label' => 'Tabungan & Target',
@@ -238,7 +238,7 @@ class BudgetSummaryController extends Controller
             ->values()
             ->toArray();
 
-        if (!in_array($currentMonthName, $availableMonths)) {
+        if (! in_array($currentMonthName, $availableMonths)) {
             array_unshift($availableMonths, $currentMonthName);
         }
 
@@ -288,7 +288,7 @@ class BudgetSummaryController extends Controller
             ->toArray();
 
         foreach ($recurringExpenses as $name => $group) {
-            if (!in_array($name, $existingExpenseNames)) {
+            if (! in_array($name, $existingExpenseNames)) {
                 $latest = $group->sortByDesc('created_at')->first();
                 Budget::create([
                     'user_id' => $userId,
@@ -298,7 +298,7 @@ class BudgetSummaryController extends Controller
                     'current_amount' => 0,
                     'month' => $currentMonth,
                     'status' => 'Berjalan',
-                    'is_recurring' => true
+                    'is_recurring' => true,
                 ]);
             }
         }
@@ -318,7 +318,7 @@ class BudgetSummaryController extends Controller
             ->toArray();
 
         foreach ($recurringSavings as $name => $group) {
-            if (!in_array($name, $existingSavingsNames)) {
+            if (! in_array($name, $existingSavingsNames)) {
                 $latest = $group->sortByDesc('created_at')->first();
                 Budget::create([
                     'user_id' => $userId,
@@ -328,7 +328,7 @@ class BudgetSummaryController extends Controller
                     'current_amount' => 0,
                     'month' => $currentMonth,
                     'status' => 'Berjalan',
-                    'is_recurring' => true
+                    'is_recurring' => true,
                 ]);
             }
         }

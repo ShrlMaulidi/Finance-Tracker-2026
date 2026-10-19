@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Admin\AdminSettingController;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,7 +46,17 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
             ],
-            'pricing' => \App\Http\Controllers\Admin\AdminSettingController::getPricingSettings(),
+            'pricing' => AdminSettingController::getPricingSettings(),
+            'vapid_public_key' => config('services.vapid.public_key'),
+            'notifications' => fn () => $user ? NotificationService::getRemindersForUser($user) : [
+                'urgent_count' => 0,
+                'total_count' => 0,
+                'bills_count' => 0,
+                'targets_count' => 0,
+                'all' => [],
+                'bills' => [],
+                'targets' => [],
+            ],
         ];
     }
 }

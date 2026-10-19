@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,7 @@ class AuthenticatedSessionController extends Controller
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
-            'canRegister' => \App\Http\Controllers\Admin\AdminSettingController::isRegistrationAllowed(),
+            'canRegister' => AdminSettingController::isRegistrationAllowed(),
             'status' => session('status'),
         ]);
     }
@@ -32,13 +33,19 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        if (!$request->user()->is_active) {
+        if (! $request->user()->is_active) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return back()->withErrors([
                 'email' => 'Akun Anda sedang dinonaktifkan sementara oleh Super Admin. Silakan hubungi dukungan jika ada kendala.',
+            ]);
+        }
+
+        if ($request->filled('mood_emoji')) {
+            $request->user()->update([
+                'mood_emoji' => $request->input('mood_emoji'),
             ]);
         }
 

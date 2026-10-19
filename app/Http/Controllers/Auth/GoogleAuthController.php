@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
@@ -19,12 +19,12 @@ class GoogleAuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-            
+
             $user = User::where('google_id', $googleUser->id)->orWhere('email', $googleUser->email)->first();
-            
+
             $isNewUser = false;
-            if (!$user) {
-                if (!\App\Http\Controllers\Admin\AdminSettingController::isRegistrationAllowed()) {
+            if (! $user) {
+                if (! AdminSettingController::isRegistrationAllowed()) {
                     return redirect()->route('login')->with('error', 'Pendaftaran akun baru sedang ditutup sementara oleh administrator.');
                 }
 
@@ -40,7 +40,7 @@ class GoogleAuthController extends Controller
                     'google_id' => $googleUser->id,
                 ]);
             }
-            
+
             Auth::login($user, true);
             if ($isNewUser) {
                 session()->flash('just_registered', true);
@@ -49,9 +49,9 @@ class GoogleAuthController extends Controller
                 session()->flash('show_subscription_offer', true);
             }
             session()->flash('just_logged_in', true);
-            
+
             return redirect()->intended(route('dashboard', absolute: false));
-            
+
         } catch (\Exception $e) {
             return redirect()->route('login')->with('error', 'Gagal login menggunakan Google. Silakan coba lagi.');
         }

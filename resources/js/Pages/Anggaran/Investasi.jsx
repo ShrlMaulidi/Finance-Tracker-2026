@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import CurrencyInput from '@/Components/CurrencyInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Button, TabFilter, ActionButtons, Modal, ProgressBar } from '@/Components/UI';
+import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
 
 export default function Investasi({ currentMonth, currentBudgets, historyData, historyMonths, activeTargets, availableTargets }) {
     const [activeTab, setActiveTab] = useState('bulan_ini');
@@ -65,12 +65,22 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus anggaran ini?')) {
-            router.delete(route('anggaran.investasi.destroy', id), {
-                preserveScroll: true
-            });
-        }
+    const [budgetToDelete, setBudgetToDelete] = useState(null);
+    const [isDeletingBudget, setIsDeletingBudget] = useState(false);
+
+    const handleDelete = (item) => {
+        setBudgetToDelete(item);
+    };
+
+    const confirmDeleteBudget = () => {
+        if (!budgetToDelete) return;
+
+        router.delete(route('anggaran.investasi.destroy', budgetToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingBudget(true),
+            onSuccess: () => setBudgetToDelete(null),
+            onFinish: () => setIsDeletingBudget(false),
+        });
     };
 
     const [filterMonth, setFilterMonth] = useState('Semua');
@@ -197,7 +207,7 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
                                                     variant="soft"
                                                     size="sm"
                                                     onEdit={() => openEditModal(item)}
-                                                    onDelete={() => handleDelete(item.id)}
+                                                    onDelete={() => handleDelete(item)}
                                                 />
                                             </div>
                                             
@@ -403,6 +413,21 @@ export default function Investasi({ currentMonth, currentBudgets, historyData, h
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Anggaran Tabungan & Investasi */}
+            <DeleteConfirmModal
+                isOpen={!!budgetToDelete}
+                onClose={() => setBudgetToDelete(null)}
+                onConfirm={confirmDeleteBudget}
+                loading={isDeletingBudget}
+                title="Hapus Anggaran Tabungan"
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={budgetToDelete?.name}
+                itemSubtitle={budgetToDelete ? `Bulan: ${currentMonth}` : ''}
+                itemExtra={budgetToDelete ? formatRp(budgetToDelete.target) : ''}
+                message="Anggaran tabungan ini akan dihapus secara permanen. Target tabungan utama Anda tetap aman."
+                confirmText="Hapus Anggaran"
+            />
         </AuthenticatedLayout>
     );
 }

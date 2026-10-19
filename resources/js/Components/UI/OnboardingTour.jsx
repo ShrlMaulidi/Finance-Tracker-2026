@@ -265,76 +265,91 @@ export default function OnboardingTour({ mobileNavMode = 'bottom' }) {
             {/* 1. MODAL SAMBUTAN SELAMAT DATANG DI AWAL */}
             {showWelcome && (
                 <div className="fixed inset-0 z-[130] flex items-center justify-center p-3.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-                    <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4.5 sm:p-6 shadow-2xl border border-slate-100 text-left animate-scaleUp max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-2xl sm:rounded-3xl max-w-[390px] sm:max-w-md w-full p-4 sm:p-5 shadow-2xl border border-slate-100/90 text-left animate-scaleUp max-h-[92vh] overflow-y-auto flex flex-col justify-between">
                         {/* Header */}
-                        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2.5 sm:gap-3">
-                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-[#009bd2]/10 border border-[#009bd2]/20 flex items-center justify-center p-2 shadow-xs shrink-0">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#009bd2]/10 border border-[#009bd2]/20 flex items-center justify-center p-1.5 shadow-xs shrink-0">
                                     <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                                 </div>
-                                <div>
-                                    <h3 className="font-black text-slate-800 text-sm sm:text-base leading-tight">
-                                        Selamat Datang! 🎉
+                                <div className="min-w-0">
+                                    <h3 className="font-extrabold text-slate-800 text-sm sm:text-base leading-tight flex items-center gap-1.5">
+                                        <span>Selamat Datang!</span>
+                                        <span className="text-sm sm:text-base">🎉</span>
                                     </h3>
-                                    <p className="text-[11px] sm:text-xs text-slate-400 font-semibold mt-0.5">
-                                        Hai, {user?.name || 'Teman Finance'}!
+                                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
+                                        Hai, <span className="font-semibold text-slate-700">{user?.name || 'Teman Finance'}</span>!
                                     </p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleSkip}
-                                className="text-slate-400 hover:text-slate-600 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                                className="text-slate-400 hover:text-slate-600 p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shrink-0 ml-2"
                                 aria-label="Tutup"
+                                title="Tutup"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
                         {/* Intro Text */}
-                        <div className="mt-3.5 sm:mt-4 space-y-3">
-                            <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-medium">
-                                Agar Anda tidak bingung, mari ikuti panduan singkat <strong>4 langkah</strong> untuk mengenal alur pencatatan keuangan di aplikasi ini:
+                        <div className="mt-3 sm:mt-3.5 space-y-2.5 sm:space-y-3">
+                            <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal">
+                                Mari ikuti panduan singkat <strong className="font-bold text-slate-800">4 langkah</strong> untuk mengenal alur pencatatan keuangan Anda:
                             </p>
 
-                            <div className="space-y-1.5 sm:space-y-2 py-1">
+                            <div className="space-y-1.5 py-0.5">
                                 {TOUR_STEPS.map((s) => (
-                                    <div key={s.step} className="flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                                        <div className="w-6 h-6 rounded-lg bg-sky-100 text-[#009bd2] font-black text-xs flex items-center justify-center shrink-0">
+                                    <div 
+                                        key={s.step} 
+                                        className="flex items-center gap-2.5 py-1.5 px-2.5 sm:py-2 sm:px-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition-all"
+                                    >
+                                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-sky-100/90 text-[#009bd2] font-black text-[11px] sm:text-xs flex items-center justify-center shrink-0">
                                             {s.step}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-bold text-slate-800 truncate">{s.title}</p>
+                                            <p className="text-[11.5px] sm:text-xs font-semibold text-slate-800 truncate">
+                                                {s.title}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-slate-300">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            <p className="text-[11px] text-slate-400 font-medium">
-                                * Panduan ini fleksibel dan dapat Anda lewati kapan saja.
-                            </p>
+                            <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                <p className="text-[10.5px] sm:text-[11px] text-slate-400 font-medium text-center">
+                                    Panduan fleksibel &amp; dapat dilewati kapan saja
+                                </p>
+                            </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="mt-4 sm:mt-5 pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
+                        <div className="mt-3.5 sm:mt-4 pt-3 border-t border-slate-100 flex flex-col gap-1.5 sm:flex-row sm:gap-2">
                             <button
                                 type="button"
                                 onClick={handleStartTour}
-                                className="flex-1 py-3 px-4 rounded-xl bg-[#009bd2] hover:bg-[#0087b7] text-white font-extrabold text-xs sm:text-sm min-h-[44px] transition-all shadow-md shadow-[#009bd2]/25 active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-[#009bd2] hover:bg-[#0087b7] text-white font-bold text-xs sm:text-sm min-h-[40px] sm:min-h-[42px] transition-all shadow-sm shadow-[#009bd2]/25 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 order-1 sm:order-2"
                             >
                                 <span>Mulai Panduan (4 Langkah)</span>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                 </svg>
                             </button>
                             <button
                                 type="button"
                                 onClick={handleSkip}
-                                className="py-3 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs min-h-[44px] transition-colors cursor-pointer flex items-center justify-center"
+                                className="w-full sm:w-auto py-2 sm:py-2.5 px-3 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-semibold text-xs min-h-[34px] sm:min-h-[42px] transition-colors cursor-pointer flex items-center justify-center order-2 sm:order-1"
                             >
-                                Lewati
+                                Lewati untuk Sekarang
                             </button>
                         </div>
                     </div>

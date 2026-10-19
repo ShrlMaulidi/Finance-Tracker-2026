@@ -31,7 +31,7 @@ class CheckPlatformMaintenance
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!AdminSettingController::isMaintenanceMode()) {
+        if (! AdminSettingController::isMaintenanceMode()) {
             return $next($request);
         }
 

@@ -46,4 +46,10 @@ return [
         'bot_phone' => env('AI_WHATSAPP_BOT_NUMBER', '6281234567890'),
     ],
 
+    'vapid' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT', 'mailto:support@financetrack.id'),
+    ],
+
 ];

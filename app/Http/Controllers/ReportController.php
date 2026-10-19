@@ -2,21 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\Transaction;
-use App\Models\Debt;
-use App\Models\Target;
 use App\Models\Bill;
 use App\Models\BillPayment;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Debt;
+use App\Models\Target;
+use App\Models\Transaction;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
@@ -29,22 +30,22 @@ class ReportController extends Controller
         Carbon::setLocale('id');
         $user = Auth::user();
         $user_id = $user->id;
-        
+
         $filterType = $request->input('filter_type', 'month'); // month, year, all
         $filterMonth = (int) $request->input('filter_month', Carbon::now()->month);
         $filterYear = (int) $request->input('filter_year', Carbon::now()->year);
 
         $query = Transaction::where('user_id', $user_id);
-        
+
         $monthNames = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
             5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
         ];
 
         if ($filterType === 'month') {
             $query->whereMonth('date', $filterMonth)->whereYear('date', $filterYear);
-            $monthName = $monthNames[$filterMonth] ?? 'Bulan ' . $filterMonth;
+            $monthName = $monthNames[$filterMonth] ?? 'Bulan '.$filterMonth;
             $periodLabel = "{$monthName} {$filterYear}";
             $fileSlug = "Bulan_{$monthName}_{$filterYear}";
         } elseif ($filterType === 'year') {
@@ -99,6 +100,7 @@ class ReportController extends Controller
             ->groupBy('category')
             ->map(function ($items, $cat) use ($totalPengeluaran) {
                 $sum = (float) $items->sum('amount');
+
                 return [
                     'category' => $cat ?: 'Lainnya',
                     'amount' => $sum,
@@ -114,6 +116,7 @@ class ReportController extends Controller
             ->groupBy('category')
             ->map(function ($items, $cat) use ($totalPemasukan) {
                 $sum = (float) $items->sum('amount');
+
                 return [
                     'category' => $cat ?: 'Lainnya',
                     'amount' => $sum,
@@ -134,6 +137,7 @@ class ReportController extends Controller
         $tabunganItems = $targets->map(function ($target) {
             $curr = (float) $target->current_amount;
             $tgt = (float) $target->target_amount;
+
             return [
                 'id' => $target->id,
                 'name' => $target->name,
@@ -148,7 +152,7 @@ class ReportController extends Controller
         // Cek jika ada transaksi tabungan di luar nama target via SQL aggregate
         $targetNames = $targets->pluck('name')->toArray();
         $extraTabunganQuery = Transaction::where('user_id', $user_id)->where('type', 'tabungan');
-        if (!empty($targetNames)) {
+        if (! empty($targetNames)) {
             $extraTabunganQuery->whereNotIn('category', $targetNames);
         }
         $extraTabungan = $extraTabunganQuery->selectRaw('category, SUM(amount) as current')
@@ -156,6 +160,7 @@ class ReportController extends Controller
             ->get()
             ->map(function ($row) {
                 $sum = (float) $row->current;
+
                 return [
                     'id' => null,
                     'name' => $row->category ?: 'Tabungan Lainnya',
@@ -211,7 +216,7 @@ class ReportController extends Controller
             ->distinct()
             ->pluck('year')
             ->toArray();
-            
+
         if (empty($availableYears)) {
             $availableYears = [Carbon::now()->year];
         }
@@ -225,7 +230,7 @@ class ReportController extends Controller
             'periodLabel' => $periodLabel,
             'fileSlug' => $fileSlug,
             'availableYears' => $availableYears,
-            'generatedAt' => Carbon::now('Asia/Jakarta')->translatedFormat('d F Y, H:i') . ' WIB',
+            'generatedAt' => Carbon::now('Asia/Jakarta')->translatedFormat('d F Y, H:i').' WIB',
             'summary' => [
                 'pemasukan' => $totalPemasukan,
                 'pengeluaran' => $totalPengeluaran,
@@ -264,7 +269,7 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        if (!Auth::user()->canAccess('report')) {
+        if (! Auth::user()->canAccess('report')) {
             return Inertia::render('LockedFeature', [
                 'feature' => 'laporan',
                 'title' => 'Menu Laporan Keuangan Terkunci',
@@ -299,23 +304,23 @@ class ReportController extends Controller
 
     public function exportPdf(Request $request)
     {
-        if (!Auth::user()->canAccess('report_export')) {
+        if (! Auth::user()->canAccess('report_export')) {
             abort(403, 'Fitur ekspor PDF hanya tersedia untuk member Pro.');
         }
 
         $data = $this->getReportData($request);
-        
+
         $pdf = Pdf::loadView('reports.finance_pdf', $data);
         $pdf->getDomPDF()->getOptions()->set('isPhpEnabled', true);
         $pdf->setPaper('a4', 'portrait');
-        $filename = 'Laporan_Keuangan_' . $data['fileSlug'] . '.pdf';
+        $filename = 'Laporan_Keuangan_'.$data['fileSlug'].'.pdf';
 
         return $pdf->download($filename);
     }
 
     public function exportExcel(Request $request)
     {
-        if (!Auth::user()->canAccess('report_export')) {
+        if (! Auth::user()->canAccess('report_export')) {
             abort(403, 'Fitur ekspor Excel hanya tersedia untuk member Pro.');
         }
 
@@ -323,7 +328,7 @@ class ReportController extends Controller
         $summary = $data['summary'];
         $transactions = $data['transactions'];
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $spreadsheet->getDefaultStyle()->getFont()->setName('Segoe UI');
         $spreadsheet->getDefaultStyle()->getFont()->setSize(10);
 
@@ -335,8 +340,8 @@ class ReportController extends Controller
 
         // 1. Top Header Banner (Row 1-2 merged)
         $sheet->mergeCells('A1:H2');
-        $sheet->setCellValue('A1', "FINANCETRACK — LAPORAN KEUANGAN\n" . strtoupper($data['periodLabel']));
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+        $sheet->setCellValue('A1', "FINANCETRACK — LAPORAN KEUANGAN\n".strtoupper($data['periodLabel']));
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new Color('FFFFFFFF'));
         $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF0F172A');
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $sheet->getRowDimension(1)->setRowHeight(22);
@@ -346,83 +351,91 @@ class ReportController extends Controller
         $sheet->setCellValue('A4', 'Periode Laporan:');
         $sheet->setCellValue('B4', $data['periodLabel']);
         $sheet->setCellValue('D4', 'Nama Pengguna:');
-        $sheet->setCellValue('E4', $data['user']->name . ' (' . $data['user']->email . ')');
+        $sheet->setCellValue('E4', $data['user']->name.' ('.$data['user']->email.')');
         $sheet->setCellValue('G4', 'Waktu Unduh:');
         $sheet->setCellValue('H4', $data['generatedAt']);
 
-        $sheet->getStyle('A4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF64748B'));
-        $sheet->getStyle('B4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
-        $sheet->getStyle('D4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF64748B'));
-        $sheet->getStyle('E4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
-        $sheet->getStyle('G4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF64748B'));
-        $sheet->getStyle('H4')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
+        $sheet->getStyle('A4')->getFont()->setBold(true)->setColor(new Color('FF64748B'));
+        $sheet->getStyle('B4')->getFont()->setBold(true)->setColor(new Color('FF0F172A'));
+        $sheet->getStyle('D4')->getFont()->setBold(true)->setColor(new Color('FF64748B'));
+        $sheet->getStyle('E4')->getFont()->setBold(true)->setColor(new Color('FF0F172A'));
+        $sheet->getStyle('G4')->getFont()->setBold(true)->setColor(new Color('FF64748B'));
+        $sheet->getStyle('H4')->getFont()->setBold(true)->setColor(new Color('FF0F172A'));
 
         // 3. Side-by-Side Executive Summary Tables (Rows 6-10)
         // Box 1: Arus Kas Periode Ini (Col A:C)
         $sheet->mergeCells('A6:C6');
         $sheet->setCellValue('A6', 'RINGKASAN ARUS KAS (PERIODE INI)');
-        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0369A1'));
+        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(10)->setColor(new Color('FF0369A1'));
         $sheet->getStyle('A6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0F2FE');
         $sheet->getStyle('A6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getRowDimension(6)->setRowHeight(22);
 
-        $sheet->mergeCells('A7:B7'); $sheet->setCellValue('A7', 'Total Pemasukan');
+        $sheet->mergeCells('A7:B7');
+        $sheet->setCellValue('A7', 'Total Pemasukan');
         $sheet->setCellValue('C7', $summary['pemasukan']);
         $sheet->getStyle('C7')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('C7')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'));
+        $sheet->getStyle('C7')->getFont()->setBold(true)->setColor(new Color('FF059669'));
 
-        $sheet->mergeCells('A8:B8'); $sheet->setCellValue('A8', 'Total Pengeluaran');
+        $sheet->mergeCells('A8:B8');
+        $sheet->setCellValue('A8', 'Total Pengeluaran');
         $sheet->setCellValue('C8', $summary['pengeluaran']);
         $sheet->getStyle('C8')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('C8')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE11D48'));
+        $sheet->getStyle('C8')->getFont()->setBold(true)->setColor(new Color('FFE11D48'));
 
-        $sheet->mergeCells('A9:B9'); $sheet->setCellValue('A9', 'Total Tabungan');
+        $sheet->mergeCells('A9:B9');
+        $sheet->setCellValue('A9', 'Total Tabungan');
         $sheet->setCellValue('C9', $summary['tabungan_trx'] ?? 0);
         $sheet->getStyle('C9')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('C9')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'));
+        $sheet->getStyle('C9')->getFont()->setBold(true)->setColor(new Color('FF0284C7'));
 
-        $sheet->mergeCells('A10:B10'); $sheet->setCellValue('A10', 'Arus Kas Bersih (Net)');
+        $sheet->mergeCells('A10:B10');
+        $sheet->setCellValue('A10', 'Arus Kas Bersih (Net)');
         $sheet->setCellValue('C10', $summary['net']);
         $sheet->getStyle('C10')->getNumberFormat()->setFormatCode($currencyFormat);
         $netColor = $summary['net'] >= 0 ? 'FF059669' : 'FFE11D48';
-        $sheet->getStyle('C10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color($netColor));
+        $sheet->getStyle('C10')->getFont()->setBold(true)->setColor(new Color($netColor));
 
-        $sheet->getStyle('A7:A10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF334155'));
-        $sheet->getStyle('A6:C10')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));
+        $sheet->getStyle('A7:A10')->getFont()->setBold(true)->setColor(new Color('FF334155'));
+        $sheet->getStyle('A6:C10')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFCBD5E1'));
 
         // Box 2: Status Keuangan Keseluruhan (Col E:H)
         $sheet->mergeCells('E6:H6');
         $sheet->setCellValue('E6', 'STRUKTUR SALDO & KEUANGAN (ALL-TIME)');
-        $sheet->getStyle('E6')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF6B21A8'));
+        $sheet->getStyle('E6')->getFont()->setBold(true)->setSize(10)->setColor(new Color('FF6B21A8'));
         $sheet->getStyle('E6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF3E8FF');
         $sheet->getStyle('E6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
 
-        $sheet->mergeCells('E7:G7'); $sheet->setCellValue('E7', 'Sisa Saldo Kas Siap Pakai (Bebas)');
+        $sheet->mergeCells('E7:G7');
+        $sheet->setCellValue('E7', 'Sisa Saldo Kas Siap Pakai (Bebas)');
         $sheet->setCellValue('H7', $summary['saldo_bebas']);
         $sheet->getStyle('H7')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H7')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'));
+        $sheet->getStyle('H7')->getFont()->setBold(true)->setColor(new Color('FF0284C7'));
 
-        $sheet->mergeCells('E8:G8'); $sheet->setCellValue('E8', 'Total Dana Tabungan Tersimpan');
+        $sheet->mergeCells('E8:G8');
+        $sheet->setCellValue('E8', 'Total Dana Tabungan Tersimpan');
         $sheet->setCellValue('H8', $summary['total_tabungan']);
         $sheet->getStyle('H8')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H8')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFD97706'));
+        $sheet->getStyle('H8')->getFont()->setBold(true)->setColor(new Color('FFD97706'));
 
-        $sheet->mergeCells('E9:G9'); $sheet->setCellValue('E9', 'Total Saldo Gabungan (Kas + Tabungan)');
+        $sheet->mergeCells('E9:G9');
+        $sheet->setCellValue('E9', 'Total Saldo Gabungan (Kas + Tabungan)');
         $sheet->setCellValue('H9', $summary['total_saldo_gabungan']);
         $sheet->getStyle('H9')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H9')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'));
+        $sheet->getStyle('H9')->getFont()->setBold(true)->setColor(new Color('FF059669'));
 
-        $sheet->mergeCells('E10:G10'); $sheet->setCellValue('E10', 'Kekayaan Bersih (Aset - Hutang)');
+        $sheet->mergeCells('E10:G10');
+        $sheet->setCellValue('E10', 'Kekayaan Bersih (Aset - Hutang)');
         $sheet->setCellValue('H10', $summary['net_worth']);
         $sheet->getStyle('H10')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('H10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF7C3AED'));
+        $sheet->getStyle('H10')->getFont()->setBold(true)->setColor(new Color('FF7C3AED'));
 
-        $sheet->getStyle('E7:E10')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF334155'));
-        $sheet->getStyle('E6:H10')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));
+        $sheet->getStyle('E7:E10')->getFont()->setBold(true)->setColor(new Color('FF334155'));
+        $sheet->getStyle('E6:H10')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFCBD5E1'));
 
         // 4. Transactions Table Header (Row 13)
-        $sheet->setCellValue('A12', 'DAFTAR TRANSAKSI RINCI (' . $data['periodLabel'] . ')');
-        $sheet->getStyle('A12')->getFont()->setBold(true)->setSize(11)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
+        $sheet->setCellValue('A12', 'DAFTAR TRANSAKSI RINCI ('.$data['periodLabel'].')');
+        $sheet->getStyle('A12')->getFont()->setBold(true)->setSize(11)->setColor(new Color('FF0F172A'));
 
         $tableHeaderRow = 13;
         $headers = [
@@ -439,7 +452,7 @@ class ReportController extends Controller
         foreach ($headers as $col => $headerText) {
             $cell = "{$col}{$tableHeaderRow}";
             $sheet->setCellValue($cell, $headerText);
-            $sheet->getStyle($cell)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+            $sheet->getStyle($cell)->getFont()->setBold(true)->setColor(new Color('FFFFFFFF'));
             $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF0F172A');
             $sheet->getStyle($cell)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
             if (in_array($col, ['A', 'B', 'G'])) {
@@ -472,14 +485,14 @@ class ReportController extends Controller
 
             // Styling per type
             if ($trx->type === 'pemasukan') {
-                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'))->setBold(true);
-                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'))->setBold(true);
+                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new Color('FF059669'))->setBold(true);
+                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FF059669'))->setBold(true);
             } elseif ($trx->type === 'pengeluaran') {
-                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE11D48'))->setBold(true);
-                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE11D48'))->setBold(true);
+                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new Color('FFE11D48'))->setBold(true);
+                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FFE11D48'))->setBold(true);
             } else {
-                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'))->setBold(true);
-                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'))->setBold(true);
+                $sheet->getStyle("G{$currentRow}")->getFont()->setColor(new Color('FF0284C7'))->setBold(true);
+                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FF0284C7'))->setBold(true);
             }
 
             // Alternating Zebra Background
@@ -487,7 +500,7 @@ class ReportController extends Controller
                 $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF8FAFC');
             }
 
-            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE2E8F0'));
+            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFE2E8F0'));
             $sheet->getRowDimension($currentRow)->setRowHeight(20);
             $currentRow++;
         }
@@ -500,8 +513,8 @@ class ReportController extends Controller
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFont()->setBold(true);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle("H{$currentRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF059669'));
-            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));
+            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FF059669'));
+            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFCBD5E1'));
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
             $currentRow++;
 
@@ -511,8 +524,8 @@ class ReportController extends Controller
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFont()->setBold(true);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle("H{$currentRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFE11D48'));
-            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));
+            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FFE11D48'));
+            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFCBD5E1'));
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
             $currentRow++;
 
@@ -523,8 +536,8 @@ class ReportController extends Controller
                 $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFont()->setBold(true);
                 $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                 $sheet->getStyle("H{$currentRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0284C7'));
-                $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCBD5E1'));
+                $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color('FF0284C7'));
+                $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FFCBD5E1'));
                 $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
                 $currentRow++;
             }
@@ -535,9 +548,9 @@ class ReportController extends Controller
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFont()->setBold(true);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle("H{$currentRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color($netColor));
-            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
-            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_DOUBLE)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF0F172A'));
+            $sheet->getStyle("H{$currentRow}")->getFont()->setColor(new Color($netColor));
+            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('FF0F172A'));
+            $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_DOUBLE)->setColor(new Color('FF0F172A'));
             $sheet->getStyle("A{$currentRow}:H{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
             $sheet->getRowDimension($currentRow)->setRowHeight(24);
         }
@@ -553,17 +566,16 @@ class ReportController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $filename = 'Laporan_Keuangan_' . $data['fileSlug'] . '.xlsx';
+        $filename = 'Laporan_Keuangan_'.$data['fileSlug'].'.xlsx';
         $writer = new Xlsx($spreadsheet);
 
         $response = new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
         });
         $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        $response->headers->set('Content-Disposition', 'attachment;filename="' . $filename . '"');
+        $response->headers->set('Content-Disposition', 'attachment;filename="'.$filename.'"');
         $response->headers->set('Cache-Control', 'max-age=0');
 
         return $response;
     }
 }
-

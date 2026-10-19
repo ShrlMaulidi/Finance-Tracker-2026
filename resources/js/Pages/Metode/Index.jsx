@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { Button, ActionButtons, EmptyState, Modal } from '@/Components/UI';
+import { Button, ActionButtons, EmptyState, Modal, DeleteConfirmModal } from '@/Components/UI';
 
 export default function Index({ methods = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -48,12 +48,22 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus metode pembayaran ini?')) {
-            router.delete(route('metode.destroy', id), {
-                preserveScroll: true
-            });
-        }
+    const [methodToDelete, setMethodToDelete] = useState(null);
+    const [isDeletingMethod, setIsDeletingMethod] = useState(false);
+
+    const handleDelete = (method) => {
+        setMethodToDelete(method);
+    };
+
+    const confirmDeleteMethod = () => {
+        if (!methodToDelete) return;
+
+        router.delete(route('metode.destroy', methodToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingMethod(true),
+            onSuccess: () => setMethodToDelete(null),
+            onFinish: () => setIsDeletingMethod(false),
+        });
     };
 
     return (
@@ -162,7 +172,7 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                                         <ActionButtons
                                             variant="soft"
                                             onEdit={() => openEditModal(method)}
-                                            onDelete={() => handleDelete(method.id)}
+                                            onDelete={() => handleDelete(method)}
                                             className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                                         />
                                     </div>
@@ -221,6 +231,19 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Metode Pembayaran */}
+            <DeleteConfirmModal
+                isOpen={!!methodToDelete}
+                onClose={() => setMethodToDelete(null)}
+                onConfirm={confirmDeleteMethod}
+                loading={isDeletingMethod}
+                title="Hapus Metode Pembayaran"
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={methodToDelete?.name}
+                message="Metode pembayaran ini akan dihapus secara permanen dari sistem."
+                confirmText="Hapus Metode"
+            />
         </AuthenticatedLayout>
     );
 }

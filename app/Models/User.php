@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'phone_number', 'whatsapp_lid', 'password', 'google_id', 'avatar', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
+#[Fillable(['name', 'email', 'phone_number', 'whatsapp_lid', 'password', 'google_id', 'avatar', 'mood_emoji', 'role', 'subscription_tier', 'is_active', 'subscription_expires_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -52,6 +52,7 @@ class User extends Authenticatable
             'pengeluaran' => [
                 'Makan & Minum',
                 'Transportasi',
+                'Tagihan Rutin',
                 'Hiburan',
                 'Lainnya',
             ],
@@ -116,6 +117,11 @@ class User extends Authenticatable
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     /**

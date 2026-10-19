@@ -8,6 +8,7 @@ import UserAvatar from '@/Components/UserAvatar';
 
 export default function Edit({ mustVerifyEmail, status }) {
     const user = usePage().props.auth.user || { name: 'Super Admin', email: 'admin@finance.track' };
+    const userMoodEmoji = user?.mood_emoji || (typeof window !== 'undefined' ? localStorage.getItem('user_mood_emoji') : null) || '👋';
     const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'keamanan', 'bahaya'
 
     const getInitials = (name) => {
@@ -87,7 +88,12 @@ export default function Edit({ mustVerifyEmail, status }) {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-[#009bd2]/5 rounded-full blur-2xl pointer-events-none"></div>
                             
                             <div className="flex lg:flex-col items-center lg:text-center gap-4 lg:gap-3">
-                                <UserAvatar user={user} size="xl" rounded="rounded-2xl sm:rounded-3xl" className="w-14 h-14 sm:w-20 sm:h-20 shadow-md sm:shadow-lg" />
+                                <div className="relative shrink-0">
+                                    <UserAvatar user={user} size="xl" rounded="rounded-2xl sm:rounded-3xl" className="w-14 h-14 sm:w-20 sm:h-20 shadow-md sm:shadow-lg" />
+                                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md border border-slate-100">
+                                        <span className="text-base sm:text-lg leading-none block">{userMoodEmoji}</span>
+                                    </div>
+                                </div>
                                 <div className="min-w-0 flex-1 lg:w-full">
                                     <h3 className="text-base sm:text-lg font-black text-slate-800 truncate leading-tight">
                                         {user.name}

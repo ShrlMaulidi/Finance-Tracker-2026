@@ -19,6 +19,7 @@ export default function UpdateProfileInformation({
         useForm({
             name: user.name,
             email: user.email,
+            mood_emoji: user.mood_emoji || (typeof window !== 'undefined' ? localStorage.getItem('user_mood_emoji') : null) || '👋',
             avatar: null,
             remove_avatar: false,
         });
@@ -87,6 +88,9 @@ export default function UpdateProfileInformation({
             onSuccess: () => {
                 setData('avatar', null);
                 setData('remove_avatar', false);
+                if (typeof window !== 'undefined' && data.mood_emoji) {
+                    localStorage.setItem('user_mood_emoji', data.mood_emoji);
+                }
             },
         });
     };
@@ -215,6 +219,38 @@ export default function UpdateProfileInformation({
                     />
 
                     <InputError className="mt-1.5" message={errors.email} />
+                </div>
+
+                {/* Emoji Status Finansial Selector */}
+                <div>
+                    <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-1">
+                        Emoji Status Finansial
+                    </label>
+                    <p className="text-[11px] text-slate-500 mb-2">
+                        Pilih emoji yang akan tampil di sudut avatar profil Anda.
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {['😁', '😥', '😠', '😲', '🤑', '😎', '👋'].map((emoji) => (
+                            <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                    setData('mood_emoji', emoji);
+                                    if (typeof window !== 'undefined') {
+                                        localStorage.setItem('user_mood_emoji', emoji);
+                                    }
+                                }}
+                                className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
+                                    data.mood_emoji === emoji
+                                        ? 'bg-sky-50 border-2 border-[#009bd2] scale-110 shadow-sm'
+                                        : 'bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:scale-105'
+                                }`}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                    <InputError className="mt-1.5" message={errors.mood_emoji} />
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (

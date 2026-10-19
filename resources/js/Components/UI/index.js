@@ -14,3 +14,5 @@ export { default as AlertBanner } from './AlertBanner';
 export { default as MobileBottomNav } from './MobileBottomNav';
 export { default as PwaInstallBanner } from './PwaInstallBanner';
 export { default as OnboardingTour } from './OnboardingTour';
+export { default as DeleteConfirmModal } from './DeleteConfirmModal';
+export { default as NotificationPanel } from './NotificationPanel';

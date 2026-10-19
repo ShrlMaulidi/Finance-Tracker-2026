@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
-import { Button, TabFilter, ActionButtons, EmptyState, Modal } from '@/Components/UI';
+import { Button, TabFilter, ActionButtons, EmptyState, Modal, DeleteConfirmModal } from '@/Components/UI';
 
 export default function Index({ categories = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('pengeluaran');
@@ -53,12 +53,22 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Apakah Anda yakin ingin menghapus kategori ini?')) {
-            router.delete(route('kategori.destroy', id), {
-                preserveScroll: true
-            });
-        }
+    const [categoryToDelete, setCategoryToDelete] = useState(null);
+    const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+
+    const handleDelete = (category) => {
+        setCategoryToDelete(category);
+    };
+
+    const confirmDeleteCategory = () => {
+        if (!categoryToDelete) return;
+
+        router.delete(route('kategori.destroy', categoryToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingCategory(true),
+            onSuccess: () => setCategoryToDelete(null),
+            onFinish: () => setIsDeletingCategory(false),
+        });
     };
 
     const pengeluaranCategories = categories.filter(c => c.type === 'pengeluaran');
@@ -211,7 +221,7 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                                         <ActionButtons
                                             variant="soft"
                                             onEdit={() => openEditModal(category)}
-                                            onDelete={() => handleDelete(category.id)}
+                                            onDelete={() => handleDelete(category)}
                                             className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                                         />
                                     </div>
@@ -282,6 +292,20 @@ export default function Index({ categories = [], isFree = false, canAdd = true, 
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Konfirmasi Hapus Kategori */}
+            <DeleteConfirmModal
+                isOpen={!!categoryToDelete}
+                onClose={() => setCategoryToDelete(null)}
+                onConfirm={confirmDeleteCategory}
+                loading={isDeletingCategory}
+                title="Hapus Kategori"
+                subtitle="Tindakan ini tidak dapat dibatalkan."
+                itemTitle={categoryToDelete?.name}
+                itemSubtitle={categoryToDelete ? `Tipe: ${categoryToDelete.type === 'pengeluaran' ? 'Pengeluaran' : 'Pemasukan'}` : ''}
+                message="Kategori ini akan dihapus secara permanen. Transaksi yang telah menggunakan kategori ini tetap tersimpan."
+                confirmText="Hapus Kategori"
+            />
         </AuthenticatedLayout>
     );
 }

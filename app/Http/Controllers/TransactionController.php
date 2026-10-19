@@ -73,18 +73,38 @@ class TransactionController extends Controller
         $activeHutang = $activeDebts->where('type', 'hutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Hutang: '.$d->name])->toArray();
         $activePiutang = $activeDebts->where('type', 'piutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Piutang: '.$d->name])->toArray();
 
-        // Ensure active bill categories are present without duplicating
+        $currentMonthStr = Carbon::now()->format('Y-m');
+
+        // Ensure active bills are loaded for Tagihan Rutin dropdown with payment history
         $activeBills = Bill::where('user_id', Auth::id())
             ->where('is_active', true)
-            ->get(['id', 'name', 'category_name', 'amount']);
+            ->with('payments')
+            ->orderBy('due_day', 'asc')
+            ->get();
 
-        $billCategories = [];
-        foreach ($activeBills as $b) {
-            $catName = ! empty($b->category_name) ? $b->category_name : $b->name;
-            $billCategories[] = ['id' => $catName, 'label' => $catName];
-        }
+        $activeBillsData = $activeBills->map(function ($b) use ($currentMonthStr) {
+            $paidMonths = $b->payments
+                ->filter(fn ($p) => (float) $p->amount >= (float) $b->amount)
+                ->pluck('month')
+                ->values()
+                ->toArray();
 
-        $pengeluaranCategories = collect(array_merge($pengeluaranCategories, $billCategories, $activeHutang))->unique('id')->values()->toArray();
+            $isPaidCurrentMonth = in_array($currentMonthStr, $paidMonths, true);
+
+            return [
+                'id' => $b->id,
+                'name' => $b->name,
+                'category_name' => 'Tagihan Rutin',
+                'amount' => (float) $b->amount,
+                'due_day' => (int) $b->due_day,
+                'is_paid' => $isPaidCurrentMonth,
+                'paid_months' => $paidMonths,
+            ];
+        })->values()->toArray();
+
+        // Add 'Tagihan Rutin' category to pengeluaran categories if not already present
+        $tagihanCategory = ['id' => 'Tagihan Rutin', 'label' => 'Tagihan Rutin'];
+        $pengeluaranCategories = collect(array_merge([$tagihanCategory], $pengeluaranCategories, $activeHutang))->unique('id')->values()->toArray();
         $pemasukanCategories = collect(array_merge($pemasukanCategories, $activePiutang))->unique('id')->values()->toArray();
 
         $paymentMethods = PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
@@ -102,12 +122,7 @@ class TransactionController extends Controller
             'pemasukanCategories' => $pemasukanCategories,
             'pengeluaranCategories' => $pengeluaranCategories,
             'paymentMethods' => $paymentMethods,
-            'activeBills' => $activeBills->map(fn ($b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'category_name' => $b->category_name ?? $b->name,
-                'amount' => (float) $b->amount,
-            ])->values()->toArray(),
+            'activeBills' => $activeBillsData,
         ]);
     }
 
@@ -117,29 +132,25 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
+            'bill_id' => 'nullable|integer',
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',
         ]);
 
+        $billId = $request->input('bill_id');
         $validated['user_id'] = Auth::id();
+        unset($validated['bill_id']);
 
-        // Lock amount to recurring bill if category matches an active bill
-        if ($validated['type'] === 'pengeluaran') {
-            $normalizedCategory = strtolower(trim($validated['category']));
-            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+        // If bill_id is provided, ensure category is Tagihan Rutin and sync nominal
+        if ($validated['type'] === 'pengeluaran' && $billId) {
             $matchingBill = Bill::where('user_id', Auth::id())
                 ->where('is_active', true)
-                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
-                    $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
-                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                        ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
-                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
-                })
-                ->first();
+                ->find($billId);
 
             if ($matchingBill) {
+                $validated['category'] = 'Tagihan Rutin';
                 $validated['amount'] = (float) $matchingBill->amount;
             }
         }
@@ -166,7 +177,7 @@ class TransactionController extends Controller
 
         // Sync recurring bill payment if it's an expense matching a bill
         if ($validated['type'] === 'pengeluaran') {
-            $this->syncBillPayment($transaction->user_id, $transaction->category, $transaction->date);
+            $this->syncBillPayment($transaction->user_id, $transaction->category, $transaction->date, $billId ? (int) $billId : null, $transaction);
         }
 
         try {
@@ -197,11 +208,15 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
+            'bill_id' => 'nullable|integer',
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',
         ]);
+
+        $billId = $request->input('bill_id');
+        unset($validated['bill_id']);
 
         // Revert old tabungan
         if ($transaction->type === 'tabungan') {
@@ -218,21 +233,14 @@ class TransactionController extends Controller
             $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
-        // Lock amount to recurring bill if category matches an active bill
-        if ($validated['type'] === 'pengeluaran') {
-            $normalizedCategory = strtolower(trim($validated['category']));
-            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+        // If bill_id is provided, ensure category is Tagihan Rutin
+        if ($validated['type'] === 'pengeluaran' && $billId) {
             $matchingBill = Bill::where('user_id', Auth::id())
                 ->where('is_active', true)
-                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
-                    $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
-                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                        ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
-                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
-                })
-                ->first();
+                ->find($billId);
 
             if ($matchingBill) {
+                $validated['category'] = 'Tagihan Rutin';
                 $validated['amount'] = (float) $matchingBill->amount;
             }
         }
@@ -259,7 +267,7 @@ class TransactionController extends Controller
             $this->syncBillPayment($transaction->user_id, $oldCategory, $oldDate);
         }
         if ($validated['type'] === 'pengeluaran') {
-            $this->syncBillPayment($transaction->user_id, $validated['category'], $validated['date']);
+            $this->syncBillPayment($transaction->user_id, $validated['category'], $validated['date'], $billId ? (int) $billId : null, $transaction);
         }
 
         try {
@@ -301,7 +309,11 @@ class TransactionController extends Controller
             $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
+        $transactionId = $transaction->id;
         $transaction->delete();
+
+        // Delete linked bill payment if any
+        BillPayment::where('transaction_id', $transactionId)->delete();
 
         if ($type === 'pengeluaran') {
             $this->syncBillPayment($userId, $category, $date);
@@ -354,41 +366,92 @@ class TransactionController extends Controller
     /**
      * Synchronize recurring bill payments (Tagihan Rutin) when an expense transaction is created/updated/deleted.
      */
-    public function syncBillPayment(int $userId, string $category, string $date): void
+    public function syncBillPayment(int $userId, string $category, string $date, ?int $billId = null, ?Transaction $transaction = null): void
     {
         $normalizedCategory = strtolower(trim($category));
-        $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+        $monthStr = Carbon::parse($date)->format('Y-m');
 
-        // Find active bills matching by category_name or name
-        $matchingBills = Bill::where('user_id', $userId)
-            ->where('is_active', true)
-            ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
-                $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
-                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                    ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
-                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
-            })
-            ->get();
+        if ($billId) {
+            $matchingBills = Bill::where('user_id', $userId)
+                ->where('id', $billId)
+                ->where('is_active', true)
+                ->get();
+        } elseif ($normalizedCategory === 'tagihan rutin') {
+            if ($transaction) {
+                $titleDesc = strtolower(($transaction->title ?? '').' '.($transaction->description ?? ''));
+                $matchingBills = Bill::where('user_id', $userId)
+                    ->where('is_active', true)
+                    ->get()
+                    ->filter(function ($b) use ($titleDesc) {
+                        return stripos($titleDesc, strtolower(trim($b->name))) !== false;
+                    });
+            } else {
+                $matchingBills = Bill::where('user_id', $userId)
+                    ->where('is_active', true)
+                    ->get();
+            }
+        } else {
+            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+            $matchingBills = Bill::where('user_id', $userId)
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
+                    $query->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
+                })
+                ->get();
+        }
 
         if ($matchingBills->isEmpty()) {
             return;
         }
 
-        $monthStr = Carbon::parse($date)->format('Y-m');
-
         foreach ($matchingBills as $bill) {
-            $billCat = strtolower(trim($bill->category_name ?? ''));
             $billName = strtolower(trim($bill->name ?? ''));
+
+            // Check if existing payment is already linked to a transaction
+            $existingPayment = BillPayment::where('bill_id', $bill->id)
+                ->where('month', $monthStr)
+                ->first();
+
+            if ($transaction && $billId && (int) $bill->id === (int) $billId) {
+                BillPayment::updateOrCreate(
+                    [
+                        'bill_id' => $bill->id,
+                        'month' => $monthStr,
+                    ],
+                    [
+                        'user_id' => $userId,
+                        'transaction_id' => $transaction->id,
+                        'amount' => $transaction->amount,
+                        'paid_at' => $transaction->date,
+                        'payment_method' => $transaction->payment_method ?? 'Cash',
+                        'notes' => $transaction->description ?: "Dibayar via transaksi Pengeluaran: {$transaction->title}",
+                    ]
+                );
+
+                continue;
+            }
+
+            $monthParts = explode('-', $monthStr);
+            $queryYear = (int) ($monthParts[0] ?? date('Y'));
+            $queryMonth = (int) ($monthParts[1] ?? date('m'));
 
             $matchingTransactions = Transaction::where('user_id', $userId)
                 ->where('type', 'pengeluaran')
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$monthStr])
-                ->where(function ($q) use ($billCat, $billName) {
-                    if ($billCat !== '') {
-                        $q->whereRaw('LOWER(TRIM(category)) = ?', [$billCat]);
-                    }
-                    if ($billName !== '' && $billName !== $billCat) {
-                        $q->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
+                ->whereYear('date', $queryYear)
+                ->whereMonth('date', $queryMonth)
+                ->where(function ($q) use ($billName, $existingPayment) {
+                    if ($existingPayment && $existingPayment->transaction_id) {
+                        $q->where('id', $existingPayment->transaction_id);
+                    } else {
+                        $q->where(function ($sub) use ($billName) {
+                            $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
+                                ->where(function ($inner) use ($billName) {
+                                    $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$billName.'%'])
+                                        ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$billName.'%']);
+                                });
+                        })
+                            ->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
                     }
                 })
                 ->orderBy('date', 'desc')
@@ -414,10 +477,13 @@ class TransactionController extends Controller
                     ]
                 );
             } else {
-                // Remove bill payment record if all matching transactions were deleted/moved
-                BillPayment::where('bill_id', $bill->id)
-                    ->where('month', $monthStr)
-                    ->delete();
+                if ($existingPayment) {
+                    if ($existingPayment->transaction_id && ! Transaction::where('id', $existingPayment->transaction_id)->exists()) {
+                        $existingPayment->delete();
+                    } elseif ($existingPayment->notes && str_contains($existingPayment->notes, 'transaksi Pengeluaran')) {
+                        $existingPayment->delete();
+                    }
+                }
             }
         }
     }

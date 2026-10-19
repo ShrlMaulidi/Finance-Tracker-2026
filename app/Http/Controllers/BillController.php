@@ -169,6 +169,13 @@ class BillController extends Controller
                 ];
             });
 
+        // Ensure 'Tagihan Rutin' category exists for this user
+        Category::firstOrCreate([
+            'user_id' => Auth::id(),
+            'name' => 'Tagihan Rutin',
+            'type' => 'pengeluaran',
+        ]);
+
         // User categories of type 'pengeluaran'
         $categories = Category::where('user_id', Auth::id())
             ->where('type', 'pengeluaran')
@@ -242,12 +249,10 @@ class BillController extends Controller
             'due_day.max' => 'Tanggal jatuh tempo maksimal tanggal 31.',
         ]);
 
-        $categoryName = ! empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
-
-        // Automatically register as an expense category
+        // Automatically register as 'Tagihan Rutin' expense category if not exists
         Category::firstOrCreate([
             'user_id' => Auth::id(),
-            'name' => $categoryName,
+            'name' => 'Tagihan Rutin',
             'type' => 'pengeluaran',
         ]);
 
@@ -256,7 +261,7 @@ class BillController extends Controller
             'name' => $validated['name'],
             'amount' => $validated['amount'],
             'due_day' => $validated['due_day'],
-            'category_name' => $categoryName,
+            'category_name' => 'Tagihan Rutin',
             'reminder_days' => $validated['reminder_days'] ?? 3,
             'account_number' => $validated['account_number'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -275,7 +280,7 @@ class BillController extends Controller
         } catch (\Throwable $e) {
         }
 
-        return back()->with('success', "Tagihan '{$validated['name']}' berhasil ditambahkan dan otomatis terdaftar di kategori pengeluaran!");
+        return back()->with('success', "Tagihan '{$validated['name']}' berhasil ditambahkan ke Kategori Tagihan Rutin!");
     }
 
     /**
@@ -297,12 +302,10 @@ class BillController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $categoryName = ! empty($validated['category_name']) ? trim($validated['category_name']) : trim($validated['name']);
-
-        // Automatically ensure category exists
+        // Automatically ensure "Tagihan Rutin" category exists
         Category::firstOrCreate([
             'user_id' => Auth::id(),
-            'name' => $categoryName,
+            'name' => 'Tagihan Rutin',
             'type' => 'pengeluaran',
         ]);
 
@@ -310,7 +313,7 @@ class BillController extends Controller
             'name' => $validated['name'],
             'amount' => $validated['amount'],
             'due_day' => $validated['due_day'],
-            'category_name' => $categoryName,
+            'category_name' => 'Tagihan Rutin',
             'reminder_days' => $validated['reminder_days'] ?? 3,
             'account_number' => $validated['account_number'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -331,9 +334,6 @@ class BillController extends Controller
         return back()->with('success', "Tagihan '{$bill->name}' berhasil diperbarui!");
     }
 
-    /**
-     * Remove the specified bill.
-     */
     public function destroy(Bill $bill)
     {
         if ($bill->user_id !== Auth::id()) {
@@ -341,19 +341,12 @@ class BillController extends Controller
         }
 
         $name = $bill->name;
+
+        // Clean up any associated payments explicitly
+        $bill->payments()->delete();
         $bill->delete();
 
-        try {
-            broadcast(new TransactionRecorded(
-                userId: (int) Auth::id(),
-                action: 'deleted',
-                source: 'web',
-                message: "Tagihan '{$name}' berhasil dihapus"
-            ));
-        } catch (\Throwable $e) {
-        }
-
-        return back()->with('success', "Tagihan '{$name}' berhasil dihapus.");
+        return redirect()->route('tagihan.index')->with('success', "Tagihan '{$name}' berhasil dihapus.");
     }
 
     /**
@@ -384,21 +377,19 @@ class BillController extends Controller
         $monthLabel = Carbon::parse($validated['month'].'-01')->translatedFormat('F Y');
 
         DB::transaction(function () use ($bill, $validated, $monthLabel) {
-            $categoryName = $bill->category_name ?? $bill->name;
-
-            // 1. Ensure category exists
+            // 1. Ensure 'Tagihan Rutin' category exists
             Category::firstOrCreate([
                 'user_id' => Auth::id(),
-                'name' => $categoryName,
+                'name' => 'Tagihan Rutin',
                 'type' => 'pengeluaran',
             ]);
 
-            // 2. Record transaction in pengeluaran
+            // 2. Record transaction in pengeluaran under 'Tagihan Rutin'
             $transaction = Transaction::create([
                 'user_id' => Auth::id(),
                 'type' => 'pengeluaran',
                 'amount' => $validated['amount'],
-                'category' => $categoryName,
+                'category' => 'Tagihan Rutin',
                 'payment_method' => $validated['payment_method'],
                 'title' => 'Bayar Tagihan '.$bill->name,
                 'description' => $validated['notes'] ?? ("Pembayaran tagihan {$bill->name} untuk periode {$monthLabel}"),
@@ -447,19 +438,38 @@ class BillController extends Controller
             ->get();
 
         foreach ($activeBills as $bill) {
-            $billCat = strtolower(trim($bill->category_name ?? ''));
             $billName = strtolower(trim($bill->name ?? ''));
 
+            // Check if existing payment is already linked to a valid transaction
+            $existingPayment = BillPayment::where('bill_id', $bill->id)
+                ->where('month', $monthQuery)
+                ->first();
+
+            if ($existingPayment && $existingPayment->transaction_id) {
+                $tx = Transaction::where('id', $existingPayment->transaction_id)->where('user_id', $userId)->first();
+                if ($tx) {
+                    continue; // Accurately reconciled
+                }
+            }
+
+            $monthParts = explode('-', $monthQuery);
+            $queryYear = (int) ($monthParts[0] ?? date('Y'));
+            $queryMonth = (int) ($monthParts[1] ?? date('m'));
+
+            // Find matching transactions: either category 'Tagihan Rutin' containing bill name, or matching category name
             $matchingTransactions = Transaction::where('user_id', $userId)
                 ->where('type', 'pengeluaran')
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$monthQuery])
-                ->where(function ($q) use ($billCat, $billName) {
-                    if ($billCat !== '') {
-                        $q->whereRaw('LOWER(TRIM(category)) = ?', [$billCat]);
-                    }
-                    if ($billName !== '' && $billName !== $billCat) {
-                        $q->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
-                    }
+                ->whereYear('date', $queryYear)
+                ->whereMonth('date', $queryMonth)
+                ->where(function ($q) use ($billName) {
+                    $q->where(function ($sub) use ($billName) {
+                        $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
+                            ->where(function ($inner) use ($billName) {
+                                $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$billName.'%'])
+                                    ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$billName.'%']);
+                            });
+                    })
+                        ->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
                 })
                 ->orderBy('date', 'desc')
                 ->orderBy('id', 'desc')
@@ -484,10 +494,6 @@ class BillController extends Controller
                     ]
                 );
             } else {
-                $existingPayment = BillPayment::where('bill_id', $bill->id)
-                    ->where('month', $monthQuery)
-                    ->first();
-
                 if ($existingPayment) {
                     if ($existingPayment->transaction_id && ! Transaction::where('id', $existingPayment->transaction_id)->exists()) {
                         $existingPayment->delete();

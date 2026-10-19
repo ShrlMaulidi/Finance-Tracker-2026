@@ -62,6 +62,10 @@ class ProfileController extends Controller
             $user->avatar = $path;
         }
 
+        if ($request->filled('mood_emoji')) {
+            $user->mood_emoji = $request->input('mood_emoji');
+        }
+
         $user->save();
 
         try {

@@ -201,7 +201,7 @@ class WhatsAppAIWebhookController extends Controller
                     if ($matchedDebt) {
                         $finalCategory = $matchedDebt->name;
                     } elseif ($matchedBill) {
-                        $finalCategory = $matchedBill->category_name ?? $matchedBill->name;
+                        $finalCategory = 'Tagihan Rutin';
                     } else {
                         // Create category if user limits allow
                         $catCount = Category::where('user_id', $user->id)->count();
@@ -545,17 +545,21 @@ class WhatsAppAIWebhookController extends Controller
     protected function syncBillPayment(int $userId, string $category, string $date): void
     {
         $normalizedCategory = strtolower(trim($category));
-        $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
 
-        $matchingBills = Bill::where('user_id', $userId)
-            ->where('is_active', true)
-            ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
-                $query->whereRaw('LOWER(TRIM(category_name)) = ?', [$normalizedCategory])
-                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                    ->orWhereRaw('LOWER(TRIM(category_name)) = ?', [$cleanCategory])
-                    ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
-            })
-            ->get();
+        if ($normalizedCategory === 'tagihan rutin') {
+            $matchingBills = Bill::where('user_id', $userId)
+                ->where('is_active', true)
+                ->get();
+        } else {
+            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
+            $matchingBills = Bill::where('user_id', $userId)
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
+                    $query->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
+                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
+                })
+                ->get();
+        }
 
         if ($matchingBills->isEmpty()) {
             return;
@@ -564,19 +568,25 @@ class WhatsAppAIWebhookController extends Controller
         $monthStr = Carbon::parse($date)->format('Y-m');
 
         foreach ($matchingBills as $bill) {
-            $billCat = strtolower(trim($bill->category_name ?? ''));
             $billName = strtolower(trim($bill->name ?? ''));
+
+            $monthParts = explode('-', $monthStr);
+            $queryYear = (int) ($monthParts[0] ?? date('Y'));
+            $queryMonth = (int) ($monthParts[1] ?? date('m'));
 
             $matchingTransactions = Transaction::where('user_id', $userId)
                 ->where('type', 'pengeluaran')
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') = ?", [$monthStr])
-                ->where(function ($q) use ($billCat, $billName) {
-                    if ($billCat !== '') {
-                        $q->whereRaw('LOWER(TRIM(category)) = ?', [$billCat]);
-                    }
-                    if ($billName !== '' && $billName !== $billCat) {
-                        $q->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
-                    }
+                ->whereYear('date', $queryYear)
+                ->whereMonth('date', $queryMonth)
+                ->where(function ($q) use ($billName) {
+                    $q->where(function ($sub) use ($billName) {
+                        $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
+                            ->where(function ($inner) use ($billName) {
+                                $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$billName.'%'])
+                                    ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$billName.'%']);
+                            });
+                    })
+                        ->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
                 })
                 ->orderBy('date', 'desc')
                 ->orderBy('id', 'desc')

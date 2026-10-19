@@ -72,9 +72,12 @@ export default function MobileBottomNav({
             aria-label="Mobile Bottom Navigation"
             className={`fixed inset-x-0 bottom-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden pointer-events-none transition-transform duration-300 ${className}`}
         >
-            <div className="max-w-lg mx-auto flex items-center gap-2.5 pointer-events-auto">
+            {/* Soft fade so scrolling cards don't blend into the dock */}
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#fbfbfb] via-[#fbfbfb]/85 to-transparent" />
+
+            <div className="relative max-w-lg mx-auto flex items-center gap-2.5 pointer-events-auto">
                 {/* Page tabs pill */}
-                <div className="flex-1 h-16 flex items-center gap-1 p-1.5 rounded-full bg-white/70 backdrop-blur-xl backdrop-saturate-150 border border-white/80 ring-1 ring-slate-900/5 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.18)]">
+                <div className="flex-1 h-16 flex items-center gap-1 p-1.5 rounded-full bg-white/90 backdrop-blur-xl backdrop-saturate-150 border border-slate-200/80 shadow-[0_12px_36px_-10px_rgba(15,23,42,0.35),0_2px_8px_rgba(15,23,42,0.06)]">
                     {navItems.map((item) => {
                         const active = item.isActive && !isMenuOpen;
 
@@ -87,8 +90,8 @@ export default function MobileBottomNav({
                                 aria-current={active ? 'page' : undefined}
                                 className={`flex-1 h-full rounded-full flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 ${
                                     active
-                                        ? 'bg-white text-[#009bd2] shadow-[0_4px_14px_-2px_rgba(0,155,210,0.28)] ring-1 ring-[#009bd2]/10'
-                                        : 'text-slate-500 hover:text-slate-700'
+                                        ? 'bg-[#009bd2]/10 text-[#009bd2] ring-1 ring-[#009bd2]/20'
+                                        : 'text-slate-600 hover:text-slate-800'
                                 }`}
                             >
                                 {/* Transaksi keeps its emphasis with a brand-colored icon chip */}
@@ -113,10 +116,10 @@ export default function MobileBottomNav({
                     onClick={handleMenuToggle}
                     aria-label={isMenuOpen ? 'Tutup Menu' : 'Buka Menu'}
                     aria-expanded={isMenuOpen}
-                    className={`w-16 h-16 shrink-0 rounded-full flex flex-col items-center justify-center gap-1 backdrop-blur-xl backdrop-saturate-150 border ring-1 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.18)] transition-all duration-300 active:scale-95 ${
+                    className={`w-16 h-16 shrink-0 rounded-full flex flex-col items-center justify-center gap-1 backdrop-blur-xl backdrop-saturate-150 border shadow-[0_12px_36px_-10px_rgba(15,23,42,0.35),0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 active:scale-95 ${
                         isMenuOpen
-                            ? 'bg-white text-[#009bd2] border-white ring-[#009bd2]/15'
-                            : 'bg-white/70 text-slate-500 border-white/80 ring-slate-900/5 hover:text-slate-700'
+                            ? 'bg-[#e6f5fb] text-[#009bd2] border-[#009bd2]/30'
+                            : 'bg-white/90 text-slate-600 border-slate-200/80 hover:text-slate-800'
                     }`}
                 >
                     {isMenuOpen ? (

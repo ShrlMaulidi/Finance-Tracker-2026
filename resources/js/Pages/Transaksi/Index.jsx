@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
 import { ActionButtons, Modal, Button, DeleteConfirmModal } from '@/Components/UI';
+import useOptimisticList from '@/Utils/useOptimisticList';
 
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [], activeDebts = [] }) {
     const { flash } = usePage().props;
@@ -24,6 +25,44 @@ export default function Index({ transactions, summary, currentMonthName, targets
         title: '',
         description: '',
         date: new Date().toISOString().split('T')[0]
+    });
+
+    // The list and monthly summary update the moment the user submits; requests finish in the background
+    // and every pending change falls back to the server data automatically if it fails.
+    const optimisticTransactions = useOptimisticList(transactions);
+    const visibleTransactions = optimisticTransactions.items;
+    const [summaryAdjustments, setSummaryAdjustments] = useState([]);
+
+    const currentMonthKey = new Date().toISOString().substring(0, 7);
+    const adjustSummary = (changes) => {
+        const relevantChanges = changes.filter((change) => String(change.date || '').substring(0, 7) === currentMonthKey);
+        const adjustmentId = Symbol('summary-adjustment');
+        setSummaryAdjustments((current) => [...current, { adjustmentId, changes: relevantChanges }]);
+        return () => setSummaryAdjustments((current) => current.filter((adjustment) => adjustment.adjustmentId !== adjustmentId));
+    };
+
+    const liveSummary = useMemo(() => {
+        const totals = { pemasukan: Number(summary.pemasukan) || 0, pengeluaran: Number(summary.pengeluaran) || 0, tabungan: Number(summary.tabungan) || 0 };
+        summaryAdjustments.forEach(({ changes }) => changes.forEach(({ type, amount }) => {
+            if (type in totals) {
+                totals[type] += amount;
+            }
+        }));
+        return { ...totals, saldo: totals.pemasukan - totals.pengeluaran - totals.tabungan };
+    }, [summary, summaryAdjustments]);
+
+    const toOptimisticTransaction = (formData) => ({
+        type: formData.type,
+        amount: Number(formData.amount) || 0,
+        category: formData.category,
+        debt_id: formData.debt_id || null,
+        payment_method: formData.payment_method,
+        title: formData.title,
+        description: formData.description,
+        date: formData.date,
+        date_formatted: formData.date
+            ? new Date(formData.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '',
     });
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -114,27 +153,38 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     const submit = (e) => {
         e.preventDefault();
-        const currentTitle = data.title;
-        const currentAmount = data.amount;
-        const currentType = data.type;
+        const submittedData = { ...data };
+        const newTransaction = toOptimisticTransaction(submittedData);
+
+        const settleList = optimisticTransactions.add(newTransaction);
+        const settleSummary = adjustSummary([{ type: newTransaction.type, amount: newTransaction.amount, date: newTransaction.date }]);
 
         post(route('transaksi.store'), {
             preserveScroll: true,
+            async: true,
             onSuccess: () => {
-                reset('amount', 'category', 'bill_id', 'debt_id', 'title', 'description', 'payment_method');
-                if (typeof window !== 'undefined' && window.innerWidth < 640) {
-                    setMobileTab('riwayat');
-                }
                 setPopupNotification({
                     show: true,
                     title: 'Transaksi Berhasil Dicatat! 🎉',
-                    message: currentTitle 
-                        ? `${currentType === 'pengeluaran' ? 'Pengeluaran' : currentType === 'pemasukan' ? 'Pemasukan' : 'Tabungan'} "${currentTitle}" sebesar ${formatRp(currentAmount)} telah tersimpan.`
+                    message: submittedData.title
+                        ? `${submittedData.type === 'pengeluaran' ? 'Pengeluaran' : submittedData.type === 'pemasukan' ? 'Pemasukan' : 'Tabungan'} "${submittedData.title}" sebesar ${formatRp(submittedData.amount)} telah tersimpan.`
                         : 'Catatan transaksi telah berhasil disimpan ke pembukuan.',
                     type: 'success',
                 });
             },
+            // Validation failed: bring back what the user typed so the errors can be fixed
+            onError: () => setData(submittedData),
+            onFinish: () => {
+                settleList();
+                settleSummary();
+            },
         });
+
+        // Clear the form right away so the next transaction can be typed without waiting
+        reset('amount', 'category', 'bill_id', 'debt_id', 'title', 'description', 'payment_method');
+        if (typeof window !== 'undefined' && window.innerWidth < 640) {
+            setMobileTab('riwayat');
+        }
     };
 
     const openEditModal = (item) => {
@@ -179,24 +229,41 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
     const submitEdit = (e) => {
         e.preventDefault();
-        putEdit(route('transaksi.update', editingTx.id), {
+        const transactionBeingEdited = editingTx;
+        const updatedTransaction = toOptimisticTransaction(editData);
+
+        const settleList = optimisticTransactions.update({ ...updatedTransaction, id: transactionBeingEdited.id });
+        const settleSummary = adjustSummary([
+            { type: transactionBeingEdited.type, amount: -Number(transactionBeingEdited.amount), date: transactionBeingEdited.date },
+            { type: updatedTransaction.type, amount: updatedTransaction.amount, date: updatedTransaction.date },
+        ]);
+
+        setIsEditModalOpen(false);
+        setEditingTx(null);
+
+        putEdit(route('transaksi.update', transactionBeingEdited.id), {
             preserveScroll: true,
+            async: true,
             onSuccess: () => {
-                setIsEditModalOpen(false);
-                setEditingTx(null);
-                resetEdit();
                 setPopupNotification({
                     show: true,
                     title: 'Perubahan Disimpan!',
                     message: 'Data transaksi berhasil diperbarui.',
                     type: 'success',
                 });
-            }
+            },
+            onError: () => {
+                setEditingTx(transactionBeingEdited);
+                setIsEditModalOpen(true);
+            },
+            onFinish: () => {
+                settleList();
+                settleSummary();
+            },
         });
     };
 
     const [txToDelete, setTxToDelete] = useState(null);
-    const [isDeletingTx, setIsDeletingTx] = useState(false);
 
     const handleDelete = (tx) => {
         setTxToDelete(tx);
@@ -205,11 +272,17 @@ export default function Index({ transactions, summary, currentMonthName, targets
     const confirmDeleteTx = () => {
         if (!txToDelete) return;
 
-        router.delete(route('transaksi.destroy', txToDelete.id), {
+        const transactionBeingDeleted = txToDelete;
+        const settleList = optimisticTransactions.remove(transactionBeingDeleted.id);
+        const settleSummary = adjustSummary([
+            { type: transactionBeingDeleted.type, amount: -Number(transactionBeingDeleted.amount), date: transactionBeingDeleted.date },
+        ]);
+        setTxToDelete(null);
+
+        router.delete(route('transaksi.destroy', transactionBeingDeleted.id), {
             preserveScroll: true,
-            onStart: () => setIsDeletingTx(true),
+            async: true,
             onSuccess: () => {
-                setTxToDelete(null);
                 setPopupNotification({
                     show: true,
                     title: 'Transaksi Dihapus',
@@ -218,7 +291,8 @@ export default function Index({ transactions, summary, currentMonthName, targets
                 });
             },
             onFinish: () => {
-                setIsDeletingTx(false);
+                settleList();
+                settleSummary();
             },
         });
     };
@@ -299,7 +373,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                             <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                             </svg>
-                            <span>Riwayat ({transactions.length})</span>
+                            <span>Riwayat ({visibleTransactions.length})</span>
                         </button>
                     </div>
                 </div>
@@ -313,7 +387,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                             </div>
                         </div>
-                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(summary.pemasukan)}>{formatRp(summary.pemasukan)}</h2>
+                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(liveSummary.pemasukan)}>{formatRp(liveSummary.pemasukan)}</h2>
                     </div>
 
                     <div className="bg-rose-500 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white shadow-md shadow-rose-500/15 flex flex-col justify-between min-h-[86px] sm:min-h-[110px] relative overflow-hidden group">
@@ -323,7 +397,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                             </div>
                         </div>
-                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(summary.pengeluaran)}>{formatRp(summary.pengeluaran)}</h2>
+                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(liveSummary.pengeluaran)}>{formatRp(liveSummary.pengeluaran)}</h2>
                     </div>
 
                     <div className="rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white shadow-md flex flex-col justify-between min-h-[86px] sm:min-h-[110px] relative overflow-hidden group" style={{ backgroundColor: '#009bd2', boxShadow: '0 8px 20px -3px rgba(0, 155, 210, 0.25)' }}>
@@ -333,7 +407,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                             </div>
                         </div>
-                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(summary.tabungan)}>{formatRp(summary.tabungan)}</h2>
+                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(liveSummary.tabungan)}>{formatRp(liveSummary.tabungan)}</h2>
                     </div>
 
                     <div className="bg-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white shadow-md shadow-slate-800/15 flex flex-col justify-between min-h-[86px] sm:min-h-[110px] relative overflow-hidden group">
@@ -343,7 +417,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
                         </div>
-                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(summary.saldo)}>{formatRp(summary.saldo)}</h2>
+                        <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight truncate" title={formatRp(liveSummary.saldo)}>{formatRp(liveSummary.saldo)}</h2>
                     </div>
                 </div>
 
@@ -654,7 +728,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             Riwayat Transaksi
                                         </h2>
                                         <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
-                                            {transactions.length} Data
+                                            {visibleTransactions.length} Data
                                         </span>
                                     </div>
                                 </div>
@@ -672,8 +746,8 @@ export default function Index({ transactions, summary, currentMonthName, targets
                             </div>
                             
                             <div className="space-y-2.5 sm:space-y-3.5 overflow-y-auto pr-0 sm:pr-2 flex-1 min-h-0">
-                                {transactions.length > 0 ? transactions.map((item) => (
-                                    <div key={item.id} className="bg-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border border-slate-100 hover:border-slate-200 hover:shadow-[0_4px_16px_rgb(0,0,0,0.04)] transition-all flex items-center justify-between gap-2.5 sm:gap-4 group">
+                                {visibleTransactions.length > 0 ? visibleTransactions.map((item) => (
+                                    <div key={item.id} className={`bg-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border border-slate-100 hover:border-slate-200 hover:shadow-[0_4px_16px_rgb(0,0,0,0.04)] transition-all flex items-center justify-between gap-2.5 sm:gap-4 group ${item.isOptimistic ? 'opacity-70 pointer-events-none' : ''}`}>
                                         <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
                                             <div 
                                                 className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${item.type === 'pengeluaran' ? 'bg-rose-50 text-rose-500' : item.type === 'pemasukan' ? 'bg-emerald-50 text-emerald-500' : ''}`}
@@ -747,7 +821,7 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                 )}
                             </div>
 
-                            {transactions.length > 0 && (
+                            {visibleTransactions.length > 0 && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 shrink-0">
                                     <Link
                                         href={route('transaksi.history')}
@@ -1011,7 +1085,6 @@ export default function Index({ transactions, summary, currentMonthName, targets
                 isOpen={!!txToDelete}
                 onClose={() => setTxToDelete(null)}
                 onConfirm={confirmDeleteTx}
-                loading={isDeletingTx}
                 title="Hapus Transaksi"
                 subtitle="Tindakan ini tidak dapat dibatalkan."
                 itemTitle={txToDelete?.title}

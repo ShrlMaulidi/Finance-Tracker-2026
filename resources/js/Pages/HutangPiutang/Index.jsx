@@ -4,6 +4,7 @@ import CurrencyInput from '@/Components/CurrencyInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
+import useOptimisticList from '@/Utils/useOptimisticList';
 
 export default function Hutang({ debts }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
@@ -11,6 +12,7 @@ export default function Hutang({ debts }) {
     const [activeTab, setActiveTab] = useState('hutang');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDebt, setEditingDebt] = useState(null);
+    const optimisticDebts = useOptimisticList(debts);
 
     const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
         type: 'hutang',
@@ -45,31 +47,43 @@ export default function Hutang({ debts }) {
         setIsModalOpen(true);
     };
 
+    // Close the modal and show the change instantly; the request finishes in the background.
+    // If validation fails, the list reverts by itself and the modal reopens with the errors.
     const submit = (e) => {
         e.preventDefault();
 
-        if (editingDebt) {
-            put(route('hutang-piutang.update', editingDebt.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsModalOpen(false);
-                    setEditingDebt(null);
-                    reset();
-                }
-            });
+        const debtBeingEdited = editingDebt;
+        const optimisticDebt = {
+            ...data,
+            amount: Number(data.amount) || 0,
+            remaining_amount: Number(data.remaining_amount) || 0,
+            due_date: data.due_date || null,
+        };
+        const settle = debtBeingEdited
+            ? optimisticDebts.update({ ...optimisticDebt, id: debtBeingEdited.id })
+            : optimisticDebts.add(optimisticDebt);
+
+        setIsModalOpen(false);
+        setEditingDebt(null);
+
+        const options = {
+            preserveScroll: true,
+            async: true,
+            onError: () => {
+                setEditingDebt(debtBeingEdited);
+                setIsModalOpen(true);
+            },
+            onFinish: settle,
+        };
+
+        if (debtBeingEdited) {
+            put(route('hutang-piutang.update', debtBeingEdited.id), options);
         } else {
-            post(route('hutang-piutang.store'), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsModalOpen(false);
-                    reset();
-                },
-            });
+            post(route('hutang-piutang.store'), options);
         }
     };
 
     const [debtToDelete, setDebtToDelete] = useState(null);
-    const [isDeletingDebt, setIsDeletingDebt] = useState(false);
 
     const handleDelete = (item) => {
         setDebtToDelete(item);
@@ -78,17 +92,19 @@ export default function Hutang({ debts }) {
     const confirmDeleteDebt = () => {
         if (!debtToDelete) return;
 
+        const settle = optimisticDebts.remove(debtToDelete.id);
         router.delete(route('hutang-piutang.destroy', debtToDelete.id), {
             preserveScroll: true,
-            onStart: () => setIsDeletingDebt(true),
-            onSuccess: () => setDebtToDelete(null),
-            onFinish: () => setIsDeletingDebt(false),
+            async: true,
+            onFinish: settle,
         });
+        setDebtToDelete(null);
     };
 
-    const activeDebts = debts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
-    const activeReceivables = debts.filter(d => d.type === 'piutang' && d.status !== 'lunas');
-    const historyDebts = debts.filter(d => d.status === 'lunas');
+    const allDebts = optimisticDebts.items;
+    const activeDebts = allDebts.filter(d => d.type === 'hutang' && d.status !== 'lunas');
+    const activeReceivables = allDebts.filter(d => d.type === 'piutang' && d.status !== 'lunas');
+    const historyDebts = allDebts.filter(d => d.status === 'lunas');
 
     const displayData = activeTab === 'hutang' ? activeDebts : activeTab === 'piutang' ? activeReceivables : historyDebts;
 
@@ -136,7 +152,7 @@ export default function Hutang({ debts }) {
                                 const percent = Math.min(100, Math.round((paidAmount / item.amount) * 100));
 
                                 return (
-                                    <div key={item.id} className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden">
+                                    <div key={item.id} className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden ${item.isOptimistic ? 'opacity-70' : ''}`}>
 
                                         <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col justify-between">
                                             <div>
@@ -162,8 +178,8 @@ export default function Hutang({ debts }) {
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Dropdown */}
-                                                    <div className="shrink-0 -mr-1">
+                                                    {/* Action Dropdown (hidden until the server confirms a just-saved item) */}
+                                                    <div className={`shrink-0 -mr-1 ${item.isOptimistic ? 'invisible' : ''}`}>
                                                         <Dropdown>
                                                             <Dropdown.Trigger>
                                                                 <button className="w-8 h-8 sm:w-9 sm:h-9 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
@@ -355,7 +371,6 @@ export default function Hutang({ debts }) {
                 isOpen={!!debtToDelete}
                 onClose={() => setDebtToDelete(null)}
                 onConfirm={confirmDeleteDebt}
-                loading={isDeletingDebt}
                 title={debtToDelete?.type === 'hutang' ? 'Hapus Hutang' : 'Hapus Piutang'}
                 subtitle="Tindakan ini tidak dapat dibatalkan."
                 itemTitle={debtToDelete?.name}

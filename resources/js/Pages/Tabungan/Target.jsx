@@ -5,6 +5,7 @@ import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
 import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
 import { compressImage } from '@/Utils/imageCompressor';
+import useOptimisticList from '@/Utils/useOptimisticList';
 
 export default function Target({ dbTargets = [], isFree = false, canAdd = true, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('berjalan');
@@ -12,6 +13,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     const [editingTarget, setEditingTarget] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [isCompressingImage, setIsCompressingImage] = useState(false);
+    const optimisticTargets = useOptimisticList(dbTargets);
     
     // Inertia form
     const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
@@ -49,7 +51,6 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     };
 
     const [targetToDelete, setTargetToDelete] = useState(null);
-    const [isDeletingTarget, setIsDeletingTarget] = useState(false);
 
     const handleDelete = (item) => {
         setTargetToDelete(item);
@@ -58,12 +59,13 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     const confirmDeleteTarget = () => {
         if (!targetToDelete) return;
 
+        const settle = optimisticTargets.remove(targetToDelete.id);
         router.delete(route('tabungan.target.destroy', targetToDelete.id), {
             preserveScroll: true,
-            onStart: () => setIsDeletingTarget(true),
-            onSuccess: () => setTargetToDelete(null),
-            onFinish: () => setIsDeletingTarget(false),
+            async: true,
+            onFinish: settle,
         });
+        setTargetToDelete(null);
     };
 
     const handleImageChange = async (e) => {
@@ -97,37 +99,45 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         }
     };
 
+    // Close the modal and show the change instantly; the upload/save finishes in the background.
+    // If validation fails, the list reverts by itself and the modal reopens with the errors.
     const submit = (e) => {
         e.preventDefault();
-        
-        if (editingTarget) {
-            post(route('tabungan.target.update', editingTarget.id), {
-                forceFormData: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    reset();
-                    setIsModalOpen(false);
-                    setEditingTarget(null);
-                    setImagePreview(null);
-                },
-            });
-        } else {
-            post(route('tabungan.target.store'), {
-                forceFormData: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    reset();
-                    setIsModalOpen(false);
-                    setImagePreview(null);
-                },
-            });
-        }
+
+        const targetBeingEdited = editingTarget;
+        const optimisticTarget = {
+            name: data.name,
+            category: data.category,
+            target: Number(data.target_amount) || 0,
+            raw_date: data.target_date || null,
+            date: data.target_date
+                ? new Date(data.target_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                : '-',
+            image_path: imagePreview,
+        };
+        const settle = targetBeingEdited
+            ? optimisticTargets.update({ ...optimisticTarget, id: targetBeingEdited.id })
+            : optimisticTargets.add({ ...optimisticTarget, current: 0, status: 'Berjalan' });
+
+        setIsModalOpen(false);
+        setEditingTarget(null);
+
+        post(targetBeingEdited ? route('tabungan.target.update', targetBeingEdited.id) : route('tabungan.target.store'), {
+            forceFormData: true,
+            preserveScroll: true,
+            async: true,
+            onError: () => {
+                setEditingTarget(targetBeingEdited);
+                setIsModalOpen(true);
+            },
+            onFinish: settle,
+        });
     };
 
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
-    const activeTargets = dbTargets.filter(t => t.status === 'Berjalan');
-    const achievedTargets = dbTargets.filter(t => t.status === 'Tercapai');
+    const activeTargets = optimisticTargets.items.filter(t => t.status === 'Berjalan');
+    const achievedTargets = optimisticTargets.items.filter(t => t.status === 'Tercapai');
 
     return (
         <AuthenticatedLayout>
@@ -212,7 +222,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                     const remaining = Math.max(0, item.target - item.current);
                                     
                                     return (
-                                        <div key={item.id} className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden">
+                                        <div key={item.id} className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden ${item.isOptimistic ? 'opacity-70' : ''}`}>
                                             {/* Half-Cover Image */}
                                             {item.image_path && (
                                                 <div className="w-full shrink-0 bg-slate-100 relative overflow-hidden h-28 sm:h-36">
@@ -239,8 +249,8 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* Action Dropdown */}
-                                                        <div className="shrink-0 -mr-1">
+                                                        {/* Action Dropdown (hidden until the server confirms a just-saved item) */}
+                                                        <div className={`shrink-0 -mr-1 ${item.isOptimistic ? 'invisible' : ''}`}>
                                                             <Dropdown>
                                                                 <Dropdown.Trigger>
                                                                     <button className="w-8 h-8 sm:w-9 sm:h-9 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
@@ -323,8 +333,8 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
                                             </div>
                                             
-                                            {/* Action Dropdown */}
-                                            <div className="shrink-0 -mr-1">
+                                            {/* Action Dropdown (hidden until the server confirms a just-saved item) */}
+                                            <div className={`shrink-0 -mr-1 ${item.isOptimistic ? 'invisible' : ''}`}>
                                                 <Dropdown>
                                                     <Dropdown.Trigger>
                                                         <button className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-100/50 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
@@ -489,7 +499,6 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                 isOpen={!!targetToDelete}
                 onClose={() => setTargetToDelete(null)}
                 onConfirm={confirmDeleteTarget}
-                loading={isDeletingTarget}
                 title="Hapus Target Tabungan"
                 subtitle="Tindakan ini tidak dapat dibatalkan."
                 itemTitle={targetToDelete?.name}

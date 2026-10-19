@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
 import { Button, KpiCard, TabFilter, ActionButtons, Modal, AlertBanner, DeleteConfirmModal } from '@/Components/UI';
+import useOptimisticList from '@/Utils/useOptimisticList';
 
 export default function TagihanIndex({
     bills = [],
@@ -30,9 +31,12 @@ export default function TagihanIndex({
 
     // Modal Delete Confirmation
     const [billToDelete, setBillToDelete] = useState(null);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [paymentToDelete, setPaymentToDelete] = useState(null);
-    const [isDeletingPayment, setIsDeletingPayment] = useState(false);
+
+    // Changes show instantly; each request finishes in the background and reverts itself on failure
+    const optimisticBills = useOptimisticList(bills);
+    const optimisticPayments = useOptimisticList(paymentHistory);
+    const visiblePaymentHistory = optimisticPayments.items;
 
     const billForm = useForm({
         name: '',
@@ -103,23 +107,45 @@ export default function TagihanIndex({
 
     const submitBillForm = (e) => {
         e.preventDefault();
-        if (editingBill) {
-            billForm.put(route('tagihan.update', editingBill.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsBillModalOpen(false);
-                    setEditingBill(null);
-                    billForm.reset();
-                },
+
+        const billBeingEdited = editingBill;
+        const optimisticBill = {
+            name: billForm.data.name,
+            amount: Number(billForm.data.amount) || 0,
+            due_day: Number(billForm.data.due_day) || 1,
+            reminder_days: Number(billForm.data.reminder_days) || 3,
+            account_number: billForm.data.account_number,
+            notes: billForm.data.notes,
+        };
+        const settle = billBeingEdited
+            ? optimisticBills.update({ ...optimisticBill, id: billBeingEdited.id })
+            : optimisticBills.add({
+                ...optimisticBill,
+                category_name: 'Tagihan Rutin',
+                is_paid: false,
+                status: 'mendatang',
+                countdown_text: 'Menyimpan...',
+                badge_text: 'Menyimpan...',
+                due_date_formatted: `Tanggal ${optimisticBill.due_day}`,
             });
+
+        setIsBillModalOpen(false);
+        setEditingBill(null);
+
+        const options = {
+            preserveScroll: true,
+            async: true,
+            onError: () => {
+                setEditingBill(billBeingEdited);
+                setIsBillModalOpen(true);
+            },
+            onFinish: settle,
+        };
+
+        if (billBeingEdited) {
+            billForm.put(route('tagihan.update', billBeingEdited.id), options);
         } else {
-            billForm.post(route('tagihan.store'), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsBillModalOpen(false);
-                    billForm.reset();
-                },
-            });
+            billForm.post(route('tagihan.store'), options);
         }
     };
 
@@ -130,37 +156,34 @@ export default function TagihanIndex({
     const confirmDeleteBill = () => {
         if (!billToDelete) return;
 
+        const settle = optimisticBills.remove(billToDelete.id);
         router.delete(route('tagihan.destroy', billToDelete.id), {
             preserveScroll: true,
-            onStart: () => setIsDeleting(true),
-            onSuccess: () => {
-                setBillToDelete(null);
-                setIsBillModalOpen(false);
-                setEditingBill(null);
-            },
-            onFinish: () => {
-                setIsDeleting(false);
-            },
+            async: true,
+            onFinish: settle,
         });
+        setBillToDelete(null);
+        setIsBillModalOpen(false);
+        setEditingBill(null);
     };
 
     const handleDeletePayment = (payment) => {
+        if (payment.isOptimistic) {
+            return; // not saved on the server yet
+        }
         setPaymentToDelete(payment);
     };
 
     const confirmDeletePayment = () => {
         if (!paymentToDelete) return;
 
+        const settle = optimisticPayments.remove(paymentToDelete.id);
         router.delete(route('tagihan.payment.destroy', paymentToDelete.id), {
             preserveScroll: true,
-            onStart: () => setIsDeletingPayment(true),
-            onSuccess: () => {
-                setPaymentToDelete(null);
-            },
-            onFinish: () => {
-                setIsDeletingPayment(false);
-            },
+            async: true,
+            onFinish: settle,
         });
+        setPaymentToDelete(null);
     };
 
     // Open Quick Pay Modal
@@ -181,18 +204,47 @@ export default function TagihanIndex({
         e.preventDefault();
         if (!payingBill) return;
 
-        payForm.post(route('tagihan.pay', payingBill.id), {
+        const billBeingPaid = payingBill;
+        const paidAtLabel = new Date(payForm.data.paid_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const settleBill = optimisticBills.update({
+            id: billBeingPaid.id,
+            is_paid: true,
+            status: 'lunas',
+            countdown_text: 'Lunas',
+            badge_text: 'Sudah Dibayar',
+            paid_at: paidAtLabel,
+            paid_amount: billBeingPaid.amount,
+            paid_payment_method: payForm.data.payment_method,
+        });
+        const settlePayment = optimisticPayments.add({
+            bill_name: billBeingPaid.name,
+            category_name: billBeingPaid.category_name,
+            month_label: selectedMonthLabel,
+            amount: billBeingPaid.amount,
+            paid_at: paidAtLabel,
+            payment_method: payForm.data.payment_method,
+            notes: payForm.data.notes,
+        });
+
+        setIsPayModalOpen(false);
+        setPayingBill(null);
+
+        payForm.post(route('tagihan.pay', billBeingPaid.id), {
             preserveScroll: true,
-            onSuccess: () => {
-                setIsPayModalOpen(false);
-                setPayingBill(null);
-                payForm.reset();
+            async: true,
+            onError: () => {
+                setPayingBill(billBeingPaid);
+                setIsPayModalOpen(true);
+            },
+            onFinish: () => {
+                settleBill();
+                settlePayment();
             },
         });
     };
 
     // Filter bills
-    const filteredBills = bills.filter((b) => {
+    const filteredBills = optimisticBills.items.filter((b) => {
         if (filterStatus === 'belum') return !b.is_paid;
         if (filterStatus === 'lunas') return b.is_paid;
         if (filterStatus === 'terlambat') return !b.is_paid && b.status === 'terlambat';
@@ -568,7 +620,7 @@ export default function TagihanIndex({
                                     return (
                                         <div
                                             key={bill.id}
-                                            className={`bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border transition-all duration-200 relative flex flex-col justify-between shadow-xs hover:shadow-md ${
+                                            className={`bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border transition-all duration-200 relative flex flex-col justify-between shadow-xs hover:shadow-md ${bill.isOptimistic ? 'opacity-70 pointer-events-none' : ''} ${
                                                 bill.is_paid
                                                     ? 'border-emerald-100/80 bg-linear-to-b from-white to-emerald-50/20'
                                                     : isOverdue
@@ -899,7 +951,7 @@ export default function TagihanIndex({
                             </div>
                         </div>
 
-                        {paymentHistory.length === 0 ? (
+                        {visiblePaymentHistory.length === 0 ? (
                             <div className="text-center py-8 sm:py-10 text-slate-400">
                                 <svg className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -910,7 +962,7 @@ export default function TagihanIndex({
                             <>
                                 {/* Mobile View: Card List (No horizontal scrolling headache) */}
                                 <div className="md:hidden space-y-2.5">
-                                    {paymentHistory.map((item) => (
+                                    {visiblePaymentHistory.map((item) => (
                                         <div key={item.id} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 space-y-2">
                                             <div className="flex items-center justify-between text-xs">
                                                 <span className="font-semibold text-slate-500">{item.paid_at}</span>
@@ -963,7 +1015,7 @@ export default function TagihanIndex({
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50 font-medium">
-                                            {paymentHistory.map((item) => (
+                                            {visiblePaymentHistory.map((item) => (
                                                 <tr key={item.id} className="hover:bg-slate-50/60 transition">
                                                     <td className="py-3 px-3 font-semibold text-slate-700 whitespace-nowrap">
                                                         {item.paid_at}
@@ -1326,7 +1378,6 @@ export default function TagihanIndex({
                     isOpen={!!billToDelete}
                     onClose={() => setBillToDelete(null)}
                     onConfirm={confirmDeleteBill}
-                    loading={isDeleting}
                     title="Hapus Tagihan"
                     subtitle="Tindakan ini tidak dapat dibatalkan."
                     itemTitle={billToDelete?.name}
@@ -1341,7 +1392,6 @@ export default function TagihanIndex({
                     isOpen={!!paymentToDelete}
                     onClose={() => setPaymentToDelete(null)}
                     onConfirm={confirmDeletePayment}
-                    loading={isDeletingPayment}
                     title="Hapus Riwayat Pembayaran"
                     subtitle="Tindakan ini tidak dapat dibatalkan."
                     itemTitle={paymentToDelete?.bill_name}

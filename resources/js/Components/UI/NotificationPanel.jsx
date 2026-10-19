@@ -78,10 +78,11 @@ export default function NotificationPanel({ className = '' }) {
                 });
             }
 
+            const subJson = subscription.toJSON ? subscription.toJSON() : {};
             const rawKey = subscription.getKey ? subscription.getKey('p256dh') : null;
-            const key = rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : null;
+            const key = subJson?.keys?.p256dh || (rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : null);
             const rawAuthSecret = subscription.getKey ? subscription.getKey('auth') : null;
-            const authSecret = rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : null;
+            const authSecret = subJson?.keys?.auth || (rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : null);
 
             if (window.axios) {
                 await window.axios.post('/push-subscriptions', {
@@ -98,7 +99,9 @@ export default function NotificationPanel({ className = '' }) {
             setTimeout(() => setPushMessage(null), 3500);
         } catch (err) {
             console.error('Error subscribing to push notifications:', err);
-            setPushMessage('Gagal mengaktifkan notifikasi: ' + (err.message || 'Error'));
+            const serverMessage = err.response?.data?.message || err.response?.statusText;
+            const detail = serverMessage ? `${err.message} (${serverMessage})` : (err.message || 'Error');
+            setPushMessage('Gagal mengaktifkan notifikasi: ' + detail);
         } finally {
             setIsSubscribing(false);
         }

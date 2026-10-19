@@ -9,7 +9,7 @@ export default function MobileBottomNav({
 }) {
     const handleMenuToggle = onToggleMenu || onOpenMenu;
 
-    // 5 Primary Mobile Tabs
+    // 5 Primary Mobile Tabs: Home | Tagihan | Transaksi (Center Hero) | Target | Menu
     const navItems = [
         {
             key: 'home',
@@ -23,17 +23,6 @@ export default function MobileBottomNav({
             ),
         },
         {
-            key: 'transaksi',
-            label: 'Transaksi',
-            routeName: 'transaksi.index',
-            isActive: route().current('transaksi.*'),
-            icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            ),
-        },
-        {
             key: 'tagihan',
             label: 'Tagihan',
             routeName: 'tagihan.index',
@@ -41,6 +30,18 @@ export default function MobileBottomNav({
             icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h6m-6 4h4" />
+                </svg>
+            ),
+        },
+        {
+            key: 'transaksi',
+            label: 'Transaksi',
+            routeName: 'transaksi.index',
+            isActive: route().current('transaksi.*'),
+            isCenter: true,
+            icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             ),
         },
@@ -64,10 +65,46 @@ export default function MobileBottomNav({
             aria-label="Mobile Bottom Navigation"
             className={`fixed bottom-0 inset-x-0 z-[60] bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:hidden transition-transform duration-300 pb-[env(safe-area-inset-bottom)] ${className}`}
         >
-            <div className="h-16 flex items-center justify-around px-2 max-w-lg mx-auto">
+            <div className="h-16 flex items-center justify-around px-2 max-w-lg mx-auto relative">
                 {/* 4 Direct Navigation Tabs */}
                 {navItems.map((item) => {
                     const active = item.isActive && !isMenuOpen;
+
+                    if (item.isCenter) {
+                        return (
+                            <Link
+                                key={item.key}
+                                href={route(item.routeName)}
+                                cacheFor={0}
+                                onClick={() => {
+                                    if (isMenuOpen && handleMenuToggle) {
+                                        handleMenuToggle();
+                                    }
+                                }}
+                                className="flex flex-col items-center justify-center flex-1 h-full py-1 relative group active:scale-95 transition-transform"
+                            >
+                                {/* Center Floating Action Button (Elevated FAB) */}
+                                <div
+                                    className={`w-12 h-12 -mt-5 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+                                        active
+                                            ? 'bg-gradient-to-tr from-[#0082b2] to-[#009bd2] text-white shadow-lg shadow-[#009bd2]/45 scale-105 ring-[3.5px] ring-white'
+                                            : 'bg-gradient-to-tr from-[#009bd2] to-[#00b5f8] text-white hover:brightness-105 shadow-[#009bd2]/30 ring-[3.5px] ring-white group-hover:scale-105'
+                                    }`}
+                                >
+                                    <div className={`transition-transform duration-200 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
+                                        {item.icon}
+                                    </div>
+                                </div>
+                                <span
+                                    className={`text-[10px] tracking-tight mt-1 transition-colors leading-none ${
+                                        active ? 'font-black text-[#009bd2]' : 'font-bold text-slate-600'
+                                    }`}
+                                >
+                                    {item.label}
+                                </span>
+                            </Link>
+                        );
+                    }
 
                     return (
                         <Link

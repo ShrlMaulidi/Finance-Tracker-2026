@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\TransactionRecorded;
+use App\Models\Category;
 use App\Models\Debt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,6 +35,21 @@ class DebtController extends Controller
         ]);
 
         $validated['user_id'] = Auth::id();
+
+        // Automatically register as 'Hutang' (pengeluaran) or 'Piutang' (pemasukan) category
+        if ($validated['type'] === 'hutang') {
+            Category::firstOrCreate([
+                'user_id' => Auth::id(),
+                'name' => 'Hutang',
+                'type' => 'pengeluaran',
+            ]);
+        } elseif ($validated['type'] === 'piutang') {
+            Category::firstOrCreate([
+                'user_id' => Auth::id(),
+                'name' => 'Piutang',
+                'type' => 'pemasukan',
+            ]);
+        }
 
         Debt::create($validated);
 

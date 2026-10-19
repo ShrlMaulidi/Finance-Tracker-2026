@@ -24,4 +24,14 @@ class Debt extends Model
             'remaining_amount' => 'float',
         ];
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
 }

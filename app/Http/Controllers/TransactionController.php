@@ -32,6 +32,7 @@ class TransactionController extends Controller
                     'type' => $t->type,
                     'amount' => (float) $t->amount,
                     'category' => $t->category,
+                    'debt_id' => $t->debt_id,
                     'payment_method' => $t->payment_method,
                     'title' => $t->title,
                     'description' => $t->description,
@@ -64,14 +65,29 @@ class TransactionController extends Controller
         $pemasukanCategories = $userCategories->where('type', 'pemasukan')->map(fn ($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
         $pengeluaranCategories = $userCategories->where('type', 'pengeluaran')->map(fn ($c) => ['id' => $c->name, 'label' => $c->name])->toArray();
 
-        // Inject active Debts/Receivables into categories in 1 efficient query
+        // Active debts (hutang) for transaction dropdown
         $activeDebts = Debt::where('user_id', Auth::id())
-            ->whereIn('type', ['hutang', 'piutang'])
-            ->where('status', 'belum_lunas')
-            ->get(['name', 'type']);
+            ->where('type', 'hutang')
+            ->where(function ($query) {
+                $query->where('status', 'belum_lunas')
+                    ->orWhereIn('id', Transaction::where('user_id', Auth::id())->whereNotNull('debt_id')->pluck('debt_id'));
+            })
+            ->orderBy('due_date', 'asc')
+            ->get();
 
-        $activeHutang = $activeDebts->where('type', 'hutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Hutang: '.$d->name])->toArray();
-        $activePiutang = $activeDebts->where('type', 'piutang')->map(fn ($d) => ['id' => $d->name, 'label' => 'Piutang: '.$d->name])->toArray();
+        $activeDebtsData = $activeDebts->map(function ($d) {
+            $rem = $d->remaining_amount !== null ? (float) $d->remaining_amount : (float) $d->amount;
+
+            return [
+                'id' => $d->id,
+                'name' => $d->name,
+                'amount' => (float) $d->amount,
+                'remaining_amount' => $rem,
+                'due_date' => $d->due_date ? Carbon::parse($d->due_date)->translatedFormat('d M Y') : null,
+                'due_date_raw' => $d->due_date,
+                'status' => $d->status,
+            ];
+        })->values()->toArray();
 
         $currentMonthStr = Carbon::now()->format('Y-m');
 
@@ -102,10 +118,11 @@ class TransactionController extends Controller
             ];
         })->values()->toArray();
 
-        // Add 'Tagihan Rutin' category to pengeluaran categories if not already present
+        // Add 'Tagihan Rutin' and 'Hutang' category to pengeluaran categories if not already present
         $tagihanCategory = ['id' => 'Tagihan Rutin', 'label' => 'Tagihan Rutin'];
-        $pengeluaranCategories = collect(array_merge([$tagihanCategory], $pengeluaranCategories, $activeHutang))->unique('id')->values()->toArray();
-        $pemasukanCategories = collect(array_merge($pemasukanCategories, $activePiutang))->unique('id')->values()->toArray();
+        $hutangCategory = ['id' => 'Hutang', 'label' => 'Hutang'];
+        $pengeluaranCategories = collect(array_merge([$tagihanCategory, $hutangCategory], $pengeluaranCategories))->unique('id')->values()->toArray();
+        $pemasukanCategories = collect($pemasukanCategories)->unique('id')->values()->toArray();
 
         $paymentMethods = PaymentMethod::where('user_id', Auth::id())->pluck('name')->toArray();
 
@@ -123,6 +140,7 @@ class TransactionController extends Controller
             'pengeluaranCategories' => $pengeluaranCategories,
             'paymentMethods' => $paymentMethods,
             'activeBills' => $activeBillsData,
+            'activeDebts' => $activeDebtsData,
         ]);
     }
 
@@ -133,6 +151,7 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
             'bill_id' => 'nullable|integer',
+            'debt_id' => 'nullable|integer',
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -140,8 +159,10 @@ class TransactionController extends Controller
         ]);
 
         $billId = $request->input('bill_id');
+        $debtId = $request->input('debt_id');
         $validated['user_id'] = Auth::id();
         unset($validated['bill_id']);
+        unset($validated['debt_id']);
 
         // If bill_id is provided, ensure category is Tagihan Rutin and sync nominal
         if ($validated['type'] === 'pengeluaran' && $billId) {
@@ -152,6 +173,19 @@ class TransactionController extends Controller
             if ($matchingBill) {
                 $validated['category'] = 'Tagihan Rutin';
                 $validated['amount'] = (float) $matchingBill->amount;
+            }
+        }
+
+        // If debt_id is provided, ensure category is Hutang and link debt_id
+        // NOTE: Nominal ($validated['amount']) is user-editable to allow partial payments (cicilan)!
+        if ($validated['type'] === 'pengeluaran' && $debtId) {
+            $matchingDebt = Debt::where('user_id', Auth::id())
+                ->where('type', 'hutang')
+                ->find($debtId);
+
+            if ($matchingDebt) {
+                $validated['category'] = 'Hutang';
+                $validated['debt_id'] = $matchingDebt->id;
             }
         }
 
@@ -171,7 +205,9 @@ class TransactionController extends Controller
         }
 
         // Sync debt if it's a debt payment
-        if (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
+        if (! empty($validated['debt_id'])) {
+            $this->applyDebtPayment($validated['debt_id'], (float) $validated['amount']);
+        } elseif (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
             $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
         }
 
@@ -209,6 +245,7 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
             'bill_id' => 'nullable|integer',
+            'debt_id' => 'nullable|integer',
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -216,9 +253,11 @@ class TransactionController extends Controller
         ]);
 
         $billId = $request->input('bill_id');
+        $debtId = $request->input('debt_id');
         unset($validated['bill_id']);
+        unset($validated['debt_id']);
 
-        // Revert old tabungan
+        // Revert old tabungan or debt payment
         if ($transaction->type === 'tabungan') {
             $oldTarget = Target::where('user_id', Auth::id())->where('name', $transaction->category)->first();
             if ($oldTarget) {
@@ -228,8 +267,10 @@ class TransactionController extends Controller
                 }
                 $oldTarget->save();
             }
+        } elseif ($transaction->debt_id) {
+            $this->revertDebtPayment($transaction->debt_id, (float) $transaction->amount);
         } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
-            // Revert old debt payment
+            // Revert old debt payment (legacy)
             $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
@@ -245,9 +286,25 @@ class TransactionController extends Controller
             }
         }
 
+        // If debt_id is provided, ensure category is Hutang and link debt_id
+        if ($validated['type'] === 'pengeluaran' && $debtId) {
+            $matchingDebt = Debt::where('user_id', Auth::id())
+                ->where('type', 'hutang')
+                ->find($debtId);
+
+            if ($matchingDebt) {
+                $validated['category'] = 'Hutang';
+                $validated['debt_id'] = $matchingDebt->id;
+            } else {
+                $validated['debt_id'] = null;
+            }
+        } else {
+            $validated['debt_id'] = null;
+        }
+
         $transaction->update($validated);
 
-        // Apply new tabungan
+        // Apply new tabungan or debt payment
         if ($validated['type'] === 'tabungan') {
             $newTarget = Target::where('user_id', Auth::id())->where('name', $validated['category'])->first();
             if ($newTarget) {
@@ -257,8 +314,10 @@ class TransactionController extends Controller
                 }
                 $newTarget->save();
             }
+        } elseif (! empty($validated['debt_id'])) {
+            $this->applyDebtPayment($validated['debt_id'], (float) $validated['amount']);
         } elseif (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
-            // Apply new debt payment
+            // Apply new debt payment (legacy)
             $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
         }
 
@@ -304,8 +363,10 @@ class TransactionController extends Controller
                 }
                 $target->save();
             }
+        } elseif ($transaction->debt_id) {
+            $this->revertDebtPayment($transaction->debt_id, (float) $transaction->amount);
         } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
-            // Revert debt payment when transaction is deleted
+            // Revert debt payment when transaction is deleted (legacy)
             $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
         }
 
@@ -331,6 +392,60 @@ class TransactionController extends Controller
         }
 
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
+    }
+
+    /**
+     * Deduct payment from linked debt, supporting partial payments (cicilan).
+     */
+    private function applyDebtPayment(?int $debtId, float $amount): void
+    {
+        if (! $debtId || $amount <= 0) {
+            return;
+        }
+
+        $debt = Debt::where('user_id', Auth::id())->find($debtId);
+        if (! $debt) {
+            return;
+        }
+
+        $currentRemaining = $debt->remaining_amount !== null ? (float) $debt->remaining_amount : (float) $debt->amount;
+        $newRemaining = $currentRemaining - $amount;
+
+        if ($newRemaining <= 0) {
+            $debt->remaining_amount = 0;
+            $debt->status = 'lunas';
+        } else {
+            $debt->remaining_amount = $newRemaining;
+            $debt->status = 'belum_lunas';
+        }
+
+        $debt->save();
+    }
+
+    /**
+     * Restore payment back to linked debt when transaction is updated or deleted.
+     */
+    private function revertDebtPayment(?int $debtId, float $amount): void
+    {
+        if (! $debtId || $amount <= 0) {
+            return;
+        }
+
+        $debt = Debt::where('user_id', Auth::id())->find($debtId);
+        if (! $debt) {
+            return;
+        }
+
+        $currentRemaining = $debt->remaining_amount !== null ? (float) $debt->remaining_amount : (float) $debt->amount;
+        $newRemaining = $currentRemaining + $amount;
+
+        if ($newRemaining > (float) $debt->amount) {
+            $newRemaining = (float) $debt->amount;
+        }
+
+        $debt->remaining_amount = $newRemaining;
+        $debt->status = ($newRemaining <= 0) ? 'lunas' : 'belum_lunas';
+        $debt->save();
     }
 
     private function syncDebtAmount($category, $amount, $type, $isRevert = false)

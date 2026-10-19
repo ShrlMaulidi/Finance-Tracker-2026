@@ -118,7 +118,7 @@ export default function TransactionHistory({ title, currentType, filters, availa
         <AuthenticatedLayout>
             <Head title={title} />
 
-            <div className="max-w-3xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5">
+            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
                 {/* Header */}
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Riwayat Transaksi</h1>

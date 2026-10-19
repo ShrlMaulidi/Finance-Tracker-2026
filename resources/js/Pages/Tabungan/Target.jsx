@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { Button, ActionButtons, Modal, DeleteConfirmModal } from '@/Components/UI';
+import { Button, KpiCard, TabFilter, ActionButtons, Modal, DeleteConfirmModal } from '@/Components/UI';
 import { compressImage } from '@/Utils/imageCompressor';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
@@ -51,6 +51,22 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     };
 
     const [targetToDelete, setTargetToDelete] = useState(null);
+
+    // Full-screen photo viewer
+    const [viewedPhoto, setViewedPhoto] = useState(null); // { src, name }
+
+    useEffect(() => {
+        if (!viewedPhoto) {
+            return undefined;
+        }
+        const closeOnEscape = (e) => e.key === 'Escape' && setViewedPhoto(null);
+        document.addEventListener('keydown', closeOnEscape);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', closeOnEscape);
+            document.body.style.overflow = '';
+        };
+    }, [viewedPhoto]);
 
     const handleDelete = (item) => {
         setTargetToDelete(item);
@@ -147,10 +163,31 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     return (
         <AuthenticatedLayout>
             <Head title="Tabungan & Target" />
-            <div className="max-w-5xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5">
+            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
-                {/* Header */}
-                <div className="flex items-center justify-between gap-3">
+                {/* Desktop Header (same layout as Tagihan Rutin) */}
+                <div className="hidden md:flex md:items-end justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <p className="text-xs font-bold text-[#009bd2] uppercase tracking-wider mb-1">Jangka Panjang</p>
+                        <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight">Tabungan & Target</h1>
+                        <p className="text-slate-500 font-medium text-sm mt-1">Rencanakan dan pantau pencapaian target finansial Anda.</p>
+                    </div>
+                    <Button
+                        onClick={openAddModal}
+                        variant={isFree && !canAdd ? 'secondary' : 'primary'}
+                        className={isFree && !canAdd ? '!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100' : ''}
+                        icon={isFree && !canAdd ? (
+                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
+                        )}
+                    >
+                        {isFree && !canAdd ? 'Batas Tercapai (1/1)' : 'Tambah Target'}
+                    </Button>
+                </div>
+
+                {/* Mobile Header */}
+                <div className="flex md:hidden items-center justify-between gap-3">
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Tabungan & Target</h1>
                     <Button
                         size="sm"
@@ -179,9 +216,41 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     </div>
                 )}
 
-                {/* Overall progress of running targets */}
+                {/* KPI Summary - Desktop (same cards as Tagihan Rutin) */}
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <KpiCard
+                        title="Total Target"
+                        value={formatRp(overallGoal)}
+                        subtitle={`${activeTargets.length} target berjalan`}
+                        variant="primary"
+                        icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /><circle cx="12" cy="12" r="4.5" strokeWidth={2} /><circle cx="12" cy="12" r="1" strokeWidth={2} fill="currentColor" /></svg>}
+                    />
+                    <KpiCard
+                        title="Sudah Terkumpul"
+                        value={formatRp(overallSaved)}
+                        subtitle={`${overallPercent}% dari total target`}
+                        variant="success"
+                        icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
+                    />
+                    <KpiCard
+                        title="Sisa Target"
+                        value={formatRp(Math.max(0, overallGoal - overallSaved))}
+                        subtitle="Yang masih perlu ditabung"
+                        variant="warning"
+                        icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    />
+                    <KpiCard
+                        title="Target Tercapai"
+                        value={`${achievedTargets.length} Target`}
+                        subtitle={achievedTargets.length > 0 ? 'Selamat, terus pertahankan!' : 'Belum ada yang tercapai'}
+                        variant="default"
+                        icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                    />
+                </div>
+
+                {/* Overall progress of running targets (phones) */}
                 {activeTargets.length > 0 && (
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 sm:p-6">
+                    <div className="sm:hidden bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5">
                         <p className="text-xs font-semibold text-slate-400">Total terkumpul</p>
                         <div className="flex items-baseline justify-between gap-3 mt-1">
                             <p className="text-[28px] sm:text-3xl leading-tight font-extrabold text-slate-900 tracking-tight tabular-nums truncate">
@@ -196,8 +265,31 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     </div>
                 )}
 
-                {/* Tabs */}
-                <div className="flex items-center gap-1">
+                {/* Desktop Toolbar (same as Tagihan Rutin) */}
+                <div className="hidden sm:flex items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-xs">
+                    <TabFilter
+                        tabs={[
+                            {
+                                key: 'berjalan',
+                                label: 'Sedang Berjalan',
+                                count: activeTargets.length,
+                                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /><circle cx="12" cy="12" r="4.5" strokeWidth={2} /></svg>,
+                            },
+                            {
+                                key: 'tercapai',
+                                label: 'Sudah Tercapai',
+                                count: achievedTargets.length,
+                                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                            },
+                        ]}
+                        activeTab={activeTab}
+                        onChange={setActiveTab}
+                        activeColor="text-slate-800"
+                    />
+                </div>
+
+                {/* Tabs (phones) */}
+                <div className="flex sm:hidden items-center gap-1">
                     {[
                         { key: 'berjalan', label: 'Berjalan', count: activeTargets.length },
                         { key: 'tercapai', label: 'Tercapai', count: achievedTargets.length },
@@ -219,7 +311,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                 {/* Running targets */}
                 {activeTab === 'berjalan' && (
                     activeTargets.length > 0 ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                             {activeTargets.map(item => {
                                 const percent = item.target > 0 ? Math.min(100, Math.round((item.current / item.target) * 100)) : 0;
                                 const remaining = Math.max(0, item.target - item.current);
@@ -228,7 +320,14 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                     <div key={item.id} className={`bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-5 ${item.isOptimistic ? 'opacity-60' : ''}`}>
                                         <div className="flex items-center gap-3">
                                             {item.image_path ? (
-                                                <img src={item.image_path} alt={item.name} className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl object-cover shrink-0 bg-slate-100" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewedPhoto({ src: item.image_path, name: item.name })}
+                                                    className="shrink-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#009bd2] active:scale-95 transition"
+                                                    aria-label={`Lihat foto ${item.name}`}
+                                                >
+                                                    <img src={item.image_path} alt={item.name} className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl object-cover bg-slate-100" />
+                                                </button>
                                             ) : (
                                                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-sky-50 text-[#009bd2] flex items-center justify-center shrink-0">
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /><circle cx="12" cy="12" r="4.5" strokeWidth={2} /><circle cx="12" cy="12" r="1" strokeWidth={2} fill="currentColor" /></svg>
@@ -304,7 +403,14 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                             {achievedTargets.map(item => (
                                 <div key={item.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 ${item.isOptimistic ? 'opacity-60' : ''}`}>
                                     {item.image_path ? (
-                                        <img src={item.image_path} alt={item.name} className="w-10 h-10 rounded-full object-cover shrink-0 bg-slate-100" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewedPhoto({ src: item.image_path, name: item.name })}
+                                            className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#009bd2] active:scale-95 transition"
+                                            aria-label={`Lihat foto ${item.name}`}
+                                        >
+                                            <img src={item.image_path} alt={item.name} className="w-10 h-10 rounded-full object-cover bg-slate-100" />
+                                        </button>
                                     ) : (
                                         <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                                             <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
@@ -349,6 +455,34 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     )
                 )}
             </div>
+
+            {/* Full-screen photo viewer: tap the backdrop, the close button or press Esc to close */}
+            {viewedPhoto && (
+                <div
+                    className="fixed inset-0 z-[80] bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
+                    onClick={() => setViewedPhoto(null)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`Foto ${viewedPhoto.name}`}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setViewedPhoto(null)}
+                        className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                        aria-label="Tutup foto"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+
+                    <img
+                        src={viewedPhoto.src}
+                        alt={viewedPhoto.name}
+                        onClick={(e) => e.stopPropagation()}
+                        className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+                    />
+                    <p className="mt-4 text-sm font-semibold text-white/90 text-center line-clamp-2 max-w-md">{viewedPhoto.name}</p>
+                </div>
+            )}
 
             {/* Modal Tambah/Edit Target */}
             <Modal

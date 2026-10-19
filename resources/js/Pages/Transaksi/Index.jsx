@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
+import { Head, useForm, router, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
@@ -7,7 +7,6 @@ import { ActionButtons, Modal, Button, DeleteConfirmModal } from '@/Components/U
 import useOptimisticList from '@/Utils/useOptimisticList';
 
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [], activeDebts = [] }) {
-    const { flash } = usePage().props;
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
 
@@ -102,17 +101,14 @@ export default function Index({ transactions, summary, currentMonthName, targets
         }
     }, [popupNotification.show]);
 
-    // Listen to flash messages from Inertia
-    useEffect(() => {
-        if (flash?.success) {
-            setPopupNotification({
-                show: true,
-                title: 'Transaksi Berhasil!',
-                message: flash.success,
-                type: 'success',
-            });
-        }
-    }, [flash?.success]);
+    // Popups are shown the moment the user submits (the save finishes in the background),
+    // so the server's flash message is not shown again when the response arrives.
+    const showSaveFailedPopup = () => setPopupNotification({
+        show: true,
+        title: 'Transaksi Gagal Disimpan',
+        message: 'Periksa kembali isian yang ditandai lalu simpan ulang.',
+        type: 'error',
+    });
 
     const { 
         data: editData, 
@@ -159,21 +155,23 @@ export default function Index({ transactions, summary, currentMonthName, targets
         const settleList = optimisticTransactions.add(newTransaction);
         const settleSummary = adjustSummary([{ type: newTransaction.type, amount: newTransaction.amount, date: newTransaction.date }]);
 
+        setPopupNotification({
+            show: true,
+            title: 'Transaksi Berhasil Dicatat! 🎉',
+            message: submittedData.title
+                ? `${submittedData.type === 'pengeluaran' ? 'Pengeluaran' : submittedData.type === 'pemasukan' ? 'Pemasukan' : 'Tabungan'} "${submittedData.title}" sebesar ${formatRp(submittedData.amount)} telah tersimpan.`
+                : 'Catatan transaksi telah berhasil disimpan ke pembukuan.',
+            type: 'success',
+        });
+
         post(route('transaksi.store'), {
             preserveScroll: true,
             async: true,
-            onSuccess: () => {
-                setPopupNotification({
-                    show: true,
-                    title: 'Transaksi Berhasil Dicatat! 🎉',
-                    message: submittedData.title
-                        ? `${submittedData.type === 'pengeluaran' ? 'Pengeluaran' : submittedData.type === 'pemasukan' ? 'Pemasukan' : 'Tabungan'} "${submittedData.title}" sebesar ${formatRp(submittedData.amount)} telah tersimpan.`
-                        : 'Catatan transaksi telah berhasil disimpan ke pembukuan.',
-                    type: 'success',
-                });
-            },
             // Validation failed: bring back what the user typed so the errors can be fixed
-            onError: () => setData(submittedData),
+            onError: () => {
+                setData(submittedData);
+                showSaveFailedPopup();
+            },
             onFinish: () => {
                 settleList();
                 settleSummary();
@@ -241,20 +239,20 @@ export default function Index({ transactions, summary, currentMonthName, targets
         setIsEditModalOpen(false);
         setEditingTx(null);
 
+        setPopupNotification({
+            show: true,
+            title: 'Perubahan Disimpan!',
+            message: 'Data transaksi berhasil diperbarui.',
+            type: 'success',
+        });
+
         putEdit(route('transaksi.update', transactionBeingEdited.id), {
             preserveScroll: true,
             async: true,
-            onSuccess: () => {
-                setPopupNotification({
-                    show: true,
-                    title: 'Perubahan Disimpan!',
-                    message: 'Data transaksi berhasil diperbarui.',
-                    type: 'success',
-                });
-            },
             onError: () => {
                 setEditingTx(transactionBeingEdited);
                 setIsEditModalOpen(true);
+                showSaveFailedPopup();
             },
             onFinish: () => {
                 settleList();
@@ -279,17 +277,16 @@ export default function Index({ transactions, summary, currentMonthName, targets
         ]);
         setTxToDelete(null);
 
+        setPopupNotification({
+            show: true,
+            title: 'Transaksi Dihapus',
+            message: 'Catatan transaksi telah berhasil dihapus.',
+            type: 'info',
+        });
+
         router.delete(route('transaksi.destroy', transactionBeingDeleted.id), {
             preserveScroll: true,
             async: true,
-            onSuccess: () => {
-                setPopupNotification({
-                    show: true,
-                    title: 'Transaksi Dihapus',
-                    message: 'Catatan transaksi telah berhasil dihapus.',
-                    type: 'info',
-                });
-            },
             onFinish: () => {
                 settleList();
                 settleSummary();
@@ -305,10 +302,14 @@ export default function Index({ transactions, summary, currentMonthName, targets
                 {/* Pop-up Notification (Toast Banner Pop-up) */}
                 {popupNotification.show && (
                     <div className="fixed top-4 inset-x-3 sm:inset-x-auto sm:right-6 sm:top-6 z-50 max-w-sm sm:max-w-md mx-auto sm:mx-0 animate-bounce-in">
-                        <div className="bg-white/95 backdrop-blur-md border border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] flex items-start gap-3">
-                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+                        <div className={`bg-white/95 backdrop-blur-md border rounded-2xl p-3.5 sm:p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] flex items-start gap-3 ${popupNotification.type === 'error' ? 'border-rose-200/90' : 'border-emerald-200/90'}`}>
+                            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${popupNotification.type === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
                                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    {popupNotification.type === 'error' ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    )}
                                 </svg>
                             </div>
                             <div className="flex-1 min-w-0 pr-1">

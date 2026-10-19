@@ -3,7 +3,7 @@ import { Head, Link, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
+import { Button, ActionButtons, Modal, DeleteConfirmModal } from '@/Components/UI';
 import { compressImage } from '@/Utils/imageCompressor';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
@@ -139,241 +139,214 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     const activeTargets = optimisticTargets.items.filter(t => t.status === 'Berjalan');
     const achievedTargets = optimisticTargets.items.filter(t => t.status === 'Tercapai');
 
+    // Combined progress of all running targets for the summary card
+    const overallSaved = activeTargets.reduce((sum, t) => sum + (Number(t.current) || 0), 0);
+    const overallGoal = activeTargets.reduce((sum, t) => sum + (Number(t.target) || 0), 0);
+    const overallPercent = overallGoal > 0 ? Math.min(100, Math.round((overallSaved / overallGoal) * 100)) : 0;
+
     return (
         <AuthenticatedLayout>
             <Head title="Tabungan & Target" />
-            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 relative">
-                
-                {/* Header Page & Toolbar */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
-                    <div>
-                        <p className="text-[11px] sm:text-xs font-bold text-[#009bd2] uppercase tracking-wider mb-0.5 sm:mb-1">Jangka Panjang</p>
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-                            Tabungan & Target
-                        </h1>
-                        <p className="text-slate-500 font-medium text-xs sm:text-sm mt-0.5 sm:mt-1">Rencanakan dan pantau pencapaian impian finansial Anda.</p>
-                    </div>
-                    
-                    {/* Actions & Tab Navigation */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
-                        <TabFilter
-                            tabs={[
-                                { key: 'berjalan', label: 'Sedang Berjalan', mobileLabel: 'Berjalan', count: activeTargets.length },
-                                { key: 'tercapai', label: 'Sudah Tercapai', mobileLabel: 'Tercapai', count: achievedTargets.length },
-                            ]}
-                            activeTab={activeTab}
-                            onChange={setActiveTab}
-                        />
-                        <Button 
-                            onClick={openAddModal}
-                            variant={isFree && !canAdd ? 'secondary' : 'primary'}
-                            className={`min-h-[42px] ${isFree && !canAdd ? '!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100' : ''}`}
-                            icon={isFree && !canAdd ? (
-                                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            ) : (
-                                <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
-                            )}
-                        >
-                            {isFree && !canAdd ? 'Batas Tercapai (1/1)' : 'Tambah Target'}
-                        </Button>
-                    </div>
+            <div className="max-w-5xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5">
+
+                {/* Header */}
+                <div className="flex items-center justify-between gap-3">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Tabungan & Target</h1>
+                    <Button
+                        size="sm"
+                        onClick={openAddModal}
+                        variant={isFree && !canAdd ? 'secondary' : 'primary'}
+                        className={`!rounded-full ${isFree && !canAdd ? '!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100' : ''}`}
+                        icon={isFree && !canAdd ? (
+                            <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
+                        )}
+                    >
+                        {isFree && !canAdd ? 'Batas 1/1' : 'Target'}
+                    </Button>
                 </div>
 
-                {/* Free Tier Limit Banner */}
+                {/* Free tier: one-line quota notice */}
                 {isFree && (
-                    <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-4 shadow-2xs">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[11.5px] sm:text-xs font-black text-amber-950 truncate">
-                                        Kuota Gratis: {currentCount}/1 Target
-                                    </span>
-                                    <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${!canAdd ? 'bg-amber-200/90 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>
-                                        {!canAdd ? 'Penuh' : 'Tersedia'}
-                                    </span>
-                                </div>
-                                <p className="text-[10px] sm:text-[11.5px] text-amber-800/80 font-medium truncate mt-0.5">
-                                    {!canAdd 
-                                        ? 'Batas tercapai. Upgrade ke PRO untuk tambah target tanpa batas.' 
-                                        : 'Akun Gratis dibatasi maksimal 1 target impian aktif.'}
-                                </p>
-                            </div>
-                        </div>
-                        <Link 
-                            href={route('berlangganan.index')}
-                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-lg sm:rounded-xl shadow-2xs transition-all shrink-0 active:scale-95"
-                        >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <span>Upgrade Pro</span>
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50/80 px-4 py-2.5">
+                        <span className="text-xs font-semibold text-amber-900 truncate">
+                            Paket gratis · {currentCount}/1 target
+                        </span>
+                        <Link href={route('berlangganan.index')} className="text-xs font-bold text-amber-700 hover:text-amber-900 shrink-0">
+                            Upgrade
                         </Link>
                     </div>
                 )}
 
-                {/* Tab Sedang Berjalan */}
-                {activeTab === 'berjalan' && (
-                    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-                        {activeTargets.length > 0 ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-6">
-                                {activeTargets.map(item => {
-                                    const percent = Math.min(100, Math.round((item.current / item.target) * 100));
-                                    const remaining = Math.max(0, item.target - item.current);
-                                    
-                                    return (
-                                        <div key={item.id} className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col overflow-hidden ${item.isOptimistic ? 'opacity-70' : ''}`}>
-                                            {/* Half-Cover Image */}
-                                            {item.image_path && (
-                                                <div className="w-full shrink-0 bg-slate-100 relative overflow-hidden h-28 sm:h-36">
-                                                    <img src={item.image_path} alt={item.name} className="w-full h-full object-cover" />
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                                                </div>
-                                            )}
-
-                                            <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-start gap-2.5 mb-3 sm:mb-5">
-                                                        <div className="flex items-start sm:items-center gap-3 min-w-0">
-                                                            {!item.image_path && (
-                                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#009bd2]/10 text-[#009bd2] flex items-center justify-center shrink-0">
-                                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="1.5" /><circle cx="12" cy="12" r="5" strokeWidth="1.5" /><circle cx="12" cy="12" r="1.5" strokeWidth="1.5" fill="currentColor"/></svg>
-                                                                </div>
-                                                            )}
-                                                            <div className="min-w-0">
-                                                                <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 leading-snug truncate" title={item.name}>{item.name}</h3>
-                                                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                                                    <span className="text-[10px] sm:text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">{item.category}</span>
-                                                                    <span className="text-[11px] sm:text-xs font-semibold text-slate-400">• Target: {item.date}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Action Dropdown (hidden until the server confirms a just-saved item) */}
-                                                        <div className={`shrink-0 -mr-1 ${item.isOptimistic ? 'invisible' : ''}`}>
-                                                            <Dropdown>
-                                                                <Dropdown.Trigger>
-                                                                    <button className="w-8 h-8 sm:w-9 sm:h-9 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
-                                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
-                                                                    </button>
-                                                                </Dropdown.Trigger>
-                                                                <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
-                                                                    <ActionButtons
-                                                                        onEdit={() => openEditModal(item)}
-                                                                        onDelete={() => handleDelete(item)}
-                                                                    />
-                                                                </Dropdown.Content>
-                                                            </Dropdown>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Progress Bar Section */}
-                                                <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-6 pt-2">
-                                                    <div className="flex justify-between items-end gap-2">
-                                                        <div className="min-w-0">
-                                                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-[#009bd2] tracking-tight truncate" title={formatRp(item.current)}>{formatRp(item.current)}</p>
-                                                            <p className="text-xs sm:text-sm font-semibold text-slate-500 mt-0.5 truncate">Terkumpul dari {formatRp(item.target)}</p>
-                                                        </div>
-                                                        <div className="text-right shrink-0">
-                                                            <span className="text-base sm:text-xl font-black text-slate-800">{percent}%</span>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <ProgressBar 
-                                                        value={item.current}
-                                                        max={item.target}
-                                                        variant="blue"
-                                                    />
-                                                    
-                                                    <div className="flex justify-between items-center text-xs sm:text-sm font-bold pt-0.5 sm:pt-1">
-                                                        <span className="text-slate-500 truncate mr-2">Sisa {formatRp(remaining)}</span>
-                                                        <Link 
-                                                            href={route('transaksi.index', { type: 'tabungan' })}
-                                                            className="text-[#009bd2] hover:text-[#007da8] bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 font-extrabold shrink-0 active:scale-95 min-h-[32px]"
-                                                        >
-                                                            + Tambah Saldo
-                                                        </Link>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="bg-slate-50/70 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xs mb-3 sm:mb-4 text-slate-300">
-                                    <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                                </div>
-                                <p className="text-slate-600 font-bold text-sm sm:text-base">Belum ada target yang sedang berjalan.</p>
-                                <p className="text-slate-400 text-xs sm:text-sm mt-1">Tekan tombol 'Tambah Target' untuk mulai merencanakan tabungan.</p>
-                            </div>
-                        )}
+                {/* Overall progress of running targets */}
+                {activeTargets.length > 0 && (
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 sm:p-6">
+                        <p className="text-xs font-semibold text-slate-400">Total terkumpul</p>
+                        <div className="flex items-baseline justify-between gap-3 mt-1">
+                            <p className="text-[28px] sm:text-3xl leading-tight font-extrabold text-slate-900 tracking-tight tabular-nums truncate">
+                                {formatRp(overallSaved)}
+                            </p>
+                            <span className="text-sm font-bold text-slate-400 tabular-nums shrink-0">{overallPercent}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-4">
+                            <div className="h-full bg-[#009bd2] rounded-full transition-all duration-500" style={{ width: `${overallPercent}%` }} />
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-400 mt-2">dari {formatRp(overallGoal)} · {activeTargets.length} target berjalan</p>
                     </div>
                 )}
 
-                {/* Tab Sudah Tercapai */}
-                {activeTab === 'tercapai' && (
-                    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-                        {achievedTargets.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6">
-                                {achievedTargets.map(item => (
-                                    <div key={item.id} className="bg-emerald-50/70 border border-emerald-200/80 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl relative flex flex-col justify-between hover:border-emerald-300 transition-all overflow-hidden shadow-[0_8px_30px_rgb(16,185,129,0.03)]">
-                                        {/* Half-Cover Image for Achieved Targets */}
-                                        {item.image_path && (
-                                            <div className="absolute inset-x-0 top-0 bg-slate-100 opacity-40 mix-blend-luminosity overflow-hidden h-24 sm:h-28">
-                                                <img src={item.image_path} alt={item.name} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-emerald-50 to-transparent"></div>
+                {/* Tabs */}
+                <div className="flex items-center gap-1">
+                    {[
+                        { key: 'berjalan', label: 'Berjalan', count: activeTargets.length },
+                        { key: 'tercapai', label: 'Tercapai', count: achievedTargets.length },
+                    ].map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`h-8 sm:h-9 px-3.5 rounded-full text-xs sm:text-sm font-semibold transition flex items-center gap-1 ${
+                                activeTab === tab.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                            {tab.label}
+                            <span className={activeTab === tab.key ? 'text-white/60' : 'text-slate-300'}>{tab.count}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Running targets */}
+                {activeTab === 'berjalan' && (
+                    activeTargets.length > 0 ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                            {activeTargets.map(item => {
+                                const percent = item.target > 0 ? Math.min(100, Math.round((item.current / item.target) * 100)) : 0;
+                                const remaining = Math.max(0, item.target - item.current);
+
+                                return (
+                                    <div key={item.id} className={`bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-5 ${item.isOptimistic ? 'opacity-60' : ''}`}>
+                                        <div className="flex items-center gap-3">
+                                            {item.image_path ? (
+                                                <img src={item.image_path} alt={item.name} className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl object-cover shrink-0 bg-slate-100" />
+                                            ) : (
+                                                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-sky-50 text-[#009bd2] flex items-center justify-center shrink-0">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /><circle cx="12" cy="12" r="4.5" strokeWidth={2} /><circle cx="12" cy="12" r="1" strokeWidth={2} fill="currentColor" /></svg>
+                                                </div>
+                                            )}
+
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-sm sm:text-base font-bold text-slate-800 leading-snug line-clamp-2 break-words" title={item.name}>{item.name}</h3>
+                                                <p className="text-[11px] sm:text-xs font-medium text-slate-400 truncate mt-0.5">
+                                                    {[item.category, item.date !== '-' ? item.date : null].filter(Boolean).join(' · ')}
+                                                </p>
                                             </div>
-                                        )}
-                                        
-                                        <div className="relative z-10 flex justify-between items-start mb-4 sm:mb-6">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-200/50 shadow-xs shrink-0">
-                                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
-                                            </div>
-                                            
-                                            {/* Action Dropdown (hidden until the server confirms a just-saved item) */}
-                                            <div className={`shrink-0 -mr-1 ${item.isOptimistic ? 'invisible' : ''}`}>
+
+                                            {/* Action menu (hidden until the server confirms a just-saved item) */}
+                                            <div className={`shrink-0 -mr-2 ${item.isOptimistic ? 'invisible' : ''}`}>
                                                 <Dropdown>
                                                     <Dropdown.Trigger>
-                                                        <button className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-100/50 rounded-lg flex items-center justify-center transition-colors focus:outline-none">
-                                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                                        <button className="w-8 h-8 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full flex items-center justify-center transition-colors focus:outline-none" aria-label="Menu Opsi">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
                                                         </button>
                                                     </Dropdown.Trigger>
-                                                        <Dropdown.Content align="right" width="auto" contentClasses="p-1.5 bg-white border border-slate-100 shadow-xl flex items-center gap-1 rounded-xl">
-                                                            <ActionButtons
-                                                                onDelete={() => handleDelete(item)}
-                                                            />
-                                                        </Dropdown.Content>
+                                                    <Dropdown.Content align="right" width="auto" contentClasses="p-1 bg-white border border-slate-100 shadow-xl flex items-center rounded-xl">
+                                                        <ActionButtons
+                                                            size="sm"
+                                                            variant="transparent"
+                                                            onEdit={() => openEditModal(item)}
+                                                            onDelete={() => handleDelete(item)}
+                                                        />
+                                                    </Dropdown.Content>
                                                 </Dropdown>
                                             </div>
                                         </div>
 
-                                        <div className="relative z-10 mt-2 sm:mt-4">
-                                            <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 leading-tight truncate" title={item.name}>{item.name}</h3>
-                                            <div className="flex items-center gap-1.5 mt-1 mb-4 sm:mb-6">
-                                                <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">{item.category}</span>
-                                                <span className="text-[11px] sm:text-xs font-semibold text-slate-500">• Tercapai: {item.date}</span>
-                                            </div>
+                                        <div className="mt-4 flex items-baseline justify-between gap-2">
+                                            <p className="min-w-0 truncate">
+                                                <span className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight tabular-nums">{formatRp(item.current)}</span>
+                                                <span className="text-xs font-medium text-slate-400"> / {formatRp(item.target)}</span>
+                                            </p>
+                                            <span className="text-sm font-bold text-[#009bd2] tabular-nums shrink-0">{percent}%</span>
                                         </div>
-                                        <div className="relative z-10 pt-2 border-t border-emerald-200/50">
-                                            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mb-0.5">Total Terkumpul</p>
-                                            <p className="text-xl sm:text-2xl font-black text-emerald-600 tracking-tight truncate" title={formatRp(item.target)}>{formatRp(item.target)}</p>
+
+                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2.5">
+                                            <div className="h-full bg-[#009bd2] rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                                        </div>
+
+                                        <div className="mt-3 flex items-center justify-between gap-2">
+                                            <span className="text-[11px] sm:text-xs font-medium text-slate-400 truncate">Sisa {formatRp(remaining)}</span>
+                                            <Link
+                                                href={route('transaksi.index', { type: 'tabungan' })}
+                                                className="h-7 px-3 rounded-full text-[11px] sm:text-xs font-bold text-[#009bd2] hover:bg-[#009bd2]/10 flex items-center transition shrink-0"
+                                            >
+                                                + Tambah saldo
+                                            </Link>
                                         </div>
                                     </div>
-                                ))}
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-3xl border border-slate-100 min-h-[220px] flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center mb-3">
+                                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={1.75} /><circle cx="12" cy="12" r="4.5" strokeWidth={1.75} /></svg>
                             </div>
-                        ) : (
-                            <div className="bg-slate-50/70 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xs mb-3 sm:mb-4 text-slate-300">
-                                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p className="text-slate-500 font-bold text-sm">Belum ada target berjalan</p>
+                        </div>
+                    )
+                )}
+
+                {/* Achieved targets */}
+                {activeTab === 'tercapai' && (
+                    achievedTargets.length > 0 ? (
+                        <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] divide-y divide-slate-100">
+                            {achievedTargets.map(item => (
+                                <div key={item.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 ${item.isOptimistic ? 'opacity-60' : ''}`}>
+                                    {item.image_path ? (
+                                        <img src={item.image_path} alt={item.name} className="w-10 h-10 rounded-full object-cover shrink-0 bg-slate-100" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                                        </div>
+                                    )}
+
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-sm sm:text-[15px] font-bold text-slate-800 leading-snug line-clamp-2 break-words" title={item.name}>{item.name}</h3>
+                                        <p className="text-[11px] sm:text-xs font-medium text-slate-400 truncate mt-0.5">
+                                            {item.category} · <span className="text-emerald-600">Tercapai</span>
+                                        </p>
+                                    </div>
+
+                                    <span className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight tabular-nums shrink-0">{formatRp(item.target)}</span>
+
+                                    <div className={`shrink-0 -mr-2 ${item.isOptimistic ? 'invisible' : ''}`}>
+                                        <Dropdown>
+                                            <Dropdown.Trigger>
+                                                <button className="w-8 h-8 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full flex items-center justify-center transition-colors focus:outline-none" aria-label="Menu Opsi">
+                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                                </button>
+                                            </Dropdown.Trigger>
+                                            <Dropdown.Content align="right" width="auto" contentClasses="p-1 bg-white border border-slate-100 shadow-xl flex items-center rounded-xl">
+                                                <ActionButtons
+                                                    size="sm"
+                                                    variant="transparent"
+                                                    onDelete={() => handleDelete(item)}
+                                                />
+                                            </Dropdown.Content>
+                                        </Dropdown>
+                                    </div>
                                 </div>
-                                <p className="text-slate-600 font-bold text-sm sm:text-base">Belum ada target yang tercapai.</p>
-                                <p className="text-slate-400 text-xs sm:text-sm mt-1">Terus menabung secara konsisten dan wujudkan impianmu!</p>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-3xl border border-slate-100 min-h-[220px] flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center mb-3">
+                                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
-                        )}
-                    </div>
+                            <p className="text-slate-500 font-bold text-sm">Belum ada target tercapai</p>
+                        </div>
+                    )
                 )}
             </div>
 
@@ -508,15 +481,6 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                 confirmText="Hapus Target"
             />
             
-            <style jsx>{`
-                .animate-fade-in {
-                    animation: fadeIn 0.2s ease-out forwards;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(5px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
         </AuthenticatedLayout>
     );
 }

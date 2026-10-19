@@ -8,6 +8,10 @@ import PwaInstallBanner from '@/Components/UI/PwaInstallBanner';
 import OnboardingTour from '@/Components/UI/OnboardingTour';
 import NotificationPanel from '@/Components/UI/NotificationPanel';
 
+// Main menus kept prefetched: served instantly from cache for 30s, then shown immediately
+// while refreshing in the background for up to 5 minutes (stale-while-revalidate).
+const INSTANT_MENU_CACHE_FOR = ['30s', '5m'];
+
 const Icons = {
     Dashboard: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
     Anggaran: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4M20 12a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0a2 2 0 00-2-2H6a2 2 0 00-2 2" /></svg>,
@@ -52,6 +56,13 @@ export default function AuthenticatedLayout({ children }) {
     });
 
     const currentUrl = usePage().url;
+    const [menuCacheGeneration, setMenuCacheGeneration] = useState(0);
+
+    // Any change to the user's data makes cached pages outdated: drop them and prefetch again
+    const refreshMenuCache = () => {
+        router.flushAll();
+        setMenuCacheGeneration((generation) => generation + 1);
+    };
     const sidebarNavRef = useRef(null);
 
     // Mobile Navigation Mode: 'bottom' (App bottom nav bar) | 'sidebar' (Classic sidebar drawer)
@@ -150,6 +161,8 @@ export default function AuthenticatedLayout({ children }) {
             const channel = window.Echo.private(`user.${user.id}`);
 
             const handleEvent = (e) => {
+                refreshMenuCache();
+
                 // Dispatch window event so pages (especially Dashboard) can update immediately in-memory
                 if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('finance-realtime-update', { detail: e }));
@@ -296,6 +309,57 @@ export default function AuthenticatedLayout({ children }) {
     const isBudgetLocked = user?.permissions ? !user.permissions.budget : !isPro;
     const isReportLocked = user?.permissions ? !user.permissions.report : !isPro;
     const isAIAgentLocked = user?.permissions ? !user.permissions.ai_agent : !isProPlus;
+
+    // Instant menu navigation (also on phones, which have no hover to trigger link prefetching):
+    // once the current page is idle, prefetch the main menus one by one so a tap renders from cache.
+    useEffect(() => {
+        if (!user?.id || typeof window === 'undefined') {
+            return;
+        }
+
+        const menuRouteNames = ['dashboard', 'transaksi.index', 'tagihan.index', 'tabungan.target', 'hutang-piutang.index', 'transaksi.history'];
+        if (!isBudgetLocked) {
+            menuRouteNames.push('anggaran.ringkasan');
+        }
+        if (!isReportLocked) {
+            menuRouteNames.push('laporan.index');
+        }
+
+        const timers = [];
+        const prefetchMenus = () => {
+            menuRouteNames
+                .map((routeName) => route(routeName))
+                .filter((url) => new URL(url, window.location.origin).pathname !== window.location.pathname)
+                .forEach((url, index) => {
+                    // Staggered so the server never receives a burst of requests at once
+                    timers.push(setTimeout(() => {
+                        router.prefetch(url, { method: 'get' }, { cacheFor: INSTANT_MENU_CACHE_FOR });
+                    }, index * 250));
+                });
+        };
+
+        const hasIdleCallback = 'requestIdleCallback' in window;
+        const idleHandle = hasIdleCallback
+            ? window.requestIdleCallback(prefetchMenus, { timeout: 2000 })
+            : setTimeout(prefetchMenus, 800);
+
+        return () => {
+            timers.forEach(clearTimeout);
+            if (hasIdleCallback) {
+                window.cancelIdleCallback(idleHandle);
+            } else {
+                clearTimeout(idleHandle);
+            }
+        };
+    }, [user?.id, currentUrl, menuCacheGeneration, isBudgetLocked, isReportLocked]);
+
+    // Saving, editing or deleting anything (any non-GET request) invalidates the cached menu pages
+    useEffect(() => router.on('finish', (event) => {
+        const visit = event.detail.visit;
+        if (visit.method !== 'get' && visit.completed) {
+            refreshMenuCache();
+        }
+    }), []);
 
     // Helper for Menu Items that anchor icons so they never move during width transitions
     const MenuItem = ({

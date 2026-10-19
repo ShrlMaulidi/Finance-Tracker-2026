@@ -6,6 +6,36 @@ import CurrencyInput from '@/Components/CurrencyInput';
 import { ActionButtons, Modal, Button, DeleteConfirmModal } from '@/Components/UI';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
+// Colors of the "Catat Transaksi" form follow the selected transaction type
+const TRANSACTION_FORM_THEMES = {
+    pemasukan: {
+        soft: 'bg-emerald-50 text-emerald-600',
+        text: 'text-emerald-600',
+        chip: 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30',
+        panel: 'bg-emerald-50/60 border-emerald-100',
+        focus: 'focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10',
+        button: 'from-emerald-500 to-emerald-600 shadow-emerald-500/30',
+    },
+    pengeluaran: {
+        soft: 'bg-rose-50 text-rose-500',
+        text: 'text-rose-600',
+        chip: 'bg-rose-500 text-white shadow-sm shadow-rose-500/30',
+        panel: 'bg-rose-50/60 border-rose-100',
+        focus: 'focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10',
+        button: 'from-rose-500 to-rose-600 shadow-rose-500/30',
+    },
+    tabungan: {
+        soft: 'bg-sky-50 text-[#009bd2]',
+        text: 'text-[#009bd2]',
+        chip: 'bg-[#009bd2] text-white shadow-sm shadow-[#009bd2]/30',
+        panel: 'bg-sky-50/70 border-sky-100',
+        focus: 'focus:border-[#009bd2] focus:ring-4 focus:ring-[#009bd2]/10',
+        button: 'from-[#00b5f8] to-[#009bd2] shadow-[#009bd2]/30',
+    },
+};
+
+const formFieldClass = 'w-full h-12 bg-slate-50/80 border border-slate-200/80 text-slate-800 rounded-2xl px-3.5 font-bold text-xs sm:text-sm transition-all duration-200 focus:outline-none focus:bg-white';
+
 export default function Index({ transactions, summary, currentMonthName, targets, pemasukanCategories, pengeluaranCategories, paymentMethods, activeBills = [], activeDebts = [] }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
@@ -50,6 +80,33 @@ export default function Index({ transactions, summary, currentMonthName, targets
         return { ...totals, saldo: totals.pemasukan - totals.pengeluaran - totals.tabungan };
     }, [summary, summaryAdjustments]);
 
+    // Recent transactions grouped per day (newest first) with each day's net total
+    const transactionDateGroups = useMemo(() => {
+        const toDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const todayKey = toDateKey(new Date());
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = toDateKey(yesterday);
+
+        const groups = new Map();
+        visibleTransactions.forEach((item) => {
+            const dateKey = String(item.date || '').substring(0, 10);
+            if (!groups.has(dateKey)) {
+                groups.set(dateKey, {
+                    date: dateKey,
+                    label: dateKey === todayKey ? 'Hari ini' : dateKey === yesterdayKey ? 'Kemarin' : item.date_formatted,
+                    net: 0,
+                    items: [],
+                });
+            }
+            const group = groups.get(dateKey);
+            group.items.push(item);
+            group.net += item.type === 'pemasukan' ? Number(item.amount) : -Number(item.amount);
+        });
+
+        return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date));
+    }, [visibleTransactions]);
+
     const toOptimisticTransaction = (formData) => ({
         type: formData.type,
         amount: Number(formData.amount) || 0,
@@ -78,6 +135,8 @@ export default function Index({ transactions, summary, currentMonthName, targets
         }
         return !b.is_paid;
     });
+
+    const formTheme = TRANSACTION_FORM_THEMES[data.type] || TRANSACTION_FORM_THEMES.pengeluaran;
 
     const selectedBill = data.type === 'pengeluaran' && data.category === 'Tagihan Rutin'
         ? (activeBills.find(b => String(b.id) === String(data.bill_id)) || null)
@@ -433,224 +492,157 @@ export default function Index({ transactions, summary, currentMonthName, targets
                     
                     {/* Form Kiri */}
                     <div className={`${mobileTab === 'catat' ? 'block' : 'hidden'} sm:block lg:col-span-1`}>
-                        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col">
-                            <h2 className="text-base sm:text-xl font-extrabold text-slate-800 mb-4 sm:mb-6 shrink-0">
-                                Catat Transaksi
-                            </h2>
-                            
-                            <form onSubmit={submit} className="space-y-3 sm:space-y-4">
+                        <div className="bg-white rounded-3xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
+                            <form onSubmit={submit} className="p-4 sm:p-6 md:p-7 flex flex-col gap-4 sm:gap-5">
                                 <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Jenis Transaksi</label>
-                                    <div className="flex bg-slate-100/80 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl items-center gap-1">
-                                        <button 
-                                            type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : '', bill_id: '', debt_id: ''})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            Pemasukan
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : '', bill_id: '', debt_id: ''})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            Pengeluaran
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => { setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id, bill_id: '', debt_id: ''})); clearErrors('type'); }}
-                                            className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 min-h-[40px] rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${data.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            Tabungan
-                                        </button>
+                                    <h2 className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight">Catat Transaksi</h2>
+                                </div>
+
+                                {/* Jenis Transaksi */}
+                                <div>
+                                    <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/80 rounded-2xl">
+                                        {[
+                                            { key: 'pemasukan', label: 'Pemasukan', onSelect: () => setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 19V5m0 0l-6 6m6-6l6 6" /> },
+                                            { key: 'pengeluaran', label: 'Pengeluaran', onSelect: () => setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m0 0l6-6m-6 6l-6-6" /> },
+                                            { key: 'tabungan', label: 'Tabungan', onSelect: () => setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id, bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /> },
+                                        ].map((option) => {
+                                            const isSelected = data.type === option.key;
+                                            const optionTheme = TRANSACTION_FORM_THEMES[option.key];
+                                            return (
+                                                <button
+                                                    key={option.key}
+                                                    type="button"
+                                                    onClick={() => { option.onSelect(); clearErrors('type'); }}
+                                                    className={`flex flex-col items-center justify-center gap-1 py-2 sm:py-2.5 min-h-[56px] rounded-xl font-extrabold text-[11px] sm:text-xs transition-all duration-300 ${isSelected ? `bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)] ${optionTheme.text}` : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-300 ${isSelected ? optionTheme.chip : 'bg-slate-200/70 text-slate-500'}`}>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">{option.icon}</svg>
+                                                    </span>
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                     {errors.type && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.type}</p>}
                                 </div>
 
+                                {/* Kategori */}
                                 <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Kategori</label>
-                                    <select 
-                                        value={data.category}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            setData(prev => ({
-                                                ...prev,
-                                                category: val,
-                                                bill_id: val === 'Tagihan Rutin' ? prev.bill_id : '',
-                                                debt_id: val === 'Hutang' ? prev.debt_id : '',
-                                            }));
-                                        }}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
-                                    >
-                                        <option value="" disabled>Pilih Kategori</option>
-                                        {(data.type === 'pengeluaran' ? pengeluaranCategories : data.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
-                                            <option key={cat.id} value={cat.id}>{cat.label}</option>
-                                        ))}
-                                    </select>
+                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Kategori</label>
+                                    <div className="relative">
+                                        <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                                        <select
+                                            value={data.category}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    category: val,
+                                                    bill_id: val === 'Tagihan Rutin' ? prev.bill_id : '',
+                                                    debt_id: val === 'Hutang' ? prev.debt_id : '',
+                                                }));
+                                            }}
+                                            className={`${formFieldClass} ${formTheme.focus} pl-10 pr-10 appearance-none bg-none cursor-pointer`}
+                                        >
+                                            <option value="" disabled>Pilih Kategori</option>
+                                            {(data.type === 'pengeluaran' ? pengeluaranCategories : data.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
+                                                <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                            ))}
+                                        </select>
+                                        <svg className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
                                     {errors.category && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.category}</p>}
                                 </div>
 
-                                {/* Dropdown Tambahan Ketika Pilih Kategori Tagihan Rutin */}
+                                {/* Pilih Tagihan Rutin */}
                                 {data.type === 'pengeluaran' && data.category === 'Tagihan Rutin' && (
-                                    <div className="p-3.5 bg-sky-50/70 border border-sky-100 rounded-xl sm:rounded-2xl space-y-2 transition-all">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs sm:text-[13px] font-bold text-slate-700 flex items-center gap-1.5">
-                                                <svg className="w-4 h-4 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                </svg>
-                                                <span>Pilih Tagihan Rutin <span className="text-rose-500">*</span></span>
-                                            </label>
-                                            {availableBillsForInput.length > 0 && (
-                                                <span className="text-[10px] font-extrabold text-[#009bd2] bg-white border border-sky-200/60 px-2 py-0.5 rounded-full shadow-2xs">
-                                                    {availableBillsForInput.length} Belum Lunas
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <select 
-                                            value={data.bill_id}
-                                            onChange={e => {
-                                                const billId = e.target.value;
-                                                const matched = activeBills.find(b => String(b.id) === String(billId));
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    bill_id: billId,
-                                                    ...(matched ? {
-                                                        amount: matched.amount,
-                                                        title: `Bayar Tagihan ${matched.name}`
-                                                    } : {})
-                                                }));
-                                            }}
-                                            disabled={availableBillsForInput.length === 0}
-                                            className="w-full bg-white border-2 border-sky-200/80 text-slate-800 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-2xs disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                        >
-                                            <option value="">
-                                                {availableBillsForInput.length === 0 ? '-- Semua Tagihan Periode Ini Sudah Lunas --' : '-- Pilih Tagihan Rutin --'}
-                                            </option>
-                                            {availableBillsForInput.map(b => (
-                                                <option key={b.id} value={b.id}>
-                                                    {b.name} - {formatRp(b.amount)} {b.due_day ? `(Jatuh tempo tgl ${b.due_day})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        {availableBillsForInput.length === 0 ? (
-                                            activeBills.length === 0 ? (
-                                                <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pt-1">
-                                                    <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                    </svg>
-                                                    <span>Belum ada data tagihan rutin.</span>
-                                                    <Link href={route('tagihan.index')} className="text-[#009bd2] font-bold underline hover:text-[#0086b6]">
-                                                        Tambah Tagihan
-                                                    </Link>
-                                                </p>
-                                            ) : (
-                                                <div className="p-2.5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl text-emerald-800 text-[11px] font-semibold flex items-center gap-2">
-                                                    <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    <span>Semua tagihan rutin untuk periode ini sudah lunas!</span>
-                                                </div>
-                                            )
+                                    <div>
+                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Tagihan</label>
+                                        {availableBillsForInput.length > 0 ? (
+                                            <div className="relative">
+                                                <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                                <select
+                                                    value={data.bill_id}
+                                                    onChange={e => {
+                                                        const billId = e.target.value;
+                                                        const matched = activeBills.find(b => String(b.id) === String(billId));
+                                                        setData(prev => ({
+                                                            ...prev,
+                                                            bill_id: billId,
+                                                            ...(matched ? {
+                                                                amount: matched.amount,
+                                                                title: `Bayar Tagihan ${matched.name}`
+                                                            } : {})
+                                                        }));
+                                                    }}
+                                                    className={`${formFieldClass} ${formTheme.focus} pl-10 pr-10 appearance-none bg-none cursor-pointer truncate`}
+                                                >
+                                                    <option value="">Pilih tagihan</option>
+                                                    {availableBillsForInput.map(b => (
+                                                        <option key={b.id} value={b.id}>{b.name} · {formatRp(b.amount)}</option>
+                                                    ))}
+                                                </select>
+                                                <svg className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
                                         ) : (
-                                            <p className="text-[11px] text-slate-500 font-medium">
-                                                Hanya menampilkan tagihan rutin yang belum lunas pada periode ini.
+                                            <p className="h-12 flex items-center gap-1.5 px-3.5 rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 text-xs font-semibold text-slate-500">
+                                                {activeBills.length === 0 ? (
+                                                    <>Belum ada tagihan. <Link href={route('tagihan.index')} className="text-[#009bd2] font-bold hover:underline">Tambah</Link></>
+                                                ) : 'Semua tagihan bulan ini sudah lunas'}
                                             </p>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Dropdown Tambahan Ketika Pilih Kategori Hutang */}
+                                {/* Pilih Hutang */}
                                 {data.type === 'pengeluaran' && data.category === 'Hutang' && (
-                                    <div className="p-3.5 bg-rose-50/70 border border-rose-100 rounded-xl sm:rounded-2xl space-y-2 transition-all">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <label className="text-xs sm:text-[13px] font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
-                                                <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                </svg>
-                                                <span>Pilih Hutang</span>
-                                            </label>
-                                            {activeDebts.length > 0 && (
-                                                <span className="text-[10px] font-extrabold text-rose-600 bg-white border border-rose-200/80 px-2 py-0.5 rounded-full shadow-2xs whitespace-nowrap shrink-0">
-                                                    {activeDebts.length} Belum Lunas
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <select 
-                                            value={data.debt_id}
-                                            onChange={e => {
-                                                const debtId = e.target.value;
-                                                const matched = activeDebts.find(d => String(d.id) === String(debtId));
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    debt_id: debtId,
-                                                    ...(matched ? {
-                                                        amount: matched.remaining_amount || matched.amount,
-                                                        title: `Bayar Hutang ${matched.name}`
-                                                    } : {})
-                                                }));
-                                            }}
-                                            disabled={activeDebts.length === 0}
-                                            className="w-full bg-white border-2 border-rose-200/80 text-slate-800 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-rose-400 font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-2xs disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed truncate"
-                                        >
-                                            <option value="">
-                                                {activeDebts.length === 0 ? '-- Tidak Ada Hutang Belum Lunas --' : '-- Pilih Data Hutang --'}
-                                            </option>
-                                            {activeDebts.map(d => (
-                                                <option key={d.id} value={d.id}>
-                                                    {d.name} • Sisa {formatRp(d.remaining_amount)}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        {activeDebts.length === 0 && (
-                                            <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pt-1">
-                                                <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                </svg>
-                                                <span>Belum ada hutang aktif yang belum lunas.</span>
-                                                <Link href={route('hutang-piutang.index')} className="text-rose-600 font-bold underline hover:text-rose-700">
-                                                    Tambah Hutang
-                                                </Link>
+                                    <div>
+                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Hutang</label>
+                                        {activeDebts.length > 0 ? (
+                                            <div className="relative">
+                                                <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                <select
+                                                    value={data.debt_id}
+                                                    onChange={e => {
+                                                        const debtId = e.target.value;
+                                                        const matched = activeDebts.find(d => String(d.id) === String(debtId));
+                                                        setData(prev => ({
+                                                            ...prev,
+                                                            debt_id: debtId,
+                                                            ...(matched ? {
+                                                                amount: matched.remaining_amount || matched.amount,
+                                                                title: `Bayar Hutang ${matched.name}`
+                                                            } : {})
+                                                        }));
+                                                    }}
+                                                    className={`${formFieldClass} ${formTheme.focus} pl-10 pr-10 appearance-none bg-none cursor-pointer truncate`}
+                                                >
+                                                    <option value="">Pilih hutang</option>
+                                                    {activeDebts.map(d => (
+                                                        <option key={d.id} value={d.id}>{d.name} · Sisa {formatRp(d.remaining_amount)}</option>
+                                                    ))}
+                                                </select>
+                                                <svg className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                        ) : (
+                                            <p className="h-12 flex items-center gap-1.5 px-3.5 rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 text-xs font-semibold text-slate-500">
+                                                Tidak ada hutang aktif. <Link href={route('hutang-piutang.index')} className="text-rose-600 font-bold hover:underline">Tambah</Link>
                                             </p>
                                         )}
                                     </div>
                                 )}
 
-                                <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Metode Pembayaran</label>
-                                    <select 
-                                        value={data.payment_method}
-                                        onChange={e => setData('payment_method', e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm cursor-pointer"
-                                    >
-                                        <option value="" disabled>Pilih Metode Pembayaran</option>
-                                        {paymentMethods && paymentMethods.length > 0 ? paymentMethods.map(method => (
-                                            <option key={method} value={method}>{method}</option>
-                                        )) : (
-                                            <option value="" disabled>Belum ada metode</option>
-                                        )}
-                                    </select>
-                                    {errors.payment_method && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.payment_method}</p>}
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600">Nominal</label>
+                                {/* Nominal */}
+                                <div className={`rounded-2xl px-4 py-3 sm:py-3.5 border transition-colors duration-300 ${formTheme.panel}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Nominal</label>
                                         {selectedBill && (
-                                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-md">
-                                                <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
-                                                Nominal Terkunci ({selectedBill.name})
-                                            </span>
+                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Nominal mengikuti tagihan"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                         )}
                                     </div>
-                                    <div className="relative">
-                                        <span className="absolute left-3.5 top-2.5 sm:left-4 sm:top-3.5 text-slate-400 font-extrabold text-xs sm:text-sm">Rp</span>
-                                        <CurrencyInput 
+                                    <div className="flex items-baseline gap-2 mt-0.5">
+                                        <span className={`text-lg sm:text-xl font-black ${formTheme.text}`}>Rp</span>
+                                        <CurrencyInput
                                             value={data.amount}
                                             onValueChange={val => {
                                                 if (!selectedBill) {
@@ -659,54 +651,69 @@ export default function Index({ transactions, summary, currentMonthName, targets
                                             }}
                                             readOnly={Boolean(selectedBill)}
                                             disabled={Boolean(selectedBill)}
-                                            placeholder="50000" 
-                                            className={`w-full border-2 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-3.5 py-2.5 sm:py-3 min-h-[44px] font-black text-sm sm:text-base transition-all ${
-                                                selectedBill
-                                                    ? 'bg-slate-100/90 border-slate-200 text-slate-600 cursor-not-allowed select-none focus:outline-none'
-                                                    : 'bg-slate-50 border-slate-100 text-slate-800 focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white'
-                                            }`} 
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            className={`w-full min-w-0 bg-transparent border-0 p-0 text-3xl sm:text-4xl font-black tracking-tight focus:outline-none focus:ring-0 placeholder:text-slate-300 ${selectedBill ? 'text-slate-500 cursor-not-allowed select-none' : formTheme.text}`}
                                         />
                                     </div>
-                                    {selectedBill && (
-                                        <p className="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
-                                            <svg className="w-3 h-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                            <span>Nominal terkunci sesuai tagihan <strong>{selectedBill.name}</strong> ({formatRp(selectedBill.amount)}).</span>
-                                        </p>
-                                    )}
                                     {errors.amount && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.amount}</p>}
                                 </div>
 
+                                {/* Nama Transaksi */}
                                 <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Nama Transaksi</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.title}
-                                        onChange={e => setData('title', e.target.value)}
-                                        placeholder={data.type === 'pengeluaran' ? 'Makan siang...' : 'Gaji bulanan...'}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
-                                    />
+                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Nama Transaksi</label>
+                                    <div className="relative">
+                                        <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        <input
+                                            type="text"
+                                            value={data.title}
+                                            onChange={e => setData('title', e.target.value)}
+                                            placeholder={data.type === 'pengeluaran' ? 'Makan siang...' : data.type === 'pemasukan' ? 'Gaji bulanan...' : 'Setoran tabungan...'}
+                                            className={`${formFieldClass} ${formTheme.focus} pl-10`}
+                                        />
+                                    </div>
                                     {errors.title && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.title}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5 sm:mb-2">Tanggal</label>
-                                    <input 
-                                        type="date" 
-                                        value={data.date}
-                                        onChange={e => setData('date', e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 text-slate-800 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 min-h-[44px] focus:outline-none focus:ring-0 focus:border-[#009bd2] focus:bg-white font-bold transition-all text-xs sm:text-sm" 
-                                    />
-                                    {errors.date && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.date}</p>}
+                                {/* Metode Pembayaran & Tanggal */}
+                                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                                    <div className="min-w-0">
+                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Metode</label>
+                                        <div className="relative">
+                                            <select
+                                                value={data.payment_method}
+                                                onChange={e => setData('payment_method', e.target.value)}
+                                                className={`${formFieldClass} ${formTheme.focus} pr-9 appearance-none bg-none cursor-pointer truncate`}
+                                            >
+                                                <option value="" disabled>Pilih Metode</option>
+                                                {paymentMethods && paymentMethods.length > 0 ? paymentMethods.map(method => (
+                                                    <option key={method} value={method}>{method}</option>
+                                                )) : (
+                                                    <option value="" disabled>Belum ada metode</option>
+                                                )}
+                                            </select>
+                                            <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                        {errors.payment_method && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.payment_method}</p>}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <label className="text-xs sm:text-[13px] font-bold text-slate-600 block mb-1.5">Tanggal</label>
+                                        <input
+                                            type="date"
+                                            value={data.date}
+                                            onChange={e => setData('date', e.target.value)}
+                                            className={`${formFieldClass} ${formTheme.focus}`}
+                                        />
+                                        {errors.date && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.date}</p>}
+                                    </div>
                                 </div>
 
-                                <button 
+                                <button
                                     type="submit"
                                     disabled={processing}
-                                    className={`w-full ${data.type === 'pengeluaran' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25' : data.type === 'pemasukan' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25' : ''} text-white py-3 sm:py-3.5 min-h-[46px] sm:min-h-[50px] rounded-xl sm:rounded-2xl font-black text-sm sm:text-base transition-all shadow-md active:scale-[0.99] mt-2 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                    style={data.type === 'tabungan' ? { backgroundColor: '#009bd2', boxShadow: '0 8px 16px -3px rgba(0, 155, 210, 0.25)' } : {}}
+                                    className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${formTheme.button} text-white min-h-[50px] sm:min-h-[54px] rounded-2xl font-black text-sm sm:text-base tracking-wide shadow-lg transition-all duration-300 hover:brightness-105 active:scale-[0.98] ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                     {processing ? 'Menyimpan...' : 'Simpan Transaksi'}
                                 </button>
                             </form>
@@ -715,119 +722,116 @@ export default function Index({ transactions, summary, currentMonthName, targets
 
                     {/* List Kanan */}
                     <div className={`${mobileTab === 'riwayat' ? 'block' : 'hidden'} sm:block desktop-col-span-2`}>
-                        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-slate-100 h-full lg:h-[760px] flex flex-col">
-                            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-6 shrink-0">
-                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-                                        <h2 className="text-sm sm:text-xl font-extrabold text-slate-800 truncate">
-                                            Riwayat Transaksi
-                                        </h2>
-                                        <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
-                                            {visibleTransactions.length} Data
-                                        </span>
-                                    </div>
+                        <div className="bg-white rounded-3xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full lg:h-[760px] flex flex-col overflow-hidden">
+                            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 shrink-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <h2 className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight truncate">Riwayat</h2>
+                                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                                        {visibleTransactions.length}
+                                    </span>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={() => setMobileTab('catat')}
-                                    className="sm:hidden px-3 py-1.5 min-h-[36px] rounded-xl bg-[#009bd2] hover:bg-[#0086b6] text-white font-bold text-xs flex items-center gap-1.5 active:scale-95 shadow-xs shrink-0 transition"
+                                    className="sm:hidden h-9 px-3.5 rounded-full bg-[#009bd2] text-white font-bold text-xs flex items-center gap-1.5 active:scale-95 shadow-sm shadow-[#009bd2]/30 shrink-0 transition"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/>
                                     </svg>
-                                    <span>Catat Baru</span>
+                                    <span>Catat</span>
                                 </button>
                             </div>
-                            
-                            <div className="space-y-2.5 sm:space-y-3.5 overflow-y-auto pr-0 sm:pr-2 flex-1 min-h-0">
-                                {visibleTransactions.length > 0 ? visibleTransactions.map((item) => (
-                                    <div key={item.id} className={`bg-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] border border-slate-100 hover:border-slate-200 hover:shadow-[0_4px_16px_rgb(0,0,0,0.04)] transition-all flex items-center justify-between gap-2.5 sm:gap-4 group ${item.isOptimistic ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
-                                            <div 
-                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${item.type === 'pengeluaran' ? 'bg-rose-50 text-rose-500' : item.type === 'pemasukan' ? 'bg-emerald-50 text-emerald-500' : ''}`}
-                                                style={item.type === 'tabungan' ? { backgroundColor: '#e6f5fb', color: '#007ca8' } : {}}
-                                            >
-                                                {item.type === 'pengeluaran' ? (
-                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                                ) : item.type === 'pemasukan' ? (
-                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
-                                                ) : (
-                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="text-xs sm:text-base font-extrabold text-slate-800 leading-snug truncate">{item.title}</h3>
-                                                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
-                                                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-50 px-1.5 sm:px-2 py-0.5 rounded-md border border-slate-100">{item.category}</span>
-                                                    {item.payment_method && (
-                                                        <span className="text-[10px] sm:text-xs font-bold text-indigo-500 bg-indigo-50 px-1.5 sm:px-2 py-0.5 rounded-md border border-indigo-100">{item.payment_method}</span>
-                                                    )}
-                                                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400">{item.date_formatted}</span>
-                                                </div>
-                                            </div>
+
+                            <div className="overflow-y-auto flex-1 min-h-0 px-2 sm:px-4 pb-2">
+                                {transactionDateGroups.length > 0 ? transactionDateGroups.map((group) => (
+                                    <section key={group.date} className="mb-2">
+                                        {/* Date header with that day's net total */}
+                                        <div className="sticky top-0 z-[1] bg-white/95 backdrop-blur-sm flex items-center justify-between px-2 sm:px-3 py-2">
+                                            <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">{group.label}</span>
+                                            <span className={`text-[11px] sm:text-xs font-bold tabular-nums ${group.net >= 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                {group.net >= 0 ? '+' : '-'}{formatRp(Math.abs(group.net))}
+                                            </span>
                                         </div>
-                                        
-                                        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
-                                            <div className="text-right">
-                                                <p 
-                                                    className={`text-xs sm:text-base md:text-lg font-black tracking-tight ${item.type === 'pengeluaran' ? 'text-rose-600' : item.type === 'pemasukan' ? 'text-emerald-600' : ''}`}
-                                                    style={item.type === 'tabungan' ? { color: '#007ca8' } : {}}
-                                                >
-                                                    {item.type === 'pengeluaran' ? '-' : item.type === 'tabungan' ? '-' : '+'}{formatRp(item.amount)}
-                                                </p>
-                                            </div>
-                                            
-                                            {/* Action Buttons: Edit & Hapus (Directly accessible on Desktop & Mobile, never cut off or clipped) */}
-                                            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pl-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openEditModal(item)}
-                                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-[#009bd2]/10 text-slate-500 hover:text-[#009bd2] border border-slate-200/60 flex items-center justify-center transition-all active:scale-95 shadow-2xs group/btn"
-                                                    title="Edit Transaksi"
-                                                    aria-label="Edit Transaksi"
-                                                >
-                                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(item)}
-                                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 border border-rose-200/60 flex items-center justify-center transition-all active:scale-95 shadow-2xs group/btn"
-                                                    title="Hapus Transaksi"
-                                                    aria-label="Hapus Transaksi"
-                                                >
-                                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+
+                                        <ul className="divide-y divide-slate-100">
+                                            {group.items.map((item) => {
+                                                const itemTheme = TRANSACTION_FORM_THEMES[item.type] || TRANSACTION_FORM_THEMES.pengeluaran;
+                                                return (
+                                                    <li key={item.id} className={`group flex items-center gap-3 px-2 sm:px-3 py-3 rounded-2xl hover:bg-slate-50/80 transition-colors ${item.isOptimistic ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shrink-0 ${itemTheme.soft}`}>
+                                                            <svg className="w-[18px] h-[18px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                {item.type === 'pengeluaran' ? (
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m0 0l6-6m-6 6l-6-6" />
+                                                                ) : item.type === 'pemasukan' ? (
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 19V5m0 0l-6 6m6-6l6 6" />
+                                                                ) : (
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                                                )}
+                                                            </svg>
+                                                        </div>
+
+                                                        <div className="min-w-0 flex-1">
+                                                            {/* Long names wrap to two lines instead of being cut to one; full name on hover */}
+                                                            <h3 className="text-[13px] sm:text-[15px] font-bold text-slate-800 leading-snug line-clamp-2 break-words" title={item.title}>{item.title}</h3>
+                                                            <p className="text-[11px] sm:text-xs font-medium text-slate-400 truncate mt-0.5">
+                                                                {[item.category, item.payment_method].filter(Boolean).join(' · ')}
+                                                            </p>
+                                                        </div>
+
+                                                        <p className={`text-[13px] sm:text-base font-extrabold tracking-tight tabular-nums shrink-0 ${item.type === 'pemasukan' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                                            {item.type === 'pemasukan' ? '+' : '-'}{formatRp(item.amount)}
+                                                        </p>
+
+                                                        {/* Subtle actions: always reachable on touch, revealed on hover on desktop */}
+                                                        <div className="flex items-center shrink-0 -mr-1 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openEditModal(item)}
+                                                                className="w-8 h-8 rounded-full text-slate-300 hover:text-[#009bd2] hover:bg-[#009bd2]/10 flex items-center justify-center transition active:scale-90"
+                                                                title="Edit Transaksi"
+                                                                aria-label="Edit Transaksi"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDelete(item)}
+                                                                className="w-8 h-8 rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition active:scale-90"
+                                                                title="Hapus Transaksi"
+                                                                aria-label="Hapus Transaksi"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </section>
                                 )) : (
-                                    <div className="bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center h-full flex flex-col justify-center">
-                                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm mb-3 sm:mb-4">
-                                            <svg className="w-6 h-6 sm:w-8 sm:h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center px-6">
+                                        <div className="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                                            <svg className="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                         </div>
-                                        <p className="text-slate-600 font-extrabold text-xs sm:text-base">Belum ada catatan transaksi.</p>
-                                        <p className="text-slate-400 text-[11px] sm:text-sm mt-1">Gunakan form di atas untuk mencatat transaksi baru.</p>
+                                        <p className="text-slate-500 font-bold text-sm">Belum ada transaksi</p>
                                     </div>
                                 )}
                             </div>
 
                             {visibleTransactions.length > 0 && (
-                                <div className="mt-3 pt-2.5 border-t border-slate-100 shrink-0">
+                                <div className="px-4 py-3 sm:px-6 border-t border-slate-100 shrink-0">
                                     <Link
                                         href={route('transaksi.history')}
-                                        className="text-xs font-bold text-[#009bd2] hover:text-[#0086b6] hover:bg-sky-50/70 p-2 rounded-xl flex items-center justify-center gap-1.5 transition text-center"
+                                        className="text-xs sm:text-sm font-bold text-[#009bd2] hover:text-[#0086b6] flex items-center justify-center gap-1.5 transition"
                                     >
-                                        <span>Lihat Semua Riwayat & Filter Lengkap</span>
+                                        <span>Lihat semua riwayat</span>
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
                                         </svg>
                                     </Link>
                                 </div>

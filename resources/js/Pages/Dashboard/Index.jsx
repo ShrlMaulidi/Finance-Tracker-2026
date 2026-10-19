@@ -316,6 +316,86 @@ export default function Dashboard({
 
     const availableYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
 
+    // Compact period filter shared by mobile & desktop: "‹ Okt 2026 ›" navigator + Bulan/Tahun/Semua switcher
+    const activeYear = selectedYear || new Date().getFullYear();
+    const activeMonthName = monthNames[selectedMonth] || '';
+    const goToPreviousPeriod = currentFilter === 'bulan' ? handlePrevMonth : handlePrevYear;
+    const goToNextPeriod = currentFilter === 'bulan' ? handleNextMonth : handleNextYear;
+    const periodNavButtonClass = 'w-7 h-7 sm:w-8 sm:h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition active:scale-90 shrink-0';
+
+    const periodFilter = (
+        <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-0.5 min-w-0">
+                {currentFilter !== 'semua' && (
+                    <button type="button" onClick={goToPreviousPeriod} className={periodNavButtonClass} aria-label="Periode sebelumnya">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                )}
+
+                {/* Tapping the label opens the native month / year picker */}
+                <div className="relative px-1 min-w-0">
+                    <span className="block text-[15px] sm:text-base font-extrabold text-slate-800 tracking-tight whitespace-nowrap">
+                        {currentFilter === 'bulan' ? (
+                            <>
+                                <span className="sm:hidden">{activeMonthName.slice(0, 3)} {activeYear}</span>
+                                <span className="hidden sm:inline">{activeMonthName} {activeYear}</span>
+                            </>
+                        ) : currentFilter === 'tahun' ? activeYear : 'Semua Waktu'}
+                    </span>
+                    {currentFilter === 'bulan' && (
+                        <input
+                            type="month"
+                            value={monthInputValue}
+                            onChange={handleMonthChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            aria-label="Pilih bulan"
+                        />
+                    )}
+                    {currentFilter === 'tahun' && (
+                        <select
+                            value={activeYear}
+                            onChange={handleYearChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            aria-label="Pilih tahun"
+                        >
+                            {availableYears.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+
+                {currentFilter !== 'semua' && (
+                    <button type="button" onClick={goToNextPeriod} className={periodNavButtonClass} aria-label="Periode berikutnya">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                )}
+            </div>
+
+            <div className="flex items-center p-0.5 rounded-full bg-slate-100/90 shrink-0">
+                {[
+                    { key: 'bulan', label: 'Bulan' },
+                    { key: 'tahun', label: 'Tahun' },
+                    { key: 'semua', label: 'Semua' },
+                ].map((mode) => (
+                    <button
+                        key={mode.key}
+                        type="button"
+                        onClick={() => handleFilterChange(mode.key)}
+                        aria-pressed={currentFilter === mode.key}
+                        className={`h-7 sm:h-8 px-2.5 sm:px-3.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-200 ${
+                            currentFilter === mode.key
+                                ? 'bg-white text-slate-800 shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        {mode.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
     // Colorize categories for Donut chart and legend
     const chartCategories = (categoryExpenses || []).map((cat, idx) => ({
         ...cat,
@@ -339,112 +419,8 @@ export default function Dashboard({
                 {/* ======================================================== */}
                 <div className="block sm:hidden space-y-4">
 
-                    {/* Filter Atas: Bulan, Tahun, Semua Waktu */}
-                    <div className="space-y-2">
-                        <div className="flex bg-slate-100 p-1 rounded-2xl w-full">
-                            <button
-                                type="button"
-                                onClick={() => handleFilterChange('bulan')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'bulan'
-                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                Bulan
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleFilterChange('tahun')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'tahun'
-                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                Tahun
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleFilterChange('semua')}
-                                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all duration-200 ${currentFilter === 'semua'
-                                    ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                Semua Waktu
-                            </button>
-                        </div>
-
-                        {/* Picker sub-navigation saat filter Bulan / Tahun aktif */}
-                        {currentFilter === 'bulan' && (
-                            <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-1.5 shadow-2xs">
-                                <button
-                                    type="button"
-                                    onClick={handlePrevMonth}
-                                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
-                                    aria-label="Bulan sebelumnya"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <div className="relative flex-1 text-center px-2 flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className="text-xs font-black text-slate-800 tracking-tight">
-                                        {monthNames[selectedMonth] || 'Bulan'} {selectedYear || new Date().getFullYear()}
-                                    </span>
-                                    <input
-                                        type="month"
-                                        value={monthInputValue}
-                                        onChange={handleMonthChange}
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                        title="Pilih Bulan & Tahun"
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleNextMonth}
-                                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
-                                    aria-label="Bulan berikutnya"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                        )}
-
-                        {currentFilter === 'tahun' && (
-                            <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-1.5 shadow-2xs">
-                                <button
-                                    type="button"
-                                    onClick={handlePrevYear}
-                                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
-                                    aria-label="Tahun sebelumnya"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <div className="relative flex-1 text-center px-2 flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <svg className="w-4 h-4 text-[#009bd2] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span className="text-xs font-black text-slate-800 tracking-tight">
-                                        Tahun {selectedYear || new Date().getFullYear()}
-                                    </span>
-                                    <select
-                                        value={selectedYear || new Date().getFullYear()}
-                                        onChange={handleYearChange}
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                    >
-                                        {availableYears.map(y => (
-                                            <option key={y} value={y}>{y}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleNextYear}
-                                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 shrink-0"
-                                    aria-label="Tahun berikutnya"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    {/* Filter periode */}
+                    {periodFilter}
 
                     {/* Top Card: Estimasi Saldo Tersisa, Progress Bar, Total Pemasukan, Total Pengeluaran & Total Tabungan */}
                     <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] space-y-3.5">
@@ -773,51 +749,7 @@ export default function Dashboard({
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full md:w-auto items-stretch sm:items-center">
-                            {currentFilter === 'bulan' && (
-                                <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
-                                    <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Bulan:</label>
-                                    <input
-                                        type="month"
-                                        value={monthInputValue}
-                                        onChange={handleMonthChange}
-                                        className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-1"
-                                    />
-                                </div>
-                            )}
-                            {currentFilter === 'tahun' && (
-                                <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-3 py-2 shadow-xs">
-                                    <label className="text-xs font-bold text-slate-500 mr-2 shrink-0">Tahun:</label>
-                                    <select
-                                        value={selectedYear || new Date().getFullYear()}
-                                        onChange={handleYearChange}
-                                        className="border-none bg-transparent text-xs sm:text-sm font-bold text-slate-800 focus:ring-0 p-0 cursor-pointer pr-5"
-                                    >
-                                        {availableYears.map(y => (
-                                            <option key={y} value={y}>{y}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            <div className="flex bg-slate-100/90 p-1 rounded-xl w-full sm:w-auto gap-1">
-                                <button
-                                    onClick={() => handleFilterChange('bulan')}
-                                    className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'bulan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    Bulanan
-                                </button>
-                                <button
-                                    onClick={() => handleFilterChange('tahun')}
-                                    className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'tahun' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    Tahunan
-                                </button>
-                                <button
-                                    onClick={() => handleFilterChange('semua')}
-                                    className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all duration-300 ${currentFilter === 'semua' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    Semua
-                                </button>
-                            </div>
+                            {periodFilter}
 
                             {/* Hide / Show Nominal Eye Toggle Button */}
                             <button

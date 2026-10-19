@@ -251,55 +251,31 @@ export default function TagihanIndex({
         return true;
     });
 
-    // Helper for Status Badge styling
-    const renderStatusBadge = (bill) => {
+    // Bill status as short colored text (shared by the bill list and the calendar detail)
+    const getBillStatus = (bill) => {
         if (bill.is_paid) {
-            return (
-                <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs">
-                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Lunas
-                </span>
-            );
+            return { label: 'Lunas', text: 'text-emerald-600', icon: 'bg-emerald-50 text-emerald-600' };
         }
-
         switch (bill.status) {
             case 'terlambat':
-                return (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
-                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-rose-500 animate-ping"></span>
-                        {bill.countdown_text}
-                    </span>
-                );
+                return { label: bill.countdown_text, text: 'text-rose-600', icon: 'bg-rose-50 text-rose-500' };
             case 'hari_ini':
-                return (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-black bg-rose-500 text-white shadow-xs animate-pulse">
-                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Hari Ini!
-                    </span>
-                );
+                return { label: 'Jatuh tempo hari ini', text: 'text-rose-600', icon: 'bg-rose-50 text-rose-500' };
             case 'segera':
-                return (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
-                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {bill.countdown_text}
-                    </span>
-                );
+                return { label: bill.countdown_text, text: 'text-amber-600', icon: 'bg-amber-50 text-amber-600' };
             default:
-                return (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">
-                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {bill.countdown_text}
-                    </span>
-                );
+                return { label: bill.countdown_text, text: 'text-slate-400', icon: 'bg-slate-100 text-slate-500' };
         }
+    };
+
+    const renderStatusBadge = (bill) => {
+        const status = getBillStatus(bill);
+        return (
+            <span className={`inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold whitespace-nowrap ${status.text}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                {status.label}
+            </span>
+        );
     };
 
     return (
@@ -345,7 +321,7 @@ export default function TagihanIndex({
                 </div>
 
                 {/* Mobile Header (Clean & Compact) */}
-                <div className="flex md:hidden items-center justify-between border-b border-slate-100/80 pb-3">
+                <div className="flex md:hidden items-center justify-between">
                     <div>
                         <span className="text-[10px] font-bold text-[#009bd2] uppercase tracking-wider block leading-tight">
                             {selectedMonthLabel}
@@ -435,54 +411,32 @@ export default function TagihanIndex({
                     />
                 </div>
 
-                {/* KPI Summary - Mobile View (Single Hero Summary Card ala Mobile Banking) */}
-                <div className="sm:hidden bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            TAGIHAN BULAN INI
-                        </span>
+                {/* KPI Summary - Mobile View (minimal: remaining amount + progress) */}
+                <div className="sm:hidden bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-400">Sisa tagihan</span>
                         {summary.count_terlambat > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/60">
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                                {summary.count_terlambat} Terlambat
-                            </span>
+                            <span className="text-xs font-semibold text-rose-600">{summary.count_terlambat} terlambat</span>
                         ) : summary.count_belum === 0 && summary.count_total > 0 ? (
-                            <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                                Semua Lunas ✨
-                            </span>
-                        ) : (
-                            <span className="text-[10px] font-extrabold text-[#009bd2] bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
-                                {summary.count_belum} Belum Bayar
-                            </span>
-                        )}
+                            <span className="text-xs font-semibold text-emerald-600">Semua lunas</span>
+                        ) : null}
                     </div>
 
-                    <div>
-                        <div className="text-2xl font-black text-slate-900 tracking-tight">
-                            {formatRp(summary.total_sisa)}
-                        </div>
-                        <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                            Sisa yang harus dibayar dari total {formatRp(summary.total_tagihan)}
-                        </p>
+                    <div className="text-[28px] leading-tight font-extrabold text-slate-900 tracking-tight mt-1 tabular-nums">
+                        {formatRp(summary.total_sisa)}
                     </div>
 
-                    {/* Progress Bar & Sub-metrics */}
                     {summary.count_total > 0 && (
-                        <div className="space-y-1.5 pt-1">
+                        <div className="mt-4 space-y-2">
                             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                                     style={{ width: `${Math.round((summary.count_lunas / summary.count_total) * 100)}%` }}
                                 />
                             </div>
-                            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <span>Dibayar: {formatRp(summary.total_dibayar)}</span>
-                                </div>
-                                <span className="text-slate-400">
-                                    {summary.count_lunas}/{summary.count_total} Lunas ({Math.round((summary.count_lunas / summary.count_total) * 100)}%)
-                                </span>
+                            <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+                                <span>{formatRp(summary.total_dibayar)} dibayar</span>
+                                <span>{summary.count_lunas}/{summary.count_total} lunas</span>
                             </div>
                         </div>
                     )}
@@ -536,37 +490,24 @@ export default function TagihanIndex({
                     )}
                 </div>
 
-                {/* Mobile Toolbar (Clean, Compact & Segmented) */}
-                <div className="sm:hidden space-y-2">
+                {/* Mobile Toolbar */}
+                <div className="sm:hidden space-y-3">
                     <TabFilter
                         tabs={[
-                            {
-                                key: 'daftar',
-                                label: 'Daftar',
-                                icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                            },
-                            {
-                                key: 'kalender',
-                                label: 'Kalender',
-                                icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            },
-                            {
-                                key: 'riwayat',
-                                label: 'Riwayat',
-                                icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            },
+                            { key: 'daftar', label: 'Daftar' },
+                            { key: 'kalender', label: 'Kalender' },
+                            { key: 'riwayat', label: 'Riwayat' },
                         ]}
                         activeTab={activeTab}
                         onChange={setActiveTab}
                         activeColor="text-slate-800"
                     />
 
-                    {/* Filter Status Chips (Mobile) */}
                     {activeTab === 'daftar' && (
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+                        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1">
                             {[
                                 { key: 'semua', label: 'Semua', count: summary.count_total },
-                                { key: 'belum', label: 'Belum Bayar', count: summary.count_belum },
+                                { key: 'belum', label: 'Belum bayar', count: summary.count_belum },
                                 { key: 'lunas', label: 'Lunas', count: summary.count_lunas },
                                 ...(summary.count_terlambat > 0 ? [{ key: 'terlambat', label: 'Terlambat', count: summary.count_terlambat }] : []),
                             ].map((tab) => (
@@ -574,16 +515,14 @@ export default function TagihanIndex({
                                     key={tab.key}
                                     type="button"
                                     onClick={() => setFilterStatus(tab.key)}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                                    className={`h-8 px-3 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0 flex items-center gap-1 ${
                                         filterStatus === tab.key
-                                            ? 'bg-slate-800 text-white shadow-xs'
-                                            : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
+                                            ? 'bg-slate-900 text-white'
+                                            : 'text-slate-500 hover:text-slate-800'
                                     }`}
                                 >
-                                    <span>{tab.label}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterStatus === tab.key ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-500'}`}>
-                                        {tab.count}
-                                    </span>
+                                    {tab.label}
+                                    <span className={filterStatus === tab.key ? 'text-white/60' : 'text-slate-300'}>{tab.count}</span>
                                 </button>
                             ))}
                         </div>
@@ -600,157 +539,81 @@ export default function TagihanIndex({
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h6m-6 4h4" />
                                     </svg>
                                 </div>
-                                <h3 className="text-sm sm:text-base font-extrabold text-slate-800">Belum ada tagihan rutin</h3>
-                                <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                                    Tambahkan tagihan bulanan seperti listrik, air, internet, sewa, asuransi, atau cicilan agar tidak pernah telat bayar.
-                                </p>
+                                <h3 className="text-sm sm:text-base font-bold text-slate-700 mb-4">Belum ada tagihan</h3>
                                 <Button
                                     onClick={openCreateModal}
                                     icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}
                                 >
-                                    Tambah Tagihan Sekarang
+                                    Tambah Tagihan
                                 </Button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                            <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] divide-y divide-slate-100">
                                 {filteredBills.map((bill) => {
-                                    const isOverdue = !bill.is_paid && bill.status === 'terlambat';
-                                    const isToday = !bill.is_paid && bill.status === 'hari_ini';
+                                    const status = getBillStatus(bill);
 
                                     return (
                                         <div
                                             key={bill.id}
-                                            className={`bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border transition-all duration-200 relative flex flex-col justify-between shadow-xs hover:shadow-md ${bill.isOptimistic ? 'opacity-70 pointer-events-none' : ''} ${
-                                                bill.is_paid
-                                                    ? 'border-emerald-100/80 bg-linear-to-b from-white to-emerald-50/20'
-                                                    : isOverdue
-                                                    ? 'border-rose-200 bg-rose-50/10'
-                                                    : 'border-slate-100 hover:border-[#009bd2]/40'
-                                            }`}
+                                            className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 ${bill.isOptimistic ? 'opacity-60 pointer-events-none' : ''}`}
                                         >
-                                            <div>
-                                                {/* Top Row: Icon + Name & Category + Status Badge + 3 Dots Menu */}
-                                                <div className="flex items-start justify-between gap-2.5 mb-3">
-                                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                        {/* Category/Status Squircle Icon */}
-                                                        <div
-                                                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                                                bill.is_paid
-                                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                                    : isOverdue
-                                                                    ? 'bg-rose-50 text-rose-600'
-                                                                    : isToday
-                                                                    ? 'bg-amber-50 text-amber-600'
-                                                                    : 'bg-sky-50 text-[#009bd2]'
-                                                            }`}
-                                                        >
-                                                            {bill.is_paid ? (
-                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                            ) : (
-                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h6m-6 4h4" />
-                                                                </svg>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="min-w-0 flex-1">
-                                                            <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate leading-snug" title={bill.name}>
-                                                                {bill.name}
-                                                            </h3>
-                                                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold mt-0.5 truncate">
-                                                                <span className="truncate">{bill.category_name}</span>
-                                                                {bill.account_number && (
-                                                                    <>
-                                                                        <span>•</span>
-                                                                        <span className="font-mono text-slate-500 truncate">{bill.account_number}</span>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Status Badge & 3-Dots Dropdown */}
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        {renderStatusBadge(bill)}
-
-                                                        <Dropdown>
-                                                            <Dropdown.Trigger>
-                                                                <button
-                                                                    type="button"
-                                                                    className="w-7 h-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors focus:outline-none"
-                                                                    aria-label="Menu Opsi"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                                        <path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
-                                                                    </svg>
-                                                                </button>
-                                                            </Dropdown.Trigger>
-                                                            <Dropdown.Content align="right" width="auto" contentClasses="p-1 bg-white border border-slate-100 shadow-xl flex items-center rounded-xl">
-                                                                <ActionButtons
-                                                                    size="sm"
-                                                                    variant="transparent"
-                                                                    onEdit={() => openEditModal(bill)}
-                                                                    onDelete={() => handleDeleteBill(bill)}
-                                                                />
-                                                            </Dropdown.Content>
-                                                        </Dropdown>
-                                                    </div>
-                                                </div>
-
-                                                {/* Middle Info: Due Date & Amount */}
-                                                <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-slate-100/80">
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                                                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
-                                                            <span>Tgl {bill.due_day}</span>
-                                                            <span className="text-slate-400 font-normal">({bill.due_date_formatted})</span>
-                                                        </div>
-                                                        {bill.notes && (
-                                                            <p className="text-[11px] text-slate-400 italic truncate mt-1 max-w-[200px]">
-                                                                "{bill.notes}"
-                                                            </p>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="text-right shrink-0">
-                                                        <div className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                                                            {formatRp(bill.amount)}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${status.icon}`}>
+                                                {bill.is_paid ? (
+                                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h6m-6 4h4" />
+                                                    </svg>
+                                                )}
                                             </div>
 
-                                            {/* Bottom Action Area */}
-                                            <div className="mt-3 pt-2.5 border-t border-slate-100/60">
-                                                {bill.is_paid ? (
-                                                    <div className="flex items-center justify-between text-[11px] text-emerald-700 bg-emerald-50/70 border border-emerald-100/70 rounded-xl px-3 py-1.5">
-                                                        <span className="font-bold flex items-center gap-1.5">
-                                                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                            Telah Dibayar
-                                                        </span>
-                                                        <span className="font-medium text-emerald-600/80 truncate">
-                                                            {bill.paid_at} • {bill.paid_payment_method}
-                                                        </span>
-                                                    </div>
-                                                ) : (
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-sm sm:text-[15px] font-bold text-slate-800 leading-snug line-clamp-2 break-words" title={bill.name}>
+                                                    {bill.name}
+                                                </h3>
+                                                <p className="text-[11px] sm:text-xs font-medium text-slate-400 truncate mt-0.5">
+                                                    Tgl {bill.due_day} · <span className={status.text}>{status.label}</span>
+                                                </p>
+                                            </div>
+
+                                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                                <span className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight tabular-nums">
+                                                    {formatRp(bill.amount)}
+                                                </span>
+                                                {!bill.is_paid && (
                                                     <button
                                                         type="button"
                                                         onClick={() => openQuickPay(bill)}
-                                                        className="w-full py-2 px-3.5 bg-[#009bd2] hover:bg-[#0086b6] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-98 flex items-center justify-center gap-2"
+                                                        className="h-7 px-3.5 rounded-full bg-[#009bd2] hover:bg-[#0086b6] text-white text-[11px] sm:text-xs font-bold transition active:scale-95"
                                                     >
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                        </svg>
-                                                        <span>Bayar Sekarang</span>
+                                                        Bayar
                                                     </button>
                                                 )}
                                             </div>
+
+                                            <Dropdown>
+                                                <Dropdown.Trigger>
+                                                    <button
+                                                        type="button"
+                                                        className="w-8 h-8 -mr-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-full flex items-center justify-center transition-colors focus:outline-none"
+                                                        aria-label="Menu Opsi"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                                                        </svg>
+                                                    </button>
+                                                </Dropdown.Trigger>
+                                                <Dropdown.Content align="right" width="auto" contentClasses="p-1 bg-white border border-slate-100 shadow-xl flex items-center rounded-xl">
+                                                    <ActionButtons
+                                                        size="sm"
+                                                        variant="transparent"
+                                                        onEdit={() => openEditModal(bill)}
+                                                        onDelete={() => handleDeleteBill(bill)}
+                                                    />
+                                                </Dropdown.Content>
+                                            </Dropdown>
                                         </div>
                                     );
                                 })}

@@ -701,8 +701,8 @@ export default function Dashboard({
                                         </button>
                                     </div>
                                 </div>
-                                <div className="h-[220px] w-full relative">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                <div className="h-[220px] w-full relative min-w-0">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
                                         {chartType === 'area' ? (
                                             <AreaChart data={displayChartData} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -903,9 +903,9 @@ export default function Dashboard({
                         {displayChartData.length > 0 ? (
                             <div className="relative overflow-hidden rounded-xl sm:rounded-2xl">
                                 {/* Chart Canvas */}
-                                <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full transition-all duration-500 ${!canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
+                                <div className={`h-[280px] sm:h-[350px] md:h-[400px] w-full min-w-0 transition-all duration-500 ${!canAccessChart ? 'filter blur-[5px] sm:blur-[7px] opacity-40 select-none pointer-events-none' : ''
                                     }`}>
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
                                         {chartType === 'area' ? (
                                             <AreaChart
                                                 data={displayChartData}

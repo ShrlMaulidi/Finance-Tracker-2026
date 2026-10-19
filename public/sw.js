@@ -34,14 +34,34 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
-    // Network-first strategy with cache fallback
+    // Ignore non-http requests (e.g. chrome-extension://)
+    if (!event.request.url.startsWith('http')) return;
+
+    // Network-first with safe cache fallback
     event.respondWith(
         fetch(event.request)
             .then((networkResponse) => {
                 return networkResponse;
             })
-            .catch(() => {
-                return caches.match(event.request);
+            .catch(async () => {
+                try {
+                    const cachedResponse = await caches.match(event.request);
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                    if (event.request.mode === 'navigate') {
+                        const rootCached = await caches.match('/');
+                        if (rootCached) return rootCached;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                // Return a valid fallback Response so respondWith never throws TypeError
+                return new Response('Jaringan sedang offline.', {
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+                });
             })
     );
 });

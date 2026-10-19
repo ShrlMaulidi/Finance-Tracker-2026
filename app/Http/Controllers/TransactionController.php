@@ -371,10 +371,11 @@ class TransactionController extends Controller
         }
 
         $transactionId = $transaction->id;
-        $transaction->delete();
 
-        // Delete linked bill payment if any
+        // Delete linked bill payment FIRST before deleting transaction to avoid nullOnDelete FK race condition
         BillPayment::where('transaction_id', $transactionId)->delete();
+
+        $transaction->delete();
 
         if ($type === 'pengeluaran') {
             $this->syncBillPayment($userId, $category, $date);
@@ -593,11 +594,7 @@ class TransactionController extends Controller
                 );
             } else {
                 if ($existingPayment) {
-                    if ($existingPayment->transaction_id && ! Transaction::where('id', $existingPayment->transaction_id)->exists()) {
-                        $existingPayment->delete();
-                    } elseif ($existingPayment->notes && str_contains($existingPayment->notes, 'transaksi Pengeluaran')) {
-                        $existingPayment->delete();
-                    }
+                    $existingPayment->delete();
                 }
             }
         }

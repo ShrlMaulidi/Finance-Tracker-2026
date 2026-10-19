@@ -31,6 +31,8 @@ export default function TagihanIndex({
     // Modal Delete Confirmation
     const [billToDelete, setBillToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [paymentToDelete, setPaymentToDelete] = useState(null);
+    const [isDeletingPayment, setIsDeletingPayment] = useState(false);
 
     const billForm = useForm({
         name: '',
@@ -138,6 +140,25 @@ export default function TagihanIndex({
             },
             onFinish: () => {
                 setIsDeleting(false);
+            },
+        });
+    };
+
+    const handleDeletePayment = (payment) => {
+        setPaymentToDelete(payment);
+    };
+
+    const confirmDeletePayment = () => {
+        if (!paymentToDelete) return;
+
+        router.delete(route('tagihan.payment.destroy', paymentToDelete.id), {
+            preserveScroll: true,
+            onStart: () => setIsDeletingPayment(true),
+            onSuccess: () => {
+                setPaymentToDelete(null);
+            },
+            onFinish: () => {
+                setIsDeletingPayment(false);
             },
         });
     };
@@ -893,9 +914,21 @@ export default function TagihanIndex({
                                         <div key={item.id} className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 space-y-2">
                                             <div className="flex items-center justify-between text-xs">
                                                 <span className="font-semibold text-slate-500">{item.paid_at}</span>
-                                                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200/60 font-semibold text-[11px] text-slate-700">
-                                                    {item.payment_method}
-                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200/60 font-semibold text-[11px] text-slate-700">
+                                                        {item.payment_method}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeletePayment(item)}
+                                                        className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                                        title="Hapus Riwayat Pembayaran"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
@@ -926,6 +959,7 @@ export default function TagihanIndex({
                                                 <th className="py-2.5 px-3">Metode</th>
                                                 <th className="py-2.5 px-3 text-right">Nominal</th>
                                                 <th className="py-2.5 px-3">Catatan</th>
+                                                <th className="py-2.5 px-3 text-right">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50 font-medium">
@@ -951,6 +985,18 @@ export default function TagihanIndex({
                                                     </td>
                                                     <td className="py-3 px-3 text-slate-500 italic max-w-xs truncate">
                                                         {item.notes || '-'}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-right whitespace-nowrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeletePayment(item)}
+                                                            className="w-8 h-8 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                                            title="Hapus Riwayat Pembayaran"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1288,6 +1334,21 @@ export default function TagihanIndex({
                     itemExtra={billToDelete ? formatRp(billToDelete.amount) : ''}
                     message="Tagihan ini beserta seluruh riwayat pembayarannya akan dihapus secara permanen."
                     confirmText="Hapus Tagihan"
+                />
+
+                {/* MODAL: KONFIRMASI HAPUS RIWAYAT PEMBAYARAN */}
+                <DeleteConfirmModal
+                    isOpen={!!paymentToDelete}
+                    onClose={() => setPaymentToDelete(null)}
+                    onConfirm={confirmDeletePayment}
+                    loading={isDeletingPayment}
+                    title="Hapus Riwayat Pembayaran"
+                    subtitle="Tindakan ini tidak dapat dibatalkan."
+                    itemTitle={paymentToDelete?.bill_name}
+                    itemSubtitle={paymentToDelete ? `Periode ${paymentToDelete.month_label} • ${paymentToDelete.paid_at}` : ''}
+                    itemExtra={paymentToDelete ? formatRp(paymentToDelete.amount) : ''}
+                    message="Riwayat pembayaran ini akan dihapus dari pembukuan dan status tagihan terkait akan otomatis direset menjadi belum dibayar."
+                    confirmText="Hapus Pembayaran"
                 />
             </div>
         </AuthenticatedLayout>

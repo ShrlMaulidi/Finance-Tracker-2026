@@ -429,6 +429,70 @@ class BillController extends Controller
     }
 
     /**
+     * Delete a bill payment record and reset the recurring bill status.
+     */
+    public function destroyPayment(BillPayment $payment)
+    {
+        if ($payment->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $billName = $payment->bill ? $payment->bill->name : 'Tagihan';
+        $transactionId = $payment->transaction_id;
+        $userId = Auth::id();
+        $bill = $payment->bill;
+        $month = $payment->month;
+
+        DB::transaction(function () use ($payment, $transactionId, $userId, $bill, $month) {
+            // 1. Delete payment record
+            $payment->delete();
+
+            // 2. If there's an associated transaction, delete it too so autoReconcile doesn't recreate payment
+            if ($transactionId) {
+                Transaction::where('id', $transactionId)
+                    ->where('user_id', $userId)
+                    ->delete();
+            }
+
+            // 3. Clean up any leftover transactions for this bill and month under 'Tagihan Rutin'
+            if ($bill && $month) {
+                $monthParts = explode('-', $month);
+                $queryYear = (int) ($monthParts[0] ?? date('Y'));
+                $queryMonth = (int) ($monthParts[1] ?? date('m'));
+                $cleanBillName = strtolower(trim($bill->name));
+
+                Transaction::where('user_id', $userId)
+                    ->where('type', 'pengeluaran')
+                    ->whereYear('date', $queryYear)
+                    ->whereMonth('date', $queryMonth)
+                    ->where(function ($q) use ($cleanBillName) {
+                        $q->where(function ($sub) use ($cleanBillName) {
+                            $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
+                                ->where(function ($inner) use ($cleanBillName) {
+                                    $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$cleanBillName.'%'])
+                                        ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$cleanBillName.'%']);
+                                });
+                        })
+                            ->orWhereRaw('LOWER(TRIM(category)) = ?', [$cleanBillName]);
+                    })
+                    ->delete();
+            }
+        });
+
+        try {
+            broadcast(new TransactionRecorded(
+                userId: (int) Auth::id(),
+                action: 'deleted',
+                source: 'web',
+                message: "Riwayat pembayaran tagihan '{$billName}' dihapus"
+            ));
+        } catch (\Throwable $e) {
+        }
+
+        return redirect()->back()->with('success', "Riwayat pembayaran tagihan '{$billName}' berhasil dihapus. Status tagihan telah direset ke belum bayar.");
+    }
+
+    /**
      * Automatically reconcile active bills with existing expense transactions for the given month.
      */
     private function autoReconcileBillsForMonth(int $userId, string $monthQuery): void
@@ -440,17 +504,10 @@ class BillController extends Controller
         foreach ($activeBills as $bill) {
             $billName = strtolower(trim($bill->name ?? ''));
 
-            // Check if existing payment is already linked to a valid transaction
+            // Check if existing payment exists
             $existingPayment = BillPayment::where('bill_id', $bill->id)
                 ->where('month', $monthQuery)
                 ->first();
-
-            if ($existingPayment && $existingPayment->transaction_id) {
-                $tx = Transaction::where('id', $existingPayment->transaction_id)->where('user_id', $userId)->first();
-                if ($tx) {
-                    continue; // Accurately reconciled
-                }
-            }
 
             $monthParts = explode('-', $monthQuery);
             $queryYear = (int) ($monthParts[0] ?? date('Y'));
@@ -495,11 +552,7 @@ class BillController extends Controller
                 );
             } else {
                 if ($existingPayment) {
-                    if ($existingPayment->transaction_id && ! Transaction::where('id', $existingPayment->transaction_id)->exists()) {
-                        $existingPayment->delete();
-                    } elseif ($existingPayment->notes && str_contains($existingPayment->notes, 'transaksi Pengeluaran')) {
-                        $existingPayment->delete();
-                    }
+                    $existingPayment->delete();
                 }
             }
         }

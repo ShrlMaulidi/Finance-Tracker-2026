@@ -74,6 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tagihan', [BillController::class, 'index'])->name('tagihan.index');
     Route::post('/tagihan', [BillController::class, 'store'])->name('tagihan.store');
     Route::put('/tagihan/{bill}', [BillController::class, 'update'])->name('tagihan.update');
+    Route::delete('/tagihan/payment/{payment}', [BillController::class, 'destroyPayment'])->name('tagihan.payment.destroy');
     Route::delete('/tagihan/{bill}', [BillController::class, 'destroy'])->name('tagihan.destroy');
     Route::post('/tagihan/{bill}/pay', [BillController::class, 'pay'])->name('tagihan.pay');
 

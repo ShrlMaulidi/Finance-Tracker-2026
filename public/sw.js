@@ -1,5 +1,5 @@
 // FinanceTrack Lightweight Service Worker for PWA
-const CACHE_NAME = 'financetrack-pwa-v1';
+const CACHE_NAME = 'financetrack-pwa-v2';
 const PRECACHE_ASSETS = [
     '/',
     '/logo.png',

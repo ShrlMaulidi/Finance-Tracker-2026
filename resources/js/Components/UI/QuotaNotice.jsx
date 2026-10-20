@@ -1,11 +1,9 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 
-const RING_RADIUS = 18;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
 /**
- * Free-plan quota card: circular usage ring with "used/limit", a short status line and an Upgrade button.
+ * Free-plan quota card in the soft frosted style used by the upgrade screens:
+ * a brand-blue "1/2 tagihan" pill, a short line, and a white "Upgrade →" pill button.
  */
 export default function QuotaNotice({ used = 0, limit = null, unit = 'data', className = '' }) {
     if (limit === null || limit === undefined) {
@@ -13,49 +11,28 @@ export default function QuotaNotice({ used = 0, limit = null, unit = 'data', cla
     }
 
     const isFull = used >= limit;
-    const usageRatio = limit > 0 ? Math.min(1, used / limit) : 1;
 
     return (
-        <div className={`flex items-center gap-3.5 sm:gap-4 rounded-2xl sm:rounded-3xl bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3.5 sm:p-4 ${className}`}>
-            {/* Usage ring */}
-            <div className="relative w-12 h-12 shrink-0">
-                <svg className="w-12 h-12 -rotate-90" viewBox="0 0 44 44" aria-hidden="true">
-                    <circle cx="22" cy="22" r={RING_RADIUS} fill="none" stroke="currentColor" strokeWidth="4" className="text-slate-100" />
-                    <circle
-                        cx="22"
-                        cy="22"
-                        r={RING_RADIUS}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        strokeDasharray={RING_CIRCUMFERENCE}
-                        strokeDashoffset={RING_CIRCUMFERENCE * (1 - usageRatio)}
-                        className={`transition-all duration-700 ${isFull ? 'text-amber-500' : 'text-[#009bd2]'}`}
-                    />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-slate-800 tabular-nums">
-                    {used}/{limit}
-                </span>
-            </div>
+        <div className={`relative overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-3xl bg-gradient-to-br from-[#eaf4f9] via-[#f4f7fa] to-[#eceff4] p-4 sm:px-5 ${className}`}>
+            <div className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-[#009bd2]/15 blur-2xl" aria-hidden="true" />
 
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">
-                    {isFull ? 'Kuota gratis penuh' : 'Kuota paket gratis'}
-                </p>
-                <p className="text-xs text-slate-400 truncate mt-0.5">
+            <div className="relative flex items-center gap-3 flex-1 min-w-0">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium shrink-0 tabular-nums ${isFull ? 'bg-amber-200/80 text-amber-900' : 'bg-[#009bd2]/15 text-[#007ca8]'}`}>
+                    {used}/{limit} {unit}
+                </span>
+                <p className="text-sm text-slate-600 min-w-0">
                     {isFull
-                        ? `Upgrade untuk menambah ${unit} tanpa batas`
-                        : `${used} dari ${limit} ${unit} terpakai`}
+                        ? `Kuota gratis penuh. Upgrade ke Pro untuk ${unit} tanpa batas.`
+                        : `Paket gratis dibatasi ${limit} ${unit}.`}
                 </p>
             </div>
 
             <Link
                 href={route('berlangganan.index')}
-                className="h-9 px-3.5 sm:px-4 rounded-full bg-[#009bd2] hover:bg-[#0086b6] text-white text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-[#009bd2]/25 transition active:scale-95"
+                className="relative h-10 px-5 rounded-full bg-white text-sm font-medium text-slate-900 flex items-center justify-center gap-2 shrink-0 shadow-sm transition hover:shadow-md active:scale-95"
             >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 Upgrade
+                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 12h14m-6-6l6 6-6 6" /></svg>
             </Link>
         </div>
     );

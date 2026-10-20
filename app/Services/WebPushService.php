@@ -14,9 +14,10 @@ class WebPushService
      */
     public static function getWebPushClient(): ?WebPush
     {
-        $publicKey = config('services.vapid.public_key') ?: env('VAPID_PUBLIC_KEY');
-        $privateKey = config('services.vapid.private_key') ?: env('VAPID_PRIVATE_KEY');
-        $subject = config('services.vapid.subject') ?: env('VAPID_SUBJECT', 'mailto:support@financetrack.id');
+        // Read through config only: env() returns null once the config is cached (php artisan optimize)
+        $publicKey = config('services.vapid.public_key');
+        $privateKey = config('services.vapid.private_key');
+        $subject = config('services.vapid.subject') ?: 'mailto:support@financetrack.id';
 
         if (! $publicKey || ! $privateKey) {
             Log::warning('[WebPush] VAPID keys not configured in config/services.php or .env');
@@ -59,14 +60,31 @@ class WebPushService
         ?string $tag = null,
         array $extra = []
     ): int {
+        return self::deliverToUser($user, $title, $body, $url, $tag, $extra)['delivered'];
+    }
+
+    /**
+     * Send a push notification to all of a user's devices and report what happened, so callers can explain failures.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array{status: 'sent'|'not_configured'|'no_devices'|'rejected', delivered: int, devices: int, reasons: array<int, string>}
+     */
+    public static function deliverToUser(
+        User $user,
+        string $title,
+        string $body,
+        ?string $url = null,
+        ?string $tag = null,
+        array $extra = []
+    ): array {
         $client = self::getWebPushClient();
         if (! $client) {
-            return 0;
+            return ['status' => 'not_configured', 'delivered' => 0, 'devices' => 0, 'reasons' => []];
         }
 
         $subscriptions = $user->pushSubscriptions()->get();
         if ($subscriptions->isEmpty()) {
-            return 0;
+            return ['status' => 'no_devices', 'delivered' => 0, 'devices' => 0, 'reasons' => []];
         }
 
         $payload = json_encode([
@@ -90,6 +108,7 @@ class WebPushService
         }
 
         $successCount = 0;
+        $failureReasons = [];
 
         try {
             foreach ($client->flush() as $report) {
@@ -99,6 +118,7 @@ class WebPushService
                 if ($report->isSuccess()) {
                     $successCount++;
                 } else {
+                    $failureReasons[] = (string) $report->getReason();
                     Log::info("[WebPush] Notification failed for endpoint: {$report->getReason()}");
 
                     // Remove expired/invalid subscriptions (HTTP 404 or 410 Gone)
@@ -109,10 +129,16 @@ class WebPushService
                 }
             }
         } catch (\Throwable $e) {
+            $failureReasons[] = $e->getMessage();
             Log::error('[WebPush] Error during flush: '.$e->getMessage());
         }
 
-        return $successCount;
+        return [
+            'status' => $successCount > 0 ? 'sent' : 'rejected',
+            'delivered' => $successCount,
+            'devices' => $subscriptions->count(),
+            'reasons' => $failureReasons,
+        ];
     }
 
     /**

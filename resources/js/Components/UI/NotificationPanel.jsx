@@ -28,8 +28,63 @@ export default function NotificationPanel({ className = '' }) {
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isSubscribing, setIsSubscribing] = useState(false);
     const [pushMessage, setPushMessage] = useState(null);
+    const userId = usePage().props.auth?.user?.id;
 
-    // Check Push Status on load
+    const showPushMessage = (message, durationMs = 4000) => {
+        setPushMessage(message);
+        if (durationMs) {
+            setTimeout(() => setPushMessage(null), durationMs);
+        }
+    };
+
+    // A subscription made with an old VAPID key is rejected by the push service forever, so it must be replaced
+    const usesCurrentServerKey = (subscription) => {
+        const subscribedKey = subscription?.options?.applicationServerKey;
+        if (!subscribedKey || !vapid_public_key) {
+            return true; // browser doesn't expose it: assume it's fine
+        }
+        const current = urlBase64ToUint8Array(vapid_public_key);
+        const subscribed = new Uint8Array(subscribedKey);
+        return subscribed.length === current.length && subscribed.every((byte, i) => byte === current[i]);
+    };
+
+    const getUpToDateSubscription = async (registration) => {
+        let subscription = await registration.pushManager.getSubscription();
+        if (subscription && !usesCurrentServerKey(subscription)) {
+            await subscription.unsubscribe();
+            subscription = null;
+        }
+        if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapid_public_key),
+            });
+        }
+        return subscription;
+    };
+
+    // Saves this device for the logged-in account (idempotent on the server)
+    const registerOnServer = async (subscription) => {
+        const subJson = subscription.toJSON ? subscription.toJSON() : {};
+        const rawKey = subscription.getKey ? subscription.getKey('p256dh') : null;
+        const key = subJson?.keys?.p256dh || (rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : null);
+        const rawAuthSecret = subscription.getKey ? subscription.getKey('auth') : null;
+        const authSecret = subJson?.keys?.auth || (rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : null);
+
+        await window.axios.post('/push-subscriptions', {
+            endpoint: subscription.endpoint,
+            keys: { p256dh: key, auth: authSecret },
+        });
+
+        try {
+            sessionStorage.setItem('ft_push_synced', `${userId}|${subscription.endpoint}`);
+        } catch (e) {
+            // storage unavailable: we'll simply sync again next time
+        }
+    };
+
+    // On load: the browser can hold a subscription the server no longer has (failed save, expired row,
+    // another account, rotated VAPID key). Re-sync it once per session so "Tes" and reminders really arrive.
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
@@ -41,18 +96,33 @@ export default function NotificationPanel({ className = '' }) {
         setPushStatus(Notification.permission);
 
         navigator.serviceWorker.ready
-            .then((registration) => registration.pushManager.getSubscription())
-            .then((subscription) => {
-                setIsSubscribed(Boolean(subscription));
+            .then(async (registration) => {
+                const existing = await registration.pushManager.getSubscription();
+                if (!existing || Notification.permission !== 'granted' || !vapid_public_key) {
+                    setIsSubscribed(false);
+                    return;
+                }
+
+                const subscription = await getUpToDateSubscription(registration);
+                let alreadySynced = false;
+                try {
+                    alreadySynced = sessionStorage.getItem('ft_push_synced') === `${userId}|${subscription.endpoint}`;
+                } catch (e) {
+                    alreadySynced = false;
+                }
+                if (!alreadySynced) {
+                    await registerOnServer(subscription);
+                }
+                setIsSubscribed(true);
             })
             .catch(() => {
                 setIsSubscribed(false);
             });
-    }, []);
+    }, [userId]);
 
     const handleSubscribe = async () => {
         if (!vapid_public_key) {
-            alert('VAPID public key belum dikonfigurasi.');
+            showPushMessage('Push notification belum dikonfigurasi di server.', 5000);
             return;
         }
 
@@ -64,44 +134,21 @@ export default function NotificationPanel({ className = '' }) {
             setPushStatus(permission);
 
             if (permission !== 'granted') {
-                setIsSubscribing(false);
+                showPushMessage('Izin notifikasi ditolak. Izinkan dari pengaturan browser.', 5000);
                 return;
             }
 
             const registration = await navigator.serviceWorker.ready;
-            let subscription = await registration.pushManager.getSubscription();
-
-            if (!subscription) {
-                subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(vapid_public_key),
-                });
-            }
-
-            const subJson = subscription.toJSON ? subscription.toJSON() : {};
-            const rawKey = subscription.getKey ? subscription.getKey('p256dh') : null;
-            const key = subJson?.keys?.p256dh || (rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : null);
-            const rawAuthSecret = subscription.getKey ? subscription.getKey('auth') : null;
-            const authSecret = subJson?.keys?.auth || (rawAuthSecret ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuthSecret))) : null);
-
-            if (window.axios) {
-                await window.axios.post('/push-subscriptions', {
-                    endpoint: subscription.endpoint,
-                    keys: {
-                        p256dh: key,
-                        auth: authSecret,
-                    },
-                });
-            }
+            const subscription = await getUpToDateSubscription(registration);
+            await registerOnServer(subscription);
 
             setIsSubscribed(true);
-            setPushMessage('Notifikasi HP berhasil diaktifkan! 🎉');
-            setTimeout(() => setPushMessage(null), 3500);
+            showPushMessage('Notifikasi HP berhasil diaktifkan!', 3500);
         } catch (err) {
             console.error('Error subscribing to push notifications:', err);
             const serverMessage = err.response?.data?.message || err.response?.statusText;
             const detail = serverMessage ? `${err.message} (${serverMessage})` : (err.message || 'Error');
-            setPushMessage('Gagal mengaktifkan notifikasi: ' + detail);
+            showPushMessage('Gagal mengaktifkan notifikasi: ' + detail, 6000);
         } finally {
             setIsSubscribing(false);
         }
@@ -112,17 +159,19 @@ export default function NotificationPanel({ className = '' }) {
         setPushMessage('Mengirim notifikasi ke HP...');
 
         try {
-            if (window.axios) {
-                const res = await window.axios.post('/push-subscriptions/test');
-                setPushMessage(res.data.message || 'Notifikasi terkirim!');
+            // Make sure this exact device is registered for this account before testing
+            if (Notification.permission === 'granted' && vapid_public_key) {
+                const registration = await navigator.serviceWorker.ready;
+                await registerOnServer(await getUpToDateSubscription(registration));
             }
-            setTimeout(() => setPushMessage(null), 4000);
+
+            const res = await window.axios.post('/push-subscriptions/test');
+            showPushMessage(res.data.message || 'Notifikasi terkirim!', res.data.success ? 4000 : 7000);
         } catch (err) {
             console.error('Error sending test push:', err);
             const serverMessage = err.response?.data?.message || err.response?.statusText;
             const detail = serverMessage ? `${err.message} (${serverMessage})` : (err.message || 'Error');
-            setPushMessage('Gagal mengirim tes notifikasi: ' + detail);
-            setTimeout(() => setPushMessage(null), 5000);
+            showPushMessage('Gagal mengirim tes notifikasi: ' + detail, 7000);
         } finally {
             setIsSubscribing(false);
         }
@@ -307,8 +356,10 @@ export default function NotificationPanel({ className = '' }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                 </svg>
                             </span>
-                            <p className="flex-1 min-w-0 text-xs font-semibold text-slate-700 truncate">
-                                {pushMessage || (isSubscribed ? 'Notifikasi HP aktif' : 'Notifikasi HP')}
+                            <p className="flex-1 min-w-0 text-xs font-semibold text-slate-700 leading-snug line-clamp-2">
+                                {pushMessage || (pushStatus === 'denied'
+                                    ? 'Izin notifikasi diblokir di browser'
+                                    : isSubscribed ? 'Notifikasi HP aktif' : 'Notifikasi HP')}
                             </p>
                             {!isSubscribed ? (
                                 <button

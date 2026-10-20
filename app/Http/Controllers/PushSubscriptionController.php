@@ -104,7 +104,7 @@ class PushSubscriptionController extends Controller
         }
 
         try {
-            $delivered = WebPushService::sendToUser(
+            $result = WebPushService::deliverToUser(
                 user: $user,
                 title: 'FinanceTrack Aktif! 🎉',
                 body: 'Push notification berhasil terhubung ke HP Anda. Anda akan menerima pengingat tempo tagihan & target.',
@@ -112,12 +112,19 @@ class PushSubscriptionController extends Controller
                 tag: 'financetrack-welcome-test'
             );
 
+            // Tell the user what actually went wrong instead of one generic message
+            $message = match ($result['status']) {
+                'sent' => "Notifikasi berhasil dikirim ke {$result['delivered']} perangkat Anda!",
+                'not_configured' => 'Push notification belum dikonfigurasi di server (kunci VAPID kosong).',
+                'no_devices' => 'Perangkat ini belum terdaftar di akun Anda. Tekan Aktifkan untuk mendaftarkannya.',
+                default => 'Layanan push menolak notifikasi. Matikan lalu aktifkan ulang notifikasi di perangkat ini.',
+            };
+
             return response()->json([
-                'success' => true,
-                'delivered' => $delivered,
-                'message' => $delivered > 0
-                    ? "Notifikasi berhasil dikirim ke {$delivered} perangkat Anda!"
-                    : 'Perangkat belum terdaftar atau izin notifikasi belum diaktifkan di HP.',
+                'success' => $result['status'] === 'sent',
+                'status' => $result['status'],
+                'delivered' => $result['delivered'],
+                'message' => $message,
             ]);
         } catch (\Throwable $e) {
             Log::error('[PushSubscription] sendTest error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);

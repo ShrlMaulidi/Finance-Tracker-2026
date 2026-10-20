@@ -6,6 +6,7 @@ use App\Models\PushSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Minishlink\WebPush\VAPID;
 use Tests\TestCase;
 
 class PushNotificationTest extends TestCase
@@ -67,5 +68,34 @@ class PushNotificationTest extends TestCase
     {
         $exitCode = Artisan::call('reminders:send-push');
         $this->assertEquals(0, $exitCode);
+    }
+
+    public function test_push_test_explains_that_the_device_is_not_registered(): void
+    {
+        $keys = VAPID::createVapidKeys();
+        config(['services.vapid.public_key' => $keys['publicKey'], 'services.vapid.private_key' => $keys['privateKey']]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/push-subscriptions/test')
+            ->assertOk()
+            ->assertJson([
+                'success' => false,
+                'status' => 'no_devices',
+                'message' => 'Perangkat ini belum terdaftar di akun Anda. Tekan Aktifkan untuk mendaftarkannya.',
+            ]);
+    }
+
+    public function test_push_test_explains_missing_server_configuration(): void
+    {
+        config(['services.vapid.public_key' => null, 'services.vapid.private_key' => null]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/push-subscriptions/test')
+            ->assertOk()
+            ->assertJson(['success' => false, 'status' => 'not_configured']);
     }
 }

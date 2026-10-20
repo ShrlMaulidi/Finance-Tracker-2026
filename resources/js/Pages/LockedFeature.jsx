@@ -27,54 +27,54 @@ export default function LockedFeature({
         <AuthenticatedLayout>
             <Head title={`${featureName} - Member ${planName}`} />
 
-            {/* Top-aligned on phones (no awkward gap under the header), centered on larger screens */}
-            <div className="flex justify-center px-4 pt-3 pb-8 sm:min-h-[70vh] sm:items-center sm:px-6 sm:py-10">
-                <div className="relative w-full max-w-md overflow-hidden rounded-[28px] sm:rounded-[2rem] bg-gradient-to-br from-[#eaf4f9] via-[#f4f7fa] to-[#eceff4] p-5 sm:p-8 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.35)]">
-                    {/* Soft color glow, like frosted glass */}
-                    <div className="pointer-events-none absolute -bottom-24 -left-20 h-56 w-56 rounded-full bg-[#009bd2]/15 blur-3xl" aria-hidden="true" />
-                    <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-sky-100/70 blur-3xl" aria-hidden="true" />
+            <div className="max-w-7xl mx-auto px-3.5 py-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+                {/* Header, same as the other pages */}
+                <div className="flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">{featureName}</h1>
+                    <span className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${isAiFeature ? 'text-violet-700 bg-violet-50' : 'text-amber-700 bg-amber-50'}`}>
+                        {planName.toUpperCase()}
+                    </span>
+                </div>
 
-                    <div className="relative">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className={`inline-flex items-center rounded-full px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-sm font-medium ${isAiFeature ? 'bg-violet-200/70 text-violet-900' : 'bg-[#009bd2]/15 text-[#007ca8]'}`}>
-                                {planName}
-                            </span>
-                            <Link
-                                href={route('dashboard')}
-                                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-slate-500 hover:text-slate-900 flex items-center justify-center shadow-sm transition active:scale-95"
-                                aria-label="Kembali ke Dashboard"
-                            >
-                                <svg className="w-[18px] h-[18px] sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </Link>
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-7 sm:px-10 sm:py-12">
+                    <div className="max-w-lg mx-auto text-center">
+                        <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-sky-50 text-[#009bd2] flex items-center justify-center mx-auto">
+                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </span>
+
+                        <h2 className="mt-4 text-lg sm:text-xl font-bold text-slate-900">Fitur khusus {planName}</h2>
+                        <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-slate-500">{description}</p>
+                    </div>
+
+                    {benefits.length > 0 && (
+                        <div className="max-w-lg mx-auto mt-6 sm:mt-8">
+                            <p className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Yang Anda dapatkan</p>
+                            <ul className="mt-2 divide-y divide-slate-100">
+                                {benefits.map((benefit) => (
+                                    <li key={benefit} className="flex items-start gap-3 px-1 py-3 text-[13px] sm:text-sm leading-snug text-slate-700">
+                                        <span className="w-5 h-5 rounded-full bg-sky-50 text-[#009bd2] flex items-center justify-center shrink-0">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                        </span>
+                                        <span>{benefit}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
+                    )}
 
-                        <h1 className="mt-5 sm:mt-6 text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight leading-snug">
-                            Buka {featureName}
-                        </h1>
-                        <p className="mt-1.5 sm:mt-2 text-sm sm:text-[15px] leading-relaxed text-slate-500">{description}</p>
-
-                        {benefits.length > 0 && (
-                            <div className="mt-5 sm:mt-6 rounded-2xl bg-white/60 ring-1 ring-white/80">
-                                <p className="px-4 pt-3 pb-1 text-[11px] sm:text-xs font-medium text-slate-400">Fitur yang terbuka</p>
-                                <ul className="divide-y divide-slate-900/[0.05]">
-                                    {benefits.map((benefit) => (
-                                        <li key={benefit} className="flex items-start gap-2.5 px-4 py-2.5 text-[13px] sm:text-sm leading-snug text-slate-600">
-                                            <svg className="w-4 h-4 mt-px shrink-0 text-[#009bd2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                            <span>{benefit}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
+                    <div className="max-w-lg mx-auto mt-6 sm:mt-8 flex flex-col items-center">
                         <Link
                             href={route('berlangganan.index')}
-                            className="mt-5 sm:mt-7 flex h-12 sm:h-14 w-full items-center justify-center gap-2.5 rounded-full bg-white text-[15px] sm:text-base font-medium text-slate-900 shadow-sm transition hover:shadow-md active:scale-[0.99]"
+                            className="w-full sm:w-auto sm:min-w-[260px] h-11 sm:h-12 px-6 rounded-full bg-[#009bd2] hover:bg-[#0086b6] text-white text-sm font-bold flex items-center justify-center shadow-sm shadow-[#009bd2]/30 transition active:scale-95"
                         >
                             Upgrade ke {planName}
-                            <svg className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 12h14m-6-6l6 6-6 6" /></svg>
                         </Link>
-                        <p className="mt-2.5 sm:mt-3 text-center text-[11px] sm:text-xs text-slate-400">Mulai {formatRupiah(monthlyPrice)}/bulan</p>
+                        <p className="mt-2.5 text-[11px] sm:text-xs text-slate-400">Mulai {formatRupiah(monthlyPrice)}/bulan</p>
+                        <Link href={route('dashboard')} className="mt-4 text-xs font-semibold text-slate-400 hover:text-slate-700 transition">
+                            Kembali ke Dashboard
+                        </Link>
                     </div>
                 </div>
             </div>

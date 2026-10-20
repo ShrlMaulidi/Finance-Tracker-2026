@@ -2,8 +2,7 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 
 /**
- * Free-plan quota card in the soft frosted style used by the upgrade screens:
- * a brand-blue "1/2 tagihan" pill, a short line, and a white "Upgrade →" pill button.
+ * Free-plan quota card in the app's standard card style: usage line, thin progress bar and an Upgrade pill.
  */
 export default function QuotaNotice({ used = 0, limit = null, unit = 'data', className = '' }) {
     if (limit === null || limit === undefined) {
@@ -11,29 +10,38 @@ export default function QuotaNotice({ used = 0, limit = null, unit = 'data', cla
     }
 
     const isFull = used >= limit;
+    const usagePercent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 100;
 
     return (
-        <div className={`relative overflow-hidden flex items-center gap-3 sm:gap-4 rounded-[22px] sm:rounded-3xl bg-gradient-to-br from-[#eaf4f9] via-[#f4f7fa] to-[#eceff4] p-3.5 sm:px-5 sm:py-4 ${className}`}>
-            <div className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-[#009bd2]/15 blur-2xl" aria-hidden="true" />
+        <div className={`flex items-center gap-3 sm:gap-4 bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-4 py-3.5 sm:px-5 sm:py-4 ${className}`}>
+            <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isFull ? 'bg-amber-50 text-amber-600' : 'bg-sky-50 text-[#009bd2]'}`}>
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </span>
 
-            {/* Pill above the text on phones, beside it from tablet up */}
-            <div className="relative flex-1 min-w-0 flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs font-medium shrink-0 tabular-nums ${isFull ? 'bg-amber-200/80 text-amber-900' : 'bg-[#009bd2]/15 text-[#007ca8]'}`}>
-                    {used}/{limit} {unit}
-                </span>
-                <p className="text-[13px] sm:text-sm leading-snug text-slate-600">
-                    {isFull
-                        ? `Kuota penuh. Upgrade untuk ${unit} tanpa batas.`
-                        : `Paket gratis dibatasi ${limit} ${unit}.`}
-                </p>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[13px] sm:text-sm font-bold text-slate-800 truncate">
+                        {isFull ? 'Kuota gratis penuh' : 'Paket gratis'}
+                    </p>
+                    <span className={`text-[11px] sm:text-xs font-bold tabular-nums shrink-0 ${isFull ? 'text-amber-600' : 'text-slate-400'}`}>
+                        {used}/{limit} {unit}
+                    </span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
+                    <div
+                        className={`h-full rounded-full transition-all duration-500 ${isFull ? 'bg-amber-500' : 'bg-[#009bd2]'}`}
+                        style={{ width: `${usagePercent}%` }}
+                    />
+                </div>
             </div>
 
             <Link
                 href={route('berlangganan.index')}
-                className="relative h-9 sm:h-10 px-4 sm:px-5 rounded-full bg-white text-[13px] sm:text-sm font-medium text-slate-900 flex items-center gap-1.5 sm:gap-2 shrink-0 shadow-sm transition hover:shadow-md active:scale-95"
+                className="h-8 sm:h-9 px-3.5 sm:px-4 rounded-full bg-[#009bd2] hover:bg-[#0086b6] text-white text-[11px] sm:text-xs font-bold flex items-center shrink-0 transition active:scale-95"
             >
                 Upgrade
-                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 12h14m-6-6l6 6-6 6" /></svg>
             </Link>
         </div>
     );

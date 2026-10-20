@@ -42,6 +42,10 @@ Route::prefix('api/webhook/whatsapp')->group(function () {
     Route::post('/transaction', [WhatsAppAIWebhookController::class, 'storeTransaction']);
     Route::post('/check-user', [WhatsAppAIWebhookController::class, 'getUserContext']);
     Route::post('/summary', [WhatsAppAIWebhookController::class, 'getSummary']);
+    Route::post('/transactions/recent', [WhatsAppAIWebhookController::class, 'recentTransactions']);
+    Route::post('/transaction/edit', [WhatsAppAIWebhookController::class, 'updateTransaction']);
+    Route::post('/transaction/delete', [WhatsAppAIWebhookController::class, 'deleteTransaction']);
+    Route::post('/transaction/undo', [WhatsAppAIWebhookController::class, 'deleteTransaction']);
 });
 Route::post('/webhook/whatsapp', [WhatsAppAIWebhookController::class, 'storeTransaction']);
 

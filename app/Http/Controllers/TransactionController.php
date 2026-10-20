@@ -10,6 +10,7 @@ use App\Models\Debt;
 use App\Models\PaymentMethod;
 use App\Models\Target;
 use App\Models\Transaction;
+use App\Services\TransactionEffects;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,8 @@ use Inertia\Inertia;
 
 class TransactionController extends Controller
 {
+    public function __construct(private TransactionEffects $effects) {}
+
     public function index(Request $request)
     {
         $targets = Target::where('user_id', Auth::id())->get(['id', 'name']);
@@ -197,29 +200,12 @@ class TransactionController extends Controller
         $transaction = DB::transaction(function () use ($validated, $billId) {
             $transaction = Transaction::create($validated);
 
-            if ($validated['type'] === 'tabungan') {
-                $target = Target::where('user_id', Auth::id())
-                    ->where('name', $validated['category'])
-                    ->first();
-                if ($target) {
-                    $target->current_amount += $validated['amount'];
-                    if ($target->current_amount >= $target->target_amount) {
-                        $target->status = 'Tercapai';
-                    }
-                    $target->save();
-                }
-            }
-
-            // Sync debt if it's a debt payment
-            if (! empty($validated['debt_id'])) {
-                $this->applyDebtPayment($validated['debt_id'], (float) $validated['amount']);
-            } elseif (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
-                $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
-            }
+            // Savings target / debt balance
+            $this->effects->apply($transaction);
 
             // Sync recurring bill payment if it's an expense matching a bill
             if ($validated['type'] === 'pengeluaran') {
-                $this->syncBillPayment($transaction->user_id, $transaction->category, $transaction->date, $billId ? (int) $billId : null, $transaction);
+                $this->effects->syncBillPayment($transaction->user_id, $transaction->category, $transaction->date, $billId ? (int) $billId : null, $transaction);
             }
 
             return $transaction;
@@ -263,22 +249,8 @@ class TransactionController extends Controller
         unset($validated['debt_id']);
 
         DB::transaction(function () use ($transaction, $validated, $billId, $debtId, $oldCategory, $oldDate, $oldType) {
-            // Revert old tabungan or debt payment
-            if ($transaction->type === 'tabungan') {
-                $oldTarget = Target::where('user_id', Auth::id())->where('name', $transaction->category)->first();
-                if ($oldTarget) {
-                    $oldTarget->current_amount -= $transaction->amount;
-                    if ($oldTarget->current_amount < $oldTarget->target_amount) {
-                        $oldTarget->status = 'Berjalan';
-                    }
-                    $oldTarget->save();
-                }
-            } elseif ($transaction->debt_id) {
-                $this->revertDebtPayment($transaction->debt_id, (float) $transaction->amount);
-            } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
-                // Revert old debt payment (legacy)
-                $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
-            }
+            // Undo the old savings target / debt effect
+            $this->effects->revert($transaction);
 
             // If bill_id is provided, ensure category is Tagihan Rutin
             if ($validated['type'] === 'pengeluaran' && $billId) {
@@ -310,29 +282,15 @@ class TransactionController extends Controller
 
             $transaction->update($validated);
 
-            // Apply new tabungan or debt payment
-            if ($validated['type'] === 'tabungan') {
-                $newTarget = Target::where('user_id', Auth::id())->where('name', $validated['category'])->first();
-                if ($newTarget) {
-                    $newTarget->current_amount += $validated['amount'];
-                    if ($newTarget->current_amount >= $newTarget->target_amount) {
-                        $newTarget->status = 'Tercapai';
-                    }
-                    $newTarget->save();
-                }
-            } elseif (! empty($validated['debt_id'])) {
-                $this->applyDebtPayment($validated['debt_id'], (float) $validated['amount']);
-            } elseif (in_array($validated['type'], ['pengeluaran', 'pemasukan'])) {
-                // Apply new debt payment (legacy)
-                $this->syncDebtAmount($validated['category'], $validated['amount'], $validated['type']);
-            }
+            // Apply the new savings target / debt effect
+            $this->effects->apply($transaction);
 
             // Sync recurring bill payments for old and new category / month
             if ($oldType === 'pengeluaran') {
-                $this->syncBillPayment($transaction->user_id, $oldCategory, $oldDate);
+                $this->effects->syncBillPayment($transaction->user_id, $oldCategory, $oldDate);
             }
             if ($validated['type'] === 'pengeluaran') {
-                $this->syncBillPayment($transaction->user_id, $validated['category'], $validated['date'], $billId ? (int) $billId : null, $transaction);
+                $this->effects->syncBillPayment($transaction->user_id, $validated['category'], $validated['date'], $billId ? (int) $billId : null, $transaction);
             }
         });
 
@@ -358,21 +316,7 @@ class TransactionController extends Controller
         $userId = $transaction->user_id;
 
         DB::transaction(function () use ($transaction, $category, $date, $type, $userId) {
-            if ($transaction->type === 'tabungan') {
-                $target = Target::where('user_id', Auth::id())->where('name', $transaction->category)->first();
-                if ($target) {
-                    $target->current_amount -= $transaction->amount;
-                    if ($target->current_amount < $target->target_amount) {
-                        $target->status = 'Berjalan';
-                    }
-                    $target->save();
-                }
-            } elseif ($transaction->debt_id) {
-                $this->revertDebtPayment($transaction->debt_id, (float) $transaction->amount);
-            } elseif (in_array($transaction->type, ['pengeluaran', 'pemasukan'])) {
-                // Revert debt payment when transaction is deleted (legacy)
-                $this->syncDebtAmount($transaction->category, $transaction->amount, $transaction->type, true);
-            }
+            $this->effects->revert($transaction);
 
             // Delete linked bill payment FIRST before deleting transaction to avoid nullOnDelete FK race condition
             BillPayment::where('transaction_id', $transaction->id)->delete();
@@ -380,7 +324,7 @@ class TransactionController extends Controller
             $transaction->delete();
 
             if ($type === 'pengeluaran') {
-                $this->syncBillPayment($userId, $category, $date);
+                $this->effects->syncBillPayment($userId, $category, $date);
             }
         });
 
@@ -392,209 +336,5 @@ class TransactionController extends Controller
         );
 
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
-    }
-
-    /**
-     * Deduct payment from linked debt, supporting partial payments (cicilan).
-     */
-    private function applyDebtPayment(?int $debtId, float $amount): void
-    {
-        if (! $debtId || $amount <= 0) {
-            return;
-        }
-
-        $debt = Debt::where('user_id', Auth::id())->find($debtId);
-        if (! $debt) {
-            return;
-        }
-
-        $currentRemaining = $debt->remaining_amount !== null ? (float) $debt->remaining_amount : (float) $debt->amount;
-        $newRemaining = $currentRemaining - $amount;
-
-        if ($newRemaining <= 0) {
-            $debt->remaining_amount = 0;
-            $debt->status = 'lunas';
-        } else {
-            $debt->remaining_amount = $newRemaining;
-            $debt->status = 'belum_lunas';
-        }
-
-        $debt->save();
-    }
-
-    /**
-     * Restore payment back to linked debt when transaction is updated or deleted.
-     */
-    private function revertDebtPayment(?int $debtId, float $amount): void
-    {
-        if (! $debtId || $amount <= 0) {
-            return;
-        }
-
-        $debt = Debt::where('user_id', Auth::id())->find($debtId);
-        if (! $debt) {
-            return;
-        }
-
-        $currentRemaining = $debt->remaining_amount !== null ? (float) $debt->remaining_amount : (float) $debt->amount;
-        $newRemaining = $currentRemaining + $amount;
-
-        if ($newRemaining > (float) $debt->amount) {
-            $newRemaining = (float) $debt->amount;
-        }
-
-        $debt->remaining_amount = $newRemaining;
-        $debt->status = ($newRemaining <= 0) ? 'lunas' : 'belum_lunas';
-        $debt->save();
-    }
-
-    private function syncDebtAmount($category, $amount, $type, $isRevert = false)
-    {
-        $debt = Debt::where('user_id', Auth::id())
-            ->where('name', $category)
-            ->first();
-
-        if ($debt) {
-            if ($type === 'pengeluaran' && $debt->type === 'hutang') {
-                $debt->remaining_amount += $isRevert ? $amount : -$amount;
-            } elseif ($type === 'pemasukan' && $debt->type === 'piutang') {
-                $debt->remaining_amount += $isRevert ? $amount : -$amount;
-            }
-
-            // Prevent negative remaining amount and update status
-            if ($debt->remaining_amount <= 0) {
-                $debt->remaining_amount = 0;
-                $debt->status = 'lunas';
-            } else {
-                $debt->status = 'belum_lunas';
-            }
-
-            // Prevent remaining amount from exceeding original amount
-            if ($debt->remaining_amount > $debt->amount) {
-                $debt->remaining_amount = $debt->amount;
-            }
-
-            $debt->save();
-        }
-    }
-
-    /**
-     * Synchronize recurring bill payments (Tagihan Rutin) when an expense transaction is created/updated/deleted.
-     */
-    public function syncBillPayment(int $userId, string $category, string $date, ?int $billId = null, ?Transaction $transaction = null): void
-    {
-        $normalizedCategory = strtolower(trim($category));
-        $monthStr = Carbon::parse($date)->format('Y-m');
-
-        if ($billId) {
-            $matchingBills = Bill::where('user_id', $userId)
-                ->where('id', $billId)
-                ->where('is_active', true)
-                ->get();
-        } elseif ($normalizedCategory === 'tagihan rutin') {
-            if ($transaction) {
-                $titleDesc = strtolower(($transaction->title ?? '').' '.($transaction->description ?? ''));
-                $matchingBills = Bill::where('user_id', $userId)
-                    ->where('is_active', true)
-                    ->get()
-                    ->filter(function ($b) use ($titleDesc) {
-                        return stripos($titleDesc, strtolower(trim($b->name))) !== false;
-                    });
-            } else {
-                $matchingBills = Bill::where('user_id', $userId)
-                    ->where('is_active', true)
-                    ->get();
-            }
-        } else {
-            $cleanCategory = trim(preg_replace('/^tagihan:\s*/i', '', $normalizedCategory));
-            $matchingBills = Bill::where('user_id', $userId)
-                ->where('is_active', true)
-                ->where(function ($query) use ($normalizedCategory, $cleanCategory) {
-                    $query->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedCategory])
-                        ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanCategory]);
-                })
-                ->get();
-        }
-
-        if ($matchingBills->isEmpty()) {
-            return;
-        }
-
-        foreach ($matchingBills as $bill) {
-            $billName = strtolower(trim($bill->name ?? ''));
-
-            // Check if existing payment is already linked to a transaction
-            $existingPayment = BillPayment::where('bill_id', $bill->id)
-                ->where('month', $monthStr)
-                ->first();
-
-            if ($transaction && $billId && (int) $bill->id === (int) $billId) {
-                BillPayment::updateOrCreate(
-                    [
-                        'bill_id' => $bill->id,
-                        'month' => $monthStr,
-                    ],
-                    [
-                        'user_id' => $userId,
-                        'transaction_id' => $transaction->id,
-                        'amount' => $transaction->amount,
-                        'paid_at' => $transaction->date,
-                        'payment_method' => $transaction->payment_method ?? 'Cash',
-                        'notes' => $transaction->description ?: "Dibayar via transaksi Pengeluaran: {$transaction->title}",
-                    ]
-                );
-
-                continue;
-            }
-
-            $monthParts = explode('-', $monthStr);
-            $queryYear = (int) ($monthParts[0] ?? date('Y'));
-            $queryMonth = (int) ($monthParts[1] ?? date('m'));
-
-            $matchingTransactions = Transaction::where('user_id', $userId)
-                ->where('type', 'pengeluaran')
-                ->inMonth($queryYear, $queryMonth)
-                ->where(function ($q) use ($billName, $existingPayment) {
-                    if ($existingPayment && $existingPayment->transaction_id) {
-                        $q->where('id', $existingPayment->transaction_id);
-                    } else {
-                        $q->where(function ($sub) use ($billName) {
-                            $sub->whereRaw('LOWER(TRIM(category)) = ?', ['tagihan rutin'])
-                                ->where(function ($inner) use ($billName) {
-                                    $inner->whereRaw('LOWER(title) LIKE ?', ['%'.$billName.'%'])
-                                        ->orWhereRaw('LOWER(description) LIKE ?', ['%'.$billName.'%']);
-                                });
-                        })
-                            ->orWhereRaw('LOWER(TRIM(category)) = ?', [$billName]);
-                    }
-                })
-                ->orderBy('date', 'desc')
-                ->orderBy('id', 'desc')
-                ->get();
-
-            if ($matchingTransactions->isNotEmpty()) {
-                $totalPaid = (float) $matchingTransactions->sum('amount');
-                $latestTx = $matchingTransactions->first();
-
-                BillPayment::updateOrCreate(
-                    [
-                        'bill_id' => $bill->id,
-                        'month' => $monthStr,
-                    ],
-                    [
-                        'user_id' => $userId,
-                        'transaction_id' => $latestTx->id,
-                        'amount' => $totalPaid,
-                        'paid_at' => $latestTx->date,
-                        'payment_method' => $latestTx->payment_method ?? 'Cash',
-                        'notes' => $latestTx->description ?: "Dibayar via transaksi Pengeluaran: {$latestTx->title}",
-                    ]
-                );
-            } else {
-                if ($existingPayment) {
-                    $existingPayment->delete();
-                }
-            }
-        }
     }
 }

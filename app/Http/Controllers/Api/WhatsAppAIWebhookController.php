@@ -12,14 +12,18 @@ use App\Models\PaymentMethod;
 use App\Models\Target;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\TransactionEffects;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WhatsAppAIWebhookController extends Controller
 {
+    public function __construct(private TransactionEffects $effects) {}
+
     /**
      * Verify the AI webhook secret token.
      */
@@ -119,52 +123,24 @@ class WhatsAppAIWebhookController extends Controller
             ], 422);
         }
 
-        $user = $this->resolveUser($request);
+        $user = $this->resolveAuthorizedUser($request);
 
         // Debug logging to trace transaction attribution
         Log::info('WhatsApp AI Webhook: Incoming transaction request', [
             'raw_sender_phone' => $senderPhone,
             'raw_sender_id' => $senderId,
-            'user_found' => (bool) $user,
-            'user_id' => $user?->id,
-            'user_name' => $user?->name,
-            'user_phone' => $user?->phone_number,
-            'user_lid' => $user?->whatsapp_lid,
+            'user_found' => $user instanceof User,
+            'user_id' => $user instanceof User ? $user->id : null,
+            'user_name' => $user instanceof User ? $user->name : null,
+            'user_phone' => $user instanceof User ? $user->phone_number : null,
+            'user_lid' => $user instanceof User ? $user->whatsapp_lid : null,
             'title' => $validated['title'] ?? 'N/A',
             'amount' => $validated['amount'] ?? 0,
             'ip' => $request->ip(),
         ]);
 
-        // Case 1: Phone / LID not linked to any user
-        if (! $user) {
-            $identifier = $senderPhone ?? $senderId;
-
-            return response()->json([
-                'status' => 'unregistered_phone',
-                'sender_identifier' => $identifier,
-                'message' => "⚠️ *Akun WhatsApp Belum Terdaftar*\n\nAkun WhatsApp Anda ({$identifier}) belum ditautkan ke akun FinanceTrack mana pun.\n\nSilakan login ke web FinanceTrack lalu buka menu *Integrasi Agent AI* untuk menautkan nomor Anda.",
-            ], 404);
-        }
-
-        // Case 2: User is suspended
-        if (! $user->is_active) {
-            return response()->json([
-                'status' => 'account_suspended',
-                'user_name' => $user->name,
-                'message' => "⛔ *Akun Dinonaktifkan*\n\nHalo {$user->name}, akun FinanceTrack Anda sedang dinonaktifkan. Silakan hubungi admin kami untuk bantuan.",
-            ], 403);
-        }
-
-        // Case 3: User is not Pro Plus
-        if (! $user->canAccess('ai_agent')) {
-            $currentTier = strtoupper($user->active_tier);
-
-            return response()->json([
-                'status' => 'tier_locked',
-                'user_name' => $user->name,
-                'current_tier' => $user->active_tier,
-                'message' => "🔒 *Fitur Khusus Paket Pro Plus*\n\nHalo {$user->name}! Nomor Anda terdaftar pada paket *{$currentTier}*.\n\nPencatatan instan otomatis via WhatsApp Bot adalah fitur eksklusif untuk member *Paket Pro Plus*.\n\nSilakan upgrade paket langganan Anda di web: ".url('/berlangganan'),
-            ], 403);
+        if ($user instanceof JsonResponse) {
+            return $user;
         }
 
         // Auto-seed default categories & payment methods if user has none
@@ -172,73 +148,8 @@ class WhatsAppAIWebhookController extends Controller
             $user->seedDefaultCategoriesAndPaymentMethods();
         }
 
-        // Smart Category Normalization & Matching
-        $userCategories = Category::where('user_id', $user->id)->get();
-        $inputCat = trim($validated['category'] ?? '');
-        $finalCategory = 'Lainnya';
-
-        if ($validated['type'] === 'tabungan') {
-            // For tabungan, prefer matching an existing active target
-            $activeTargets = Target::where('user_id', $user->id)->where('status', 'Berjalan')->get();
-            if ($inputCat !== '') {
-                $matchedTarget = $activeTargets->first(fn ($t) => strcasecmp($t->name, $inputCat) === 0);
-                $finalCategory = $matchedTarget ? $matchedTarget->name : ($activeTargets->first()?->name ?? $inputCat);
-            } else {
-                $finalCategory = $activeTargets->first()?->name ?? 'Tabungan Impian';
-            }
-        } else {
-            // Match with existing categories of the specified type
-            $typeCategories = $userCategories->where('type', $validated['type']);
-            if ($inputCat !== '') {
-                $matched = $typeCategories->first(fn ($c) => strcasecmp($c->name, $inputCat) === 0);
-                if ($matched) {
-                    $finalCategory = $matched->name;
-                } else {
-                    // Check if it matches an active Debt or Bill
-                    $matchedDebt = Debt::where('user_id', $user->id)->where('status', 'belum_lunas')->get()->first(fn ($d) => strcasecmp($d->name, $inputCat) === 0);
-                    $matchedBill = Bill::where('user_id', $user->id)->where('is_active', true)->get()->first(fn ($b) => strcasecmp($b->category_name ?? $b->name, $inputCat) === 0);
-
-                    if ($matchedDebt) {
-                        $finalCategory = $matchedDebt->name;
-                    } elseif ($matchedBill) {
-                        $finalCategory = 'Tagihan Rutin';
-                    } else {
-                        // Create category if user limits allow
-                        $catCount = Category::where('user_id', $user->id)->count();
-                        if (! $user->hasReachedLimit('category', $catCount)) {
-                            Category::create([
-                                'user_id' => $user->id,
-                                'name' => $inputCat,
-                                'type' => $validated['type'],
-                            ]);
-                            $finalCategory = $inputCat;
-                        } else {
-                            $finalCategory = $typeCategories->first()?->name ?? 'Lainnya';
-                        }
-                    }
-                }
-            } else {
-                $finalCategory = $typeCategories->first()?->name ?? 'Lainnya';
-            }
-        }
-
-        // Smart Payment Method Matching
-        $userMethods = PaymentMethod::where('user_id', $user->id)->get();
-        $inputMethod = trim($validated['payment_method'] ?? '');
-        $finalMethod = 'Cash';
-
-        if ($inputMethod !== '') {
-            $matchedMethod = $userMethods->first(fn ($m) => strcasecmp($m->name, $inputMethod) === 0);
-            if ($matchedMethod) {
-                $finalMethod = $matchedMethod->name;
-            } else {
-                // If user has a method containing the keyword (e.g., 'bca' in 'Transfer Bank BCA')
-                $subMatch = $userMethods->first(fn ($m) => stripos($m->name, $inputMethod) !== false);
-                $finalMethod = $subMatch ? $subMatch->name : $inputMethod;
-            }
-        } else {
-            $finalMethod = $userMethods->first()?->name ?? 'Cash';
-        }
+        $finalCategory = $this->resolveCategory($user, $validated['type'], $validated['category'] ?? null);
+        $finalMethod = $this->resolvePaymentMethod($user, $validated['payment_method'] ?? null);
 
         $trxDate = ! empty($validated['date']) ? Carbon::parse($validated['date'])->toDateString() : Carbon::now()->toDateString();
         $desc = ! empty($validated['description']) ? trim($validated['description']) : 'Dicatat otomatis via AI Agent WhatsApp';
@@ -289,15 +200,7 @@ class WhatsAppAIWebhookController extends Controller
         );
 
         // Calculate up-to-date balances for instant user feedback
-        $totals = Transaction::where('user_id', $user->id)
-            ->selectRaw('type, SUM(amount) as total')
-            ->groupBy('type')
-            ->pluck('total', 'type');
-
-        $allPemasukan = (float) $totals->get('pemasukan', 0);
-        $allPengeluaran = (float) $totals->get('pengeluaran', 0);
-        $allTabungan = (float) $totals->get('tabungan', 0);
-        $activeBalance = $allPemasukan - $allPengeluaran - $allTabungan;
+        $activeBalance = $this->activeBalance($user);
 
         // Current month expense
         $now = Carbon::parse($trxDate);
@@ -503,6 +406,419 @@ class WhatsAppAIWebhookController extends Controller
             ],
             'message' => $message,
         ]);
+    }
+
+    /**
+     * List the user's latest transactions so the AI can ask "which one?" before editing or deleting.
+     */
+    public function recentTransactions(Request $request): JsonResponse
+    {
+        if ($authError = $this->verifySecretToken($request)) {
+            return $authError;
+        }
+
+        $validated = $request->validate([
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
+            'limit' => 'nullable|integer|min:1|max:20',
+        ]);
+
+        $user = $this->resolveAuthorizedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        Carbon::setLocale('id');
+        $transactions = Transaction::where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->limit($validated['limit'] ?? 5)
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'transactions' => [],
+                'message' => 'Belum ada transaksi yang tercatat.',
+            ]);
+        }
+
+        $lines = $transactions->values()->map(fn (Transaction $t, int $index) => ($index + 1).'. '.$this->describeTransaction($t));
+
+        return response()->json([
+            'status' => 'success',
+            'transactions' => $transactions->map(fn (Transaction $t) => $this->transactionPayload($t))->values(),
+            'message' => "🧾 *Transaksi Terakhir Anda:*\n\n".$lines->implode("\n")."\n\nSebutkan nomor transaksi yang ingin diubah atau dihapus.",
+        ]);
+    }
+
+    /**
+     * Edit a transaction (default: the most recently recorded one), e.g. "tadi 10rb bukan 100rb".
+     * Savings targets, debts and bill payments are re-synced exactly like editing on the web.
+     */
+    public function updateTransaction(Request $request): JsonResponse
+    {
+        if ($authError = $this->verifySecretToken($request)) {
+            return $authError;
+        }
+
+        $validated = $request->validate([
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
+            'transaction_id' => 'nullable|integer',
+            'type' => 'nullable|in:pengeluaran,pemasukan,tabungan',
+            'amount' => 'nullable|numeric|min:1',
+            'title' => 'nullable|string|max:255',
+            'category' => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:255',
+            'date' => 'nullable|date',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $changedFields = array_keys(array_filter(
+            Arr::only($validated, ['type', 'amount', 'title', 'category', 'payment_method', 'date', 'description']),
+            fn ($value) => $value !== null && $value !== ''
+        ));
+
+        if ($changedFields === []) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tidak ada data yang diubah. Kirim minimal salah satu: type, amount, title, category, payment_method, date, atau description.',
+            ], 422);
+        }
+
+        $user = $this->resolveAuthorizedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $transaction = $this->findUserTransaction($user, $validated['transaction_id'] ?? null);
+        if (! $transaction) {
+            return $this->transactionNotFoundResponse();
+        }
+
+        $before = $this->describeTransaction($transaction);
+        $oldType = $transaction->type;
+        $oldCategory = $transaction->category;
+        $oldDate = (string) $transaction->date;
+
+        $newType = $validated['type'] ?? $transaction->type;
+        $changes = Arr::only($validated, ['amount', 'title', 'description']);
+        $changes = array_filter($changes, fn ($value) => $value !== null && $value !== '');
+        $changes['type'] = $newType;
+
+        if (! empty($validated['date'])) {
+            $changes['date'] = Carbon::parse($validated['date'])->toDateString();
+        }
+        if (! empty($validated['payment_method'])) {
+            $changes['payment_method'] = $this->resolvePaymentMethod($user, $validated['payment_method']);
+        }
+        // A new type needs a category of that type; otherwise only re-match when the AI sent one
+        if (! empty($validated['category']) || $newType !== $oldType) {
+            $changes['category'] = $this->resolveCategory($user, $newType, $validated['category'] ?? null);
+        }
+
+        $finalCategory = $changes['category'] ?? $transaction->category;
+        // The installment link to a debt only stays valid for an expense still filed under "Hutang"
+        if ($transaction->debt_id && ($newType !== 'pengeluaran' || $finalCategory !== 'Hutang')) {
+            $changes['debt_id'] = null;
+        }
+
+        DB::transaction(function () use ($transaction, $changes, $oldType, $oldCategory, $oldDate, $user) {
+            $this->effects->revert($transaction);
+            $transaction->update($changes);
+            $this->effects->apply($transaction);
+
+            if ($oldType === 'pengeluaran') {
+                $this->effects->syncBillPayment($user->id, $oldCategory, $oldDate);
+            }
+            if ($transaction->type === 'pengeluaran') {
+                $this->effects->syncBillPayment($user->id, $transaction->category, (string) $transaction->date);
+            }
+        });
+
+        TransactionRecorded::broadcastAfterResponse(
+            userId: $user->id,
+            transaction: $transaction,
+            action: 'updated',
+            source: 'whatsapp',
+            message: "Transaksi diperbarui via WhatsApp Bot: {$transaction->title}"
+        );
+
+        $balance = $this->activeBalance($user);
+
+        return response()->json([
+            'status' => 'success',
+            'transaction' => $this->transactionPayload($transaction),
+            'balance' => [
+                'saldo_kas' => $balance,
+                'saldo_kas_formatted' => $this->formatRupiah($balance),
+            ],
+            'message' => "✏️ *Transaksi Berhasil Diperbarui!*\n\n"
+                ."Sebelumnya: {$before}\n"
+                .'Sekarang: '.$this->describeTransaction($transaction)."\n\n"
+                .'💰 Sisa Saldo Kas: *'.$this->formatRupiah($balance).'*',
+        ]);
+    }
+
+    /**
+     * Delete a transaction (default: the most recently recorded one), e.g. "batalkan transaksi barusan".
+     * Savings targets, debts and bill payments are rolled back exactly like deleting on the web.
+     */
+    public function deleteTransaction(Request $request): JsonResponse
+    {
+        if ($authError = $this->verifySecretToken($request)) {
+            return $authError;
+        }
+
+        $validated = $request->validate([
+            'sender_phone' => 'nullable|string',
+            'sender_id' => 'nullable|string',
+            'sender_lid' => 'nullable|string',
+            'transaction_id' => 'nullable|integer',
+        ]);
+
+        $user = $this->resolveAuthorizedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $transaction = $this->findUserTransaction($user, $validated['transaction_id'] ?? null);
+        if (! $transaction) {
+            return $this->transactionNotFoundResponse();
+        }
+
+        $description = $this->describeTransaction($transaction);
+        $deletedPayload = $this->transactionPayload($transaction);
+
+        DB::transaction(function () use ($transaction, $user) {
+            $this->effects->revert($transaction);
+
+            // Delete the linked bill payment first, then re-check the bill for that month
+            BillPayment::where('transaction_id', $transaction->id)->delete();
+            $transaction->delete();
+
+            if ($transaction->type === 'pengeluaran') {
+                $this->effects->syncBillPayment($user->id, $transaction->category, (string) $transaction->date);
+            }
+        });
+
+        TransactionRecorded::broadcastAfterResponse(
+            userId: $user->id,
+            transaction: $transaction,
+            action: 'deleted',
+            source: 'whatsapp',
+            message: "Transaksi dihapus via WhatsApp Bot: {$transaction->title}"
+        );
+
+        $balance = $this->activeBalance($user);
+
+        return response()->json([
+            'status' => 'success',
+            'transaction' => $deletedPayload,
+            'balance' => [
+                'saldo_kas' => $balance,
+                'saldo_kas_formatted' => $this->formatRupiah($balance),
+            ],
+            'message' => "🗑️ *Transaksi Berhasil Dihapus!*\n\n{$description}\n\n"
+                .'💰 Sisa Saldo Kas: *'.$this->formatRupiah($balance).'*',
+        ]);
+    }
+
+    /**
+     * The user's transaction by id, or their most recently recorded one. Never another user's transaction.
+     */
+    protected function findUserTransaction(User $user, ?int $transactionId): ?Transaction
+    {
+        $query = Transaction::where('user_id', $user->id);
+
+        return $transactionId
+            ? $query->find($transactionId)
+            : $query->orderByDesc('id')->first();
+    }
+
+    protected function transactionNotFoundResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'transaction_not_found',
+            'message' => 'Transaksi tidak ditemukan. Ketik *riwayat transaksi* untuk melihat daftar transaksi terakhir Anda.',
+        ], 404);
+    }
+
+    /**
+     * One-line WhatsApp description, e.g. "📉 Kopi — Rp 30.000 (Makanan, 20 Okt 2026)".
+     */
+    protected function describeTransaction(Transaction $transaction): string
+    {
+        $icon = match ($transaction->type) {
+            'pemasukan' => '📈',
+            'tabungan' => '🎯',
+            default => '📉',
+        };
+
+        $date = Carbon::parse($transaction->date)->locale('id')->translatedFormat('d M Y');
+
+        return "{$icon} {$transaction->title} — ".$this->formatRupiah((float) $transaction->amount)." ({$transaction->category}, {$date})";
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function transactionPayload(Transaction $transaction): array
+    {
+        return [
+            'id' => $transaction->id,
+            'type' => $transaction->type,
+            'amount' => (float) $transaction->amount,
+            'amount_formatted' => $this->formatRupiah((float) $transaction->amount),
+            'title' => $transaction->title,
+            'category' => $transaction->category,
+            'payment_method' => $transaction->payment_method,
+            'date' => (string) $transaction->date,
+        ];
+    }
+
+    protected function formatRupiah(float $amount): string
+    {
+        return 'Rp '.number_format($amount, 0, ',', '.');
+    }
+
+    /**
+     * Resolve the sender and make sure they may use the AI Agent.
+     * Returns the WhatsApp-ready error response when the number is unknown, suspended or not on Pro Plus.
+     */
+    protected function resolveAuthorizedUser(Request $request): User|JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $senderId = $request->input('sender_id') ?? $request->input('sender_lid');
+        $senderPhone = $request->input('sender_phone');
+
+        // Case 1: Phone / LID not linked to any user
+        if (! $user) {
+            $identifier = $senderPhone ?? $senderId;
+
+            return response()->json([
+                'status' => 'unregistered_phone',
+                'sender_identifier' => $identifier,
+                'message' => "⚠️ *Akun WhatsApp Belum Terdaftar*\n\nAkun WhatsApp Anda ({$identifier}) belum ditautkan ke akun FinanceTrack mana pun.\n\nSilakan login ke web FinanceTrack lalu buka menu *Integrasi Agent AI* untuk menautkan nomor Anda.",
+            ], 404);
+        }
+
+        // Case 2: User is suspended
+        if (! $user->is_active) {
+            return response()->json([
+                'status' => 'account_suspended',
+                'user_name' => $user->name,
+                'message' => "⛔ *Akun Dinonaktifkan*\n\nHalo {$user->name}, akun FinanceTrack Anda sedang dinonaktifkan. Silakan hubungi admin kami untuk bantuan.",
+            ], 403);
+        }
+
+        // Case 3: User is not Pro Plus
+        if (! $user->canAccess('ai_agent')) {
+            $currentTier = strtoupper($user->active_tier);
+
+            return response()->json([
+                'status' => 'tier_locked',
+                'user_name' => $user->name,
+                'current_tier' => $user->active_tier,
+                'message' => "🔒 *Fitur Khusus Paket Pro Plus*\n\nHalo {$user->name}! Nomor Anda terdaftar pada paket *{$currentTier}*.\n\nPencatatan instan otomatis via WhatsApp Bot adalah fitur eksklusif untuk member *Paket Pro Plus*.\n\nSilakan upgrade paket langganan Anda di web: ".url('/berlangganan'),
+            ], 403);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Match the AI's category against the user's own categories, active targets, debts and bills.
+     */
+    protected function resolveCategory(User $user, string $type, ?string $inputCategory): string
+    {
+        // Auto-seed default categories & payment methods if user has none
+        if (Category::where('user_id', $user->id)->count() === 0) {
+            $user->seedDefaultCategoriesAndPaymentMethods();
+        }
+
+        $inputCat = trim((string) $inputCategory);
+
+        if ($type === 'tabungan') {
+            // For tabungan, prefer matching an existing active target
+            $activeTargets = Target::where('user_id', $user->id)->where('status', 'Berjalan')->get();
+            if ($inputCat !== '') {
+                $matchedTarget = $activeTargets->first(fn ($t) => strcasecmp($t->name, $inputCat) === 0);
+
+                return $matchedTarget ? $matchedTarget->name : ($activeTargets->first()?->name ?? $inputCat);
+            }
+
+            return $activeTargets->first()?->name ?? 'Tabungan Impian';
+        }
+
+        // Match with existing categories of the specified type
+        $typeCategories = Category::where('user_id', $user->id)->where('type', $type)->get();
+        if ($inputCat === '') {
+            return $typeCategories->first()?->name ?? 'Lainnya';
+        }
+
+        $matched = $typeCategories->first(fn ($c) => strcasecmp($c->name, $inputCat) === 0);
+        if ($matched) {
+            return $matched->name;
+        }
+
+        // Check if it matches an active Debt or Bill
+        $matchedDebt = Debt::where('user_id', $user->id)->where('status', 'belum_lunas')->get()->first(fn ($d) => strcasecmp($d->name, $inputCat) === 0);
+        if ($matchedDebt) {
+            return $matchedDebt->name;
+        }
+
+        $matchedBill = Bill::where('user_id', $user->id)->where('is_active', true)->get()->first(fn ($b) => strcasecmp($b->category_name ?? $b->name, $inputCat) === 0);
+        if ($matchedBill) {
+            return 'Tagihan Rutin';
+        }
+
+        // Create category if user limits allow
+        $catCount = Category::where('user_id', $user->id)->count();
+        if (! $user->hasReachedLimit('category', $catCount)) {
+            Category::create([
+                'user_id' => $user->id,
+                'name' => $inputCat,
+                'type' => $type,
+            ]);
+
+            return $inputCat;
+        }
+
+        return $typeCategories->first()?->name ?? 'Lainnya';
+    }
+
+    /**
+     * Match the AI's payment method against the user's methods (exact, then partial, e.g. "bca").
+     */
+    protected function resolvePaymentMethod(User $user, ?string $inputMethod): string
+    {
+        $userMethods = PaymentMethod::where('user_id', $user->id)->get();
+        $inputMethod = trim((string) $inputMethod);
+
+        if ($inputMethod === '') {
+            return $userMethods->first()?->name ?? 'Cash';
+        }
+
+        $matchedMethod = $userMethods->first(fn ($m) => strcasecmp($m->name, $inputMethod) === 0)
+            ?? $userMethods->first(fn ($m) => stripos($m->name, $inputMethod) !== false);
+
+        return $matchedMethod ? $matchedMethod->name : $inputMethod;
+    }
+
+    /**
+     * All-time cash balance: income minus expenses minus savings.
+     */
+    protected function activeBalance(User $user): float
+    {
+        $totals = Transaction::where('user_id', $user->id)
+            ->selectRaw('type, SUM(amount) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        return (float) $totals->get('pemasukan', 0) - (float) $totals->get('pengeluaran', 0) - (float) $totals->get('tabungan', 0);
     }
 
     /**

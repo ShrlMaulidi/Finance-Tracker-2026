@@ -1,11 +1,14 @@
 import InputError from '@/Components/InputError';
 import Modal from '@/Components/Modal';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
 export default function DeleteUserForm({ className = '' }) {
     const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
     const passwordInput = useRef();
+
+    // Accounts registered with Google have no password, so they confirm by typing "HAPUS"
+    const hasPassword = usePage().props.auth?.user?.has_password ?? true;
 
     const {
         data,
@@ -17,6 +20,7 @@ export default function DeleteUserForm({ className = '' }) {
         clearErrors,
     } = useForm({
         password: '',
+        confirmation: '',
     });
 
     const confirmUserDeletion = () => {
@@ -87,6 +91,7 @@ export default function DeleteUserForm({ className = '' }) {
                         </div>
                     </div>
 
+                    {hasPassword ? (
                     <div>
                         <label htmlFor="confirm_password" className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
                             Masukkan kata sandi untuk konfirmasi
@@ -109,6 +114,32 @@ export default function DeleteUserForm({ className = '' }) {
                             className="mt-1.5"
                         />
                     </div>
+                    ) : (
+                    <div>
+                        <label htmlFor="confirm_delete_text" className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
+                            Ketik <span className="font-black text-rose-600">HAPUS</span> untuk konfirmasi
+                        </label>
+
+                        <input
+                            id="confirm_delete_text"
+                            type="text"
+                            name="confirmation"
+                            ref={passwordInput}
+                            value={data.confirmation}
+                            onChange={(e) => setData('confirmation', e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 uppercase focus:bg-white focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all"
+                            placeholder="HAPUS"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            autoFocus
+                        />
+
+                        <InputError
+                            message={errors.confirmation}
+                            className="mt-1.5"
+                        />
+                    </div>
+                    )}
 
                     <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2">
                         <button

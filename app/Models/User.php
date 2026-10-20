@@ -34,7 +34,7 @@ class User extends Authenticatable
         ];
     }
 
-    protected $appends = ['is_pro', 'is_pro_plus', 'permissions', 'tier_limits', 'active_tier'];
+    protected $appends = ['is_pro', 'is_pro_plus', 'permissions', 'tier_limits', 'active_tier', 'has_password'];
 
     /**
      * Default categories definition for new users.
@@ -331,6 +331,14 @@ class User extends Authenticatable
         }
 
         return $currentCount >= $limit;
+    }
+
+    /**
+     * Whether the account has a password (accounts registered with Google start without one).
+     */
+    public function getHasPasswordAttribute(): bool
+    {
+        return ! empty($this->getAttributes()['password'] ?? null);
     }
 
     /**

@@ -1,11 +1,14 @@
 import InputError from '@/Components/InputError';
 import { Transition } from '@headlessui/react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useRef } from 'react';
 
 export default function UpdatePasswordForm({ className = '' }) {
     const passwordInput = useRef();
     const currentPasswordInput = useRef();
+
+    // Accounts registered with Google have no password yet: they create one without a current password
+    const hasPassword = usePage().props.auth?.user?.has_password ?? true;
 
     const {
         data,
@@ -49,15 +52,18 @@ export default function UpdatePasswordForm({ className = '' }) {
                 </div>
                 <div>
                     <h2 className="text-base sm:text-lg font-black text-slate-800 leading-tight">
-                        Ubah Kata Sandi
+                        {hasPassword ? 'Ubah Kata Sandi' : 'Buat Kata Sandi'}
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                        Pastikan akun Anda menggunakan kombinasi kata sandi yang kuat dan aman.
+                        {hasPassword
+                            ? 'Pastikan akun Anda menggunakan kombinasi kata sandi yang kuat dan aman.'
+                            : 'Akun Anda terhubung dengan Google. Buat kata sandi agar bisa masuk juga dengan email.'}
                     </p>
                 </div>
             </header>
 
             <form onSubmit={updatePassword} className="space-y-4 sm:space-y-5">
+                {hasPassword && (
                 <div>
                     <label
                         htmlFor="current_password"
@@ -82,6 +88,7 @@ export default function UpdatePasswordForm({ className = '' }) {
                         className="mt-1.5"
                     />
                 </div>
+                )}
 
                 <div>
                     <label
@@ -135,7 +142,7 @@ export default function UpdatePasswordForm({ className = '' }) {
                         disabled={processing}
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white px-5 py-2.5 rounded-xl font-extrabold text-xs sm:text-sm shadow-md shadow-slate-900/10 hover:shadow-lg transition-all disabled:opacity-50"
                     >
-                        {processing ? 'Menyimpan...' : 'Perbarui Kata Sandi'}
+                        {processing ? 'Menyimpan...' : hasPassword ? 'Perbarui Kata Sandi' : 'Simpan Kata Sandi'}
                     </button>
 
                     <Transition
@@ -149,7 +156,7 @@ export default function UpdatePasswordForm({ className = '' }) {
                     >
                         <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 justify-center">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                            Kata sandi berhasil diperbarui!
+                            Kata sandi berhasil disimpan!
                         </span>
                     </Transition>
                 </div>

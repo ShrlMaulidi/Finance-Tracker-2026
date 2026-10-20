@@ -83,11 +83,22 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
         $user = $request->user();
+
+        if ($user->has_password) {
+            $request->validate([
+                'password' => ['required', 'current_password'],
+            ]);
+        } else {
+            // Google-only accounts have no password to confirm with, so they type "HAPUS" instead
+            $request->merge(['confirmation' => mb_strtoupper(trim((string) $request->input('confirmation')))]);
+            $request->validate([
+                'confirmation' => ['required', 'in:HAPUS'],
+            ], [
+                'confirmation.required' => 'Ketik HAPUS untuk mengonfirmasi penghapusan akun.',
+                'confirmation.in' => 'Ketik HAPUS untuk mengonfirmasi penghapusan akun.',
+            ]);
+        }
 
         Auth::logout();
 

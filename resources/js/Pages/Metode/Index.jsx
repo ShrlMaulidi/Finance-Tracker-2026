@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { Button, ActionButtons, EmptyState, Modal, DeleteConfirmModal } from '@/Components/UI';
+import { Button, ActionButtons, EmptyState, Modal, DeleteConfirmModal, QuotaNotice } from '@/Components/UI';
 
 export default function Index({ methods = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -82,38 +82,8 @@ export default function Index({ methods = [], isFree = false, canAdd = true, max
                     </div>
                 </div>
 
-                {/* Free Tier Limit Banner */}
-                {isFree && (
-                    <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-4 shadow-2xs">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[11.5px] sm:text-xs font-black text-amber-950 truncate">
-                                        Kuota Gratis: {maxLimit ? `${currentCount}/${maxLimit}` : currentCount} Metode
-                                    </span>
-                                    <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${!canAdd ? 'bg-amber-200/90 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>
-                                        {!canAdd ? 'Penuh' : 'Tersedia'}
-                                    </span>
-                                </div>
-                                <p className="text-[10px] sm:text-[11.5px] text-amber-800/80 font-medium truncate mt-0.5">
-                                    {!canAdd 
-                                        ? 'Batas tercapai. Upgrade ke PRO untuk menambah metode tanpa batas.' 
-                                        : `Akun Gratis dibatasi maksimal ${maxLimit ?? 5} metode pembayaran.`}
-                                </p>
-                            </div>
-                        </div>
-                        <Link 
-                            href={route('berlangganan.index')}
-                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-lg sm:rounded-xl shadow-2xs transition-all shrink-0 active:scale-95"
-                        >
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <span>Upgrade Pro</span>
-                        </Link>
-                    </div>
-                )}
+                {/* Free plan quota */}
+                {isFree && <QuotaNotice used={currentCount} limit={maxLimit} unit="metode" />}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                     {/* Form Kiri */}

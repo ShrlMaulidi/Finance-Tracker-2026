@@ -3,11 +3,11 @@ import { Head, Link, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Dropdown from '@/Components/Dropdown';
 import CurrencyInput from '@/Components/CurrencyInput';
-import { Button, KpiCard, TabFilter, ActionButtons, Modal, DeleteConfirmModal } from '@/Components/UI';
+import { Button, KpiCard, TabFilter, ActionButtons, Modal, DeleteConfirmModal, QuotaNotice } from '@/Components/UI';
 import { compressImage } from '@/Utils/imageCompressor';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
-export default function Target({ dbTargets = [], isFree = false, canAdd = true, currentCount = 0 }) {
+export default function Target({ dbTargets = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('berjalan');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTarget, setEditingTarget] = useState(null);
@@ -182,7 +182,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
                         )}
                     >
-                        {isFree && !canAdd ? 'Batas Tercapai (1/1)' : 'Tambah Target'}
+                        {isFree && !canAdd ? `Batas Tercapai (${currentCount}/${maxLimit})` : 'Tambah Target'}
                     </Button>
                 </div>
 
@@ -200,21 +200,12 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
                         )}
                     >
-                        {isFree && !canAdd ? 'Batas 1/1' : 'Target'}
+                        {isFree && !canAdd ? `Batas ${currentCount}/${maxLimit}` : 'Target'}
                     </Button>
                 </div>
 
-                {/* Free tier: one-line quota notice */}
-                {isFree && (
-                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50/80 px-4 py-2.5">
-                        <span className="text-xs font-semibold text-amber-900 truncate">
-                            Paket gratis · {currentCount}/1 target
-                        </span>
-                        <Link href={route('berlangganan.index')} className="text-xs font-bold text-amber-700 hover:text-amber-900 shrink-0">
-                            Upgrade
-                        </Link>
-                    </div>
-                )}
+                {/* Free plan quota */}
+                {isFree && <QuotaNotice used={currentCount} limit={maxLimit} unit="target" />}
 
                 {/* KPI Summary - Desktop (same cards as Tagihan Rutin) */}
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

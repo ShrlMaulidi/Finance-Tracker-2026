@@ -36,6 +36,9 @@ createInertiaApp({
 
         root.render(<App {...props} />);
 
+        // Lets the mobile splash screen (rendered in app.blade.php) fade out once the first page has painted
+        requestAnimationFrame(() => window.hideSplashScreen?.());
+
         warmUpPageChunks();
     },
     progress: {

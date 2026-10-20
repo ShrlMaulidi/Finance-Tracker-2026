@@ -55,7 +55,7 @@
                     justify-content: center;
                     background: radial-gradient(circle at 75% 25%, #f0f7ff 0%, #fafcff 40%, #ffffff 100%);
                     font-family: Figtree, ui-sans-serif, system-ui, -apple-system, sans-serif;
-                    transition: opacity 0.45s ease, transform 0.45s ease;
+                    transition: opacity 0.6s ease, transform 0.6s ease;
                 }
                 @media (max-width: 767px) {
                     #app-splash { display: flex; }
@@ -79,7 +79,7 @@
                     border-radius: 9999px;
                     background: rgba(0, 155, 210, 0.14);
                     opacity: 0;
-                    animation: appSplashRing 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s infinite;
+                    animation: appSplashRing 2.2s cubic-bezier(0.16, 1, 0.3, 1) 1s infinite;
                 }
                 .app-splash__logo {
                     position: relative;
@@ -88,8 +88,8 @@
                     object-fit: contain;
                     opacity: 0;
                     animation:
-                        appSplashLogoIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-                        appSplashFloat 2.4s ease-in-out 0.8s infinite;
+                        appSplashLogoIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+                        appSplashFloat 2.4s ease-in-out 1.2s infinite;
                 }
                 .app-splash__name {
                     margin-top: 20px;
@@ -98,7 +98,7 @@
                     letter-spacing: -0.02em;
                     color: #0f172a;
                     opacity: 0;
-                    animation: appSplashFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards;
+                    animation: appSplashFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
                 }
                 .app-splash__tagline {
                     margin-top: 4px;
@@ -106,7 +106,7 @@
                     font-weight: 500;
                     color: #64748b;
                     opacity: 0;
-                    animation: appSplashFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+                    animation: appSplashFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1s forwards;
                 }
                 .app-splash__bar {
                     position: absolute;
@@ -117,7 +117,7 @@
                     background: #e2e8f0;
                     overflow: hidden;
                     opacity: 0;
-                    animation: appSplashFadeUp 0.4s ease 0.6s forwards;
+                    animation: appSplashFadeUp 0.5s ease 1.2s forwards;
                 }
                 .app-splash__bar::after {
                     content: '';
@@ -126,7 +126,7 @@
                     width: 45%;
                     border-radius: inherit;
                     background: linear-gradient(90deg, #22d3ee, #009bd2, #1d6fd1);
-                    animation: appSplashBar 1.1s ease-in-out infinite;
+                    animation: appSplashBar 1.6s ease-in-out infinite;
                 }
                 @keyframes appSplashLogoIn {
                     from { opacity: 0; transform: translateY(12px) scale(0.6) rotate(-8deg); }
@@ -176,8 +176,8 @@
             <script>
                 (function () {
                     var splash = document.getElementById('app-splash');
-                    var minimumVisibleMs = 1600;
-                    var maximumVisibleMs = 5000;
+                    var minimumVisibleMs = 2800;
+                    var maximumVisibleMs = 6500;
                     var startedAt = Date.now();
                     var isAppReady = false;
                     var isHidden = false;
@@ -198,7 +198,7 @@
                         if (isHidden) return;
                         isHidden = true;
                         splash.classList.add('is-leaving');
-                        setTimeout(function () { splash.remove(); }, 450);
+                        setTimeout(function () { splash.remove(); }, 600);
                     }
 
                     window.hideSplashScreen = function () {

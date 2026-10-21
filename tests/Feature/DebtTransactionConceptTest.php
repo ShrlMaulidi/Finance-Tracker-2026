@@ -244,4 +244,111 @@ class DebtTransactionConceptTest extends TestCase
         $this->assertEquals(600000, $debt->remaining_amount);
         $this->assertEquals('belum_lunas', $debt->status);
     }
+
+    public function test_debt_expense_cannot_be_recorded_without_a_debt(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pengeluaran',
+            'payment_method' => 'Cash',
+            'amount' => 200000,
+            'category' => 'Hutang',
+            'title' => 'Bayar Hutang',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'debt_id' => 'Pilih hutang terlebih dahulu. Tambahkan hutang di menu Hutang & Piutang jika belum ada.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_debt_expense_cannot_use_another_users_debt(): void
+    {
+        $user = User::factory()->create();
+        $otherUsersDebt = Debt::create([
+            'user_id' => User::factory()->create()->id,
+            'type' => 'hutang',
+            'name' => 'Hutang Orang Lain',
+            'amount' => 1000000,
+            'remaining_amount' => 1000000,
+            'status' => 'belum_lunas',
+        ]);
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pengeluaran',
+            'payment_method' => 'Cash',
+            'amount' => 200000,
+            'category' => 'Hutang',
+            'debt_id' => $otherUsersDebt->id,
+            'title' => 'Bayar Hutang',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'debt_id' => 'Data hutang tidak ditemukan.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(1000000, $otherUsersDebt->fresh()->remaining_amount);
+    }
+
+    public function test_expense_cannot_be_switched_to_debt_without_a_debt(): void
+    {
+        $user = User::factory()->create();
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'type' => 'pengeluaran',
+            'category' => 'Makanan',
+            'amount' => 50000,
+            'payment_method' => 'Cash',
+            'title' => 'Makan Siang',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response = $this->actingAs($user)->put('/transaksi/'.$transaction->id, [
+            'type' => 'pengeluaran',
+            'category' => 'Hutang',
+            'amount' => 50000,
+            'payment_method' => 'Cash',
+            'title' => 'Makan Siang',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'debt_id' => 'Pilih hutang terlebih dahulu. Tambahkan hutang di menu Hutang & Piutang jika belum ada.',
+        ]);
+
+        $this->assertSame('Makanan', $transaction->fresh()->category);
+    }
+
+    public function test_existing_debt_expense_without_a_debt_can_still_be_edited(): void
+    {
+        $user = User::factory()->create();
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'type' => 'pengeluaran',
+            'category' => 'Hutang',
+            'amount' => 100000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Hutang Lama',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response = $this->actingAs($user)->put('/transaksi/'.$transaction->id, [
+            'type' => 'pengeluaran',
+            'category' => 'Hutang',
+            'amount' => 120000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Hutang Lama',
+            'date' => Carbon::today()->format('Y-m-d'),
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $this->assertEquals(120000, (float) $transaction->fresh()->amount);
+    }
 }

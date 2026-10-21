@@ -159,8 +159,8 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
-            'bill_id' => $this->billIdRules($this->isRecurringBillExpense($request)),
-            'debt_id' => 'nullable|integer',
+            'bill_id' => $this->billIdRules($this->isExpenseInCategory($request->input('type'), $request->input('category'), 'Tagihan Rutin')),
+            'debt_id' => $this->debtIdRules($this->isExpenseInCategory($request->input('type'), $request->input('category'), 'Hutang')),
             'payment_method' => 'required|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -232,16 +232,18 @@ class TransactionController extends Controller
         $oldDate = $transaction->date;
         $oldType = $transaction->type;
 
-        // Older recurring-bill expenses may no longer have a linked bill, so only require one when switching into the category
-        $isSwitchingToRecurringBill = $this->isRecurringBillExpense($request)
-            && ! ($oldType === 'pengeluaran' && $this->isRecurringBillCategory($oldCategory));
+        // Older bill / debt expenses may no longer have a linked record, so only require one when switching into the category
+        $isSwitchingToRecurringBill = $this->isExpenseInCategory($request->input('type'), $request->input('category'), 'Tagihan Rutin')
+            && ! $this->isExpenseInCategory($oldType, $oldCategory, 'Tagihan Rutin');
+        $isSwitchingToDebt = $this->isExpenseInCategory($request->input('type'), $request->input('category'), 'Hutang')
+            && ! $this->isExpenseInCategory($oldType, $oldCategory, 'Hutang');
 
         $validated = $request->validate([
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
             'bill_id' => $this->billIdRules($isSwitchingToRecurringBill),
-            'debt_id' => 'nullable|integer',
+            'debt_id' => $this->debtIdRules($isSwitchingToDebt),
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -343,15 +345,10 @@ class TransactionController extends Controller
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
     }
 
-    private function isRecurringBillCategory(?string $category): bool
+    private function isExpenseInCategory(?string $type, ?string $category, string $expectedCategory): bool
     {
-        return strtolower(trim((string) $category)) === 'tagihan rutin';
-    }
-
-    private function isRecurringBillExpense(Request $request): bool
-    {
-        return $request->input('type') === 'pengeluaran'
-            && $this->isRecurringBillCategory($request->input('category'));
+        return $type === 'pengeluaran'
+            && strtolower(trim((string) $category)) === strtolower($expectedCategory);
     }
 
     /**
@@ -375,6 +372,26 @@ class TransactionController extends Controller
     }
 
     /**
+     * A debt expense must point at one of the user's debts.
+     *
+     * @return array<int, mixed>
+     */
+    private function debtIdRules(bool $isDebtRequired): array
+    {
+        if (! $isDebtRequired) {
+            return ['nullable', 'integer'];
+        }
+
+        return [
+            'required',
+            'integer',
+            Rule::exists('debts', 'id')
+                ->where('user_id', Auth::id())
+                ->where('type', 'hutang'),
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     private function transactionValidationMessages(): array
@@ -382,6 +399,8 @@ class TransactionController extends Controller
         return [
             'bill_id.required' => 'Pilih tagihan rutin terlebih dahulu. Tambahkan tagihan di menu Tagihan jika belum ada.',
             'bill_id.exists' => 'Tagihan rutin tidak ditemukan atau sudah tidak aktif.',
+            'debt_id.required' => 'Pilih hutang terlebih dahulu. Tambahkan hutang di menu Hutang & Piutang jika belum ada.',
+            'debt_id.exists' => 'Data hutang tidak ditemukan.',
             'payment_method.required' => 'Metode pembayaran wajib dipilih.',
         ];
     }

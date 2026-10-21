@@ -142,8 +142,11 @@ export default function Index({ transactions, summary, currentMonthName, current
         ? (activeBills.find(b => String(b.id) === String(data.bill_id)) || null)
         : null;
 
-    // A recurring-bill expense can only be saved once a bill has been picked
-    const isBillSelectionMissing = data.type === 'pengeluaran' && data.category === 'Tagihan Rutin' && !data.bill_id;
+    // A recurring-bill or debt expense can only be saved once its bill / debt has been picked
+    const isLinkedItemMissing = data.type === 'pengeluaran' && (
+        (data.category === 'Tagihan Rutin' && !data.bill_id)
+        || (data.category === 'Hutang' && !data.debt_id)
+    );
 
     // Pop-up Notification State
     const [popupNotification, setPopupNotification] = useState({
@@ -209,13 +212,16 @@ export default function Index({ transactions, summary, currentMonthName, current
         ? (activeBills.find(b => String(b.id) === String(editData.bill_id)) || null)
         : null;
 
-    // Older recurring-bill expenses may have lost their bill, so only require one when switching into the category
-    const isEditBillSelectionMissing = editData.type === 'pengeluaran' && editData.category === 'Tagihan Rutin' && !editData.bill_id
-        && !(editingTx?.type === 'pengeluaran' && editingTx?.category === 'Tagihan Rutin');
+    // Older bill / debt expenses may have lost their linked record, so only require one when switching into the category
+    const isSwitchingEditCategory = !(editingTx?.type === 'pengeluaran' && editingTx?.category === editData.category);
+    const isEditLinkedItemMissing = editData.type === 'pengeluaran' && isSwitchingEditCategory && (
+        (editData.category === 'Tagihan Rutin' && !editData.bill_id)
+        || (editData.category === 'Hutang' && !editData.debt_id)
+    );
 
     const submit = (e) => {
         e.preventDefault();
-        if (isBillSelectionMissing) return;
+        if (isLinkedItemMissing) return;
         if (!data.payment_method) {
             setError('payment_method', 'Metode pembayaran wajib dipilih.');
             return;
@@ -298,7 +304,7 @@ export default function Index({ transactions, summary, currentMonthName, current
 
     const submitEdit = (e) => {
         e.preventDefault();
-        if (isEditBillSelectionMissing) return;
+        if (isEditLinkedItemMissing) return;
         const transactionBeingEdited = editingTx;
         const updatedTransaction = toOptimisticTransaction(editData);
 
@@ -643,6 +649,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                                 Tidak ada hutang aktif. <Link href={route('hutang-piutang.index')} className="text-rose-600 font-bold hover:underline">Tambah</Link>
                                             </p>
                                         )}
+                                        {errors.debt_id && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.debt_id}</p>}
                                     </div>
                                 )}
 
@@ -727,8 +734,8 @@ export default function Index({ transactions, summary, currentMonthName, current
 
                                 <button
                                     type="submit"
-                                    disabled={processing || isBillSelectionMissing}
-                                    className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${formTheme.button} text-white min-h-[50px] sm:min-h-[54px] rounded-2xl font-black text-sm sm:text-base tracking-wide shadow-lg transition-all duration-300 hover:brightness-105 active:scale-[0.98] ${processing || isBillSelectionMissing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    disabled={processing || isLinkedItemMissing}
+                                    className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${formTheme.button} text-white min-h-[50px] sm:min-h-[54px] rounded-2xl font-black text-sm sm:text-base tracking-wide shadow-lg transition-all duration-300 hover:brightness-105 active:scale-[0.98] ${processing || isLinkedItemMissing ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                     {processing ? 'Menyimpan...' : 'Simpan Transaksi'}
@@ -1002,6 +1009,12 @@ export default function Index({ transactions, summary, currentMonthName, current
                                                 </option>
                                             ))}
                                         </select>
+                                        {activeDebts.length === 0 && (
+                                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500">
+                                                Tidak ada hutang aktif. <Link href={route('hutang-piutang.index')} className="text-rose-600 font-bold hover:underline">Tambah</Link>
+                                            </p>
+                                        )}
+                                        {editErrors.debt_id && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.debt_id}</p>}
                                     </div>
                                 )}
 
@@ -1097,7 +1110,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                 <Button 
                                     type="submit" 
                                     loading={editProcessing}
-                                    disabled={isEditBillSelectionMissing}
+                                    disabled={isEditLinkedItemMissing}
                                     className={`flex-1 !py-2.5 sm:!py-3 ${editData.type === 'pengeluaran' ? '!bg-rose-500 hover:!bg-rose-600' : '!bg-emerald-500 hover:!bg-emerald-600'}`}
                                 >
                                     Simpan Perubahan

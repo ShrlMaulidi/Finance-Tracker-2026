@@ -397,6 +397,7 @@ class TransactionController extends Controller
     private function transactionValidationMessages(): array
     {
         return [
+            'category.required' => 'Kategori wajib dipilih.',
             'bill_id.required' => 'Pilih tagihan rutin terlebih dahulu. Tambahkan tagihan di menu Tagihan jika belum ada.',
             'bill_id.exists' => 'Tagihan rutin tidak ditemukan atau sudah tidak aktif.',
             'debt_id.required' => 'Pilih hutang terlebih dahulu. Tambahkan hutang di menu Hutang & Piutang jika belum ada.',

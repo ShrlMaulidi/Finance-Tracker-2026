@@ -182,6 +182,7 @@ export default function Index({ transactions, summary, currentMonthName, current
         processing: editProcessing, 
         reset: resetEdit, 
         clearErrors: clearEditErrors,
+        setError: setEditError,
         errors: editErrors 
     } = useForm({
         type: 'pengeluaran',
@@ -222,8 +223,12 @@ export default function Index({ transactions, summary, currentMonthName, current
     const submit = (e) => {
         e.preventDefault();
         if (isLinkedItemMissing) return;
-        if (!data.payment_method) {
-            setError('payment_method', 'Metode pembayaran wajib dipilih.');
+        const missingFieldErrors = {
+            ...(!data.category ? { category: 'Kategori wajib dipilih.' } : {}),
+            ...(!data.payment_method ? { payment_method: 'Metode pembayaran wajib dipilih.' } : {}),
+        };
+        if (Object.keys(missingFieldErrors).length > 0) {
+            setError(missingFieldErrors);
             return;
         }
         const submittedData = { ...data };
@@ -305,6 +310,10 @@ export default function Index({ transactions, summary, currentMonthName, current
     const submitEdit = (e) => {
         e.preventDefault();
         if (isEditLinkedItemMissing) return;
+        if (!editData.category) {
+            setEditError('category', 'Kategori wajib dipilih.');
+            return;
+        }
         const transactionBeingEdited = editingTx;
         const updatedTransaction = toOptimisticTransaction(editData);
 
@@ -521,9 +530,9 @@ export default function Index({ transactions, summary, currentMonthName, current
                                 <div>
                                     <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/80 rounded-2xl">
                                         {[
-                                            { key: 'pemasukan', label: 'Pemasukan', onSelect: () => setData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 19V5m0 0l-6 6m6-6l6 6" /> },
-                                            { key: 'pengeluaran', label: 'Pengeluaran', onSelect: () => setData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m0 0l6-6m-6 6l-6-6" /> },
-                                            { key: 'tabungan', label: 'Tabungan', onSelect: () => setData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id, bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /> },
+                                            { key: 'pemasukan', label: 'Pemasukan', onSelect: () => setData(data => ({...data, type: 'pemasukan', category: '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 19V5m0 0l-6 6m6-6l6 6" /> },
+                                            { key: 'pengeluaran', label: 'Pengeluaran', onSelect: () => setData(data => ({...data, type: 'pengeluaran', category: '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m0 0l6-6m-6 6l-6-6" /> },
+                                            { key: 'tabungan', label: 'Tabungan', onSelect: () => setData(data => ({...data, type: 'tabungan', category: '', bill_id: '', debt_id: ''})), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /> },
                                         ].map((option) => {
                                             const isSelected = data.type === option.key;
                                             const optionTheme = TRANSACTION_FORM_THEMES[option.key];
@@ -554,6 +563,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                             value={data.category}
                                             onChange={e => {
                                                 const val = e.target.value;
+                                                clearErrors('category');
                                                 setData(prev => ({
                                                     ...prev,
                                                     category: val,
@@ -565,7 +575,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                         >
                                             <option value="" disabled>Pilih Kategori</option>
                                             {(data.type === 'pengeluaran' ? pengeluaranCategories : data.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                                <option key={cat.id} value={cat.id} disabled={!cat.id}>{cat.label}</option>
                                             ))}
                                         </select>
                                         <svg className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" /></svg>
@@ -881,21 +891,21 @@ export default function Index({ transactions, summary, currentMonthName, current
                                     <div className="flex bg-slate-100/80 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl items-center gap-1">
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'pemasukan', category: pemasukanCategories.length > 0 ? pemasukanCategories[0].id : '', bill_id: '', debt_id: ''}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'pemasukan', category: '', bill_id: '', debt_id: ''}))}
                                             className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${editData.type === 'pemasukan' ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pemasukan
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'pengeluaran', category: pengeluaranCategories.length > 0 ? pengeluaranCategories[0].id : '', bill_id: '', debt_id: ''}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'pengeluaran', category: '', bill_id: '', debt_id: ''}))}
                                             className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${editData.type === 'pengeluaran' ? 'bg-white text-rose-600 shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Pengeluaran
                                         </button>
                                         <button 
                                             type="button"
-                                            onClick={() => setEditData(data => ({...data, type: 'tabungan', category: tabunganCategories[0].id, bill_id: '', debt_id: ''}))}
+                                            onClick={() => setEditData(data => ({...data, type: 'tabungan', category: '', bill_id: '', debt_id: ''}))}
                                             className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 rounded-lg sm:rounded-xl font-extrabold text-[11px] sm:text-xs tracking-wide transition-all duration-300 ${editData.type === 'tabungan' ? 'bg-white text-[#009bd2] shadow-[0_2px_8px_rgba(0,0,0,0.06)]' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
                                             Tabungan
@@ -910,6 +920,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                         value={editData.category}
                                         onChange={e => {
                                             const val = e.target.value;
+                                            clearEditErrors('category');
                                             setEditData(prev => ({
                                                 ...prev,
                                                 category: val,
@@ -921,7 +932,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                     >
                                         <option value="" disabled>Pilih Kategori</option>
                                         {(editData.type === 'pengeluaran' ? pengeluaranCategories : editData.type === 'pemasukan' ? pemasukanCategories : tabunganCategories).map(cat => (
-                                            <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                            <option key={cat.id} value={cat.id} disabled={!cat.id}>{cat.label}</option>
                                         ))}
                                     </select>
                                     {editErrors.category && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.category}</p>}

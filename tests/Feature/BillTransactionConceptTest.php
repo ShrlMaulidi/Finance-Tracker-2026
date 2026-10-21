@@ -542,4 +542,24 @@ class BillTransactionConceptTest extends TestCase
 
         $this->assertDatabaseCount('transactions', 0);
     }
+
+    public function test_transaction_cannot_be_recorded_without_a_category(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pemasukan',
+            'category' => '',
+            'amount' => 5000000,
+            'payment_method' => 'Cash',
+            'title' => 'Gaji Bulanan',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'category' => 'Kategori wajib dipilih.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
 }

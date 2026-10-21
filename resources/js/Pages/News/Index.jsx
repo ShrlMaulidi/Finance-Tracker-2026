@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePoll } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function Index({ ihsg, usdToIdr, news }) {
@@ -7,6 +7,9 @@ export default function Index({ ihsg, usdToIdr, news }) {
     const formatNumber = (num) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 
     const [search, setSearch] = useState('');
+
+    // Market data and headlines come from outside sources, so refresh them every 5 minutes (the IHSG cache lifetime)
+    usePoll(5 * 60 * 1000, { only: ['ihsg', 'usdToIdr', 'news'], preserveScroll: true });
 
     const isIhsgUp = ihsg && ihsg.change >= 0;
 

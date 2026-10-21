@@ -183,6 +183,15 @@ export default function AuthenticatedLayout({ children }) {
                 console.warn('[Echo Channel Error]', err);
                 setWsStatus('connecting');
             });
+
+            // App-wide admin changes (pricing, plan access, maintenance) reach every member at once,
+            // so each tab waits a random moment before reloading to spread the load on the server
+            window.Echo.channel('app-settings').listen('.settings.updated', () => {
+                setTimeout(() => {
+                    refreshMenuCache();
+                    scheduleReload();
+                }, Math.random() * 3000);
+            });
         }
 
         // Mobile & Tab Switching Resilience:
@@ -223,6 +232,7 @@ export default function AuthenticatedLayout({ children }) {
             clearTimeout(reloadTimer);
             if (window.Echo) {
                 window.Echo.leave(`user.${user.id}`);
+                window.Echo.leave('app-settings');
             }
         };
     }, [user?.id]);

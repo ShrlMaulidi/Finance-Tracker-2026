@@ -170,8 +170,15 @@ export default function Dashboard({
             const trx = eventData?.transaction;
             const action = eventData?.action || 'created';
 
+            // A transaction outside the period on screen would skew the numbers until the server reload lands
+            const trxMonth = String(trx?.date || '').substring(0, 7);
+            const selectedMonthKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+            const isInSelectedPeriod = currentFilter === 'semua'
+                || (currentFilter === 'tahun' && trxMonth.substring(0, 4) === String(selectedYear))
+                || (currentFilter === 'bulan' && trxMonth === selectedMonthKey);
+
             // 'updated' events carry no previous amount, so they are left to the server reload
-            if (trx && (action === 'created' || action === 'deleted')) {
+            if (trx && isInSelectedPeriod && (action === 'created' || action === 'deleted')) {
                 const amount = Number(trx.amount) || 0;
                 const type = trx.type; // 'pemasukan' | 'pengeluaran' | 'tabungan'
 
@@ -228,7 +235,7 @@ export default function Dashboard({
         return () => {
             window.removeEventListener('finance-realtime-update', handleRealtimeTrx);
         };
-    }, [user?.id]);
+    }, [user?.id, currentFilter, selectedMonth, selectedYear]);
 
     useEffect(() => {
         let timer;

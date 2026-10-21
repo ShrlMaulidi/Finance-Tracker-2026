@@ -340,6 +340,13 @@ class BillController extends Controller
         $bill->payments()->delete();
         $bill->delete();
 
+        TransactionRecorded::broadcastAfterResponse(
+            userId: (int) Auth::id(),
+            action: 'deleted',
+            source: 'web',
+            message: "Tagihan '{$name}' berhasil dihapus"
+        );
+
         return redirect()->route('tagihan.index')->with('success', "Tagihan '{$name}' berhasil dihapus.");
     }
 

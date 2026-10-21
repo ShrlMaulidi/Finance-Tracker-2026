@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -13,6 +13,11 @@ export default function Index({
     integrationConfig = { webhook_url: '', secret_token: '', is_admin: false },
 }) {
     const [isEditingPhone, setIsEditingPhone] = useState(!isPhoneConnected);
+
+    // Follow a number connected or disconnected from another device / tab
+    useEffect(() => {
+        setIsEditingPhone(!isPhoneConnected);
+    }, [isPhoneConnected]);
     const [activePromptTab, setActivePromptTab] = useState('pengeluaran');
     const [copiedKey, setCopiedKey] = useState(null);
     const [showTechnicalDocs, setShowTechnicalDocs] = useState(false);

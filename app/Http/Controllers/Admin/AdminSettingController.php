@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\AppSettingsUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Foundation\Application;
@@ -124,6 +125,8 @@ class AdminSettingController extends Controller
             Setting::setTierRules($request->input('tier_rules'));
         }
 
+        AppSettingsUpdated::broadcastAfterResponse();
+
         return back()->with('success', 'Pengaturan sistem & matriks hak akses berhasil diperbarui.');
     }
 
@@ -133,6 +136,8 @@ class AdminSettingController extends Controller
     public function resetTierRules(): RedirectResponse
     {
         Setting::resetTierRules();
+
+        AppSettingsUpdated::broadcastAfterResponse();
 
         return back()->with('success', 'Matriks aturan hak akses berhasil di-reset ke setelan awal default.');
     }

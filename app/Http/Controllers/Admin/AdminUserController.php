@@ -132,7 +132,16 @@ class AdminUserController extends Controller
         }
 
         $userName = $user->name;
+        $deletedUserId = (int) $user->id;
         $user->delete();
+
+        // Open tabs of the deleted account reload and land on the login page
+        TransactionRecorded::broadcastAfterResponse(
+            userId: $deletedUserId,
+            action: 'account_deleted',
+            source: 'admin',
+            message: 'Akun Anda telah dihapus oleh Admin'
+        );
 
         return back()->with('success', "Akun pengguna '{$userName}' berhasil dihapus secara permanen beserta seluruh datanya.");
     }

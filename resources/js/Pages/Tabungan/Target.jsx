@@ -7,6 +7,48 @@ import { Button, KpiCard, TabFilter, ActionButtons, Modal, DeleteConfirmModal, Q
 import { compressImage } from '@/Utils/imageCompressor';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
+const SAVING_DURATION_OPTIONS = [
+    { months: 6, label: '6 Bulan' },
+    { months: 12, label: '1 Tahun' },
+    { months: 24, label: '2 Tahun' },
+    { months: 60, label: '5 Tahun' },
+];
+
+const toDateInputValue = (date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+].join('-');
+
+// Same day N months from today, clamped to the month's last day (31 Jan + 1 month = 28/29 Feb)
+const addMonthsFromToday = (months) => {
+    const today = new Date();
+    const target = new Date(today.getFullYear(), today.getMonth() + months, 1);
+    const lastDayOfMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(today.getDate(), lastDayOfMonth));
+    return toDateInputValue(target);
+};
+
+// How much must be saved every month to collect the remaining amount by the target date
+const getSavingPlan = (remainingAmount, targetDate) => {
+    if (!targetDate || remainingAmount <= 0) return null;
+
+    const [year, month, day] = String(targetDate).substring(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return null;
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (new Date(year, month - 1, day) < startOfToday) {
+        return { isOverdue: true, monthsLeft: 0, monthlyAmount: remainingAmount };
+    }
+
+    let monthsLeft = (year - today.getFullYear()) * 12 + (month - 1 - today.getMonth());
+    if (day < today.getDate()) monthsLeft -= 1;
+    monthsLeft = Math.max(1, monthsLeft);
+
+    return { isOverdue: false, monthsLeft, monthlyAmount: Math.ceil(remainingAmount / monthsLeft) };
+};
+
 export default function Target({ dbTargets = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('berjalan');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -151,6 +193,11 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     };
 
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+
+    const formSavingPlan = getSavingPlan(
+        (Number(data.target_amount) || 0) - (Number(editingTarget?.current) || 0),
+        data.target_date
+    );
 
     const activeTargets = optimisticTargets.items.filter(t => t.status === 'Berjalan');
     const achievedTargets = optimisticTargets.items.filter(t => t.status === 'Tercapai');
@@ -306,6 +353,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                             {activeTargets.map(item => {
                                 const percent = item.target > 0 ? Math.min(100, Math.round((item.current / item.target) * 100)) : 0;
                                 const remaining = Math.max(0, item.target - item.current);
+                                const savingPlan = getSavingPlan(remaining, item.raw_date);
 
                                 return (
                                     <div key={item.id} className={`bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-5 ${item.isOptimistic ? 'opacity-60' : ''}`}>
@@ -363,6 +411,19 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2.5">
                                             <div className="h-full bg-[#009bd2] rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
                                         </div>
+
+                                        {savingPlan && (
+                                            <div className={`mt-3 rounded-2xl px-3 py-2 flex items-center justify-between gap-2 ${savingPlan.isOverdue ? 'bg-amber-50' : 'bg-sky-50/70'}`}>
+                                                <span className={`text-[11px] sm:text-xs font-medium truncate ${savingPlan.isOverdue ? 'text-amber-700' : 'text-slate-500'}`}>
+                                                    {savingPlan.isOverdue ? 'Tanggal target sudah lewat' : `Perlu nabung · ${savingPlan.monthsLeft} bulan lagi`}
+                                                </span>
+                                                {!savingPlan.isOverdue && (
+                                                    <span className="text-xs sm:text-sm font-extrabold text-slate-800 tabular-nums shrink-0">
+                                                        {formatRp(savingPlan.monthlyAmount)}<span className="text-[11px] font-medium text-slate-400">/bln</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
 
                                         <div className="mt-3 flex items-center justify-between gap-2">
                                             <span className="text-[11px] sm:text-xs font-medium text-slate-400 truncate">Sisa {formatRp(remaining)}</span>
@@ -564,6 +625,22 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                     </div>
                     <div>
                         <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1 sm:mb-1.5">Target Tanggal Tercapai</label>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {SAVING_DURATION_OPTIONS.map(option => {
+                                const optionDate = addMonthsFromToday(option.months);
+                                const isSelected = data.target_date === optionDate;
+                                return (
+                                    <button
+                                        key={option.months}
+                                        type="button"
+                                        onClick={() => setData('target_date', optionDate)}
+                                        className={`h-7 px-3 rounded-full text-[11px] sm:text-xs font-bold border transition ${isSelected ? 'bg-[#009bd2] border-[#009bd2] text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-[#009bd2] hover:text-[#009bd2]'}`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
                         <input 
                             type="date" 
                             value={data.target_date}
@@ -572,6 +649,27 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
                         />
                         {errors.target_date && <p className="text-red-500 text-[11px] mt-1">{errors.target_date}</p>}
                     </div>
+
+                    {/* Monthly saving estimate */}
+                    {formSavingPlan && (
+                        <div className={`rounded-xl border px-3.5 py-3 ${formSavingPlan.isOverdue ? 'bg-amber-50 border-amber-100' : 'bg-sky-50 border-sky-100'}`}>
+                            {formSavingPlan.isOverdue ? (
+                                <p className="text-xs font-semibold text-amber-700">Tanggal target sudah lewat. Pilih tanggal di masa depan untuk melihat estimasi tabungan per bulan.</p>
+                            ) : (
+                                <>
+                                    <p className="text-[11px] font-bold text-[#009bd2] uppercase tracking-wider">Estimasi Tabungan</p>
+                                    <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight tabular-nums">
+                                        {formatRp(formSavingPlan.monthlyAmount)}<span className="text-xs font-medium text-slate-500"> / bulan</span>
+                                    </p>
+                                    <p className="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5">
+                                        {editingTarget && Number(editingTarget.current) > 0
+                                            ? `Sisa ${formatRp(Number(data.target_amount) - Number(editingTarget.current))} dibagi ${formSavingPlan.monthsLeft} bulan`
+                                            : `${formatRp(Number(data.target_amount))} dibagi ${formSavingPlan.monthsLeft} bulan`}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     <div className="pt-3 sm:pt-4 flex gap-2.5 sm:gap-3">
                         <Button 

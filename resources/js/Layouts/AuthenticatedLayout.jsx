@@ -7,6 +7,7 @@ import MobileBottomNav from '@/Components/UI/MobileBottomNav';
 import PwaInstallBanner from '@/Components/UI/PwaInstallBanner';
 import OnboardingTour from '@/Components/UI/OnboardingTour';
 import NotificationPanel from '@/Components/UI/NotificationPanel';
+import PrivacyNote from '@/Components/UI/PrivacyNote';
 
 // Main menus kept prefetched: served instantly from cache for 30s, then shown immediately
 // while refreshing in the background for up to 5 minutes (stale-while-revalidate).
@@ -768,6 +769,7 @@ export default function AuthenticatedLayout({ children }) {
                     {!isSubscribed && <OfferModal />}
                     <PwaInstallBanner />
                     {children}
+                    <PrivacyNote />
                 </main>
 
                 {/* Mobile Bottom Navigation Bar (Rendered when in 'bottom' mode) */}

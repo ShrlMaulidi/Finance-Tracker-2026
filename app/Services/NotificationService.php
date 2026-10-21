@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Cache;
 class NotificationService
 {
     /**
+     * Savings targets start showing up as reminders this many days before their target date.
+     */
+    private const TARGET_REMINDER_DAYS = 30;
+
+    /**
      * Get upcoming, due, and overdue reminders for a user (Bills & Savings Goals),
      * cached to provide fast zero-latency SPA page transitions.
      *
@@ -129,10 +134,10 @@ class NotificationService
             ];
         }
 
-        // 2. Tabungan & Target
+        // 2. Tabungan & Target: remind from H-30 onwards, and keep reminding once the target date has passed
         $rawTargets = Target::where('user_id', $user->id)
             ->where('status', '!=', 'Tercapai')
-            ->whereNotNull('target_date')
+            ->whereDate('target_date', '<=', $today->copy()->addDays(self::TARGET_REMINDER_DAYS))
             ->get();
 
         $targetReminders = [];
@@ -147,7 +152,11 @@ class NotificationService
             $progress = $targetAmount > 0 ? min(100, (int) round(($currentAmount / $targetAmount) * 100)) : 0;
             $remainingFormatted = 'Rp '.number_format($remainingTarget, 0, ',', '.');
 
-            // Target reminders logic
+            // Fully saved targets need no reminder, even before the Target page flips them to Tercapai
+            if ($remainingTarget <= 0) {
+                continue;
+            }
+
             if ($diffDays < 0) {
                 $status = 'terlambat';
                 $urgency = 'danger';
@@ -164,17 +173,11 @@ class NotificationService
                 $urgency = $diffDays <= 5 ? 'warning' : 'info';
                 $statusLabel = "{$diffDays} hari lagi";
                 $message = "Target {$target->name} tersisa {$diffDays} hari lagi ({$targetDate->translatedFormat('d M Y')}). Terkumpul {$progress}%.";
-            } elseif ($diffDays <= 30) {
+            } else {
                 $status = 'mendatang';
                 $urgency = 'info';
                 $statusLabel = "{$diffDays} hari lagi";
                 $message = "Target {$target->name} berakhir pada {$targetDate->translatedFormat('d M Y')}. Terkumpul {$progress}%.";
-            } else {
-                // Beyond 30 days: keep in list as upcoming reminder
-                $status = 'mendatang';
-                $urgency = 'info';
-                $statusLabel = "{$diffDays} hari lagi";
-                $message = "Target {$target->name} berakhir pada {$targetDate->translatedFormat('d M Y')}.";
             }
 
             $targetReminders[] = [

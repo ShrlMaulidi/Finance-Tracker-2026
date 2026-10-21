@@ -153,4 +153,29 @@ class NotificationReminderTest extends TestCase
             ->where('notifications.bills.0.status', 'hari_ini')
         );
     }
+
+    public function test_targets_are_reminded_from_thirty_days_before_and_after_the_target_date_passes(): void
+    {
+        $user = User::factory()->create();
+        $targetDefaults = [
+            'user_id' => $user->id,
+            'category' => 'Properti',
+            'target_amount' => 140000000,
+            'current_amount' => 10000000,
+            'status' => 'Berjalan',
+        ];
+
+        Target::create([...$targetDefaults, 'name' => 'Hari Ini', 'target_date' => '2026-10-19']);
+        Target::create([...$targetDefaults, 'name' => 'Tepat H-30', 'target_date' => '2026-11-18']);
+        Target::create([...$targetDefaults, 'name' => 'H-31', 'target_date' => '2026-11-19']);
+        Target::create([...$targetDefaults, 'name' => 'Beli Rumah Tahun Depan', 'target_date' => '2027-10-19']);
+        Target::create([...$targetDefaults, 'name' => 'Sudah Lewat', 'target_date' => '2026-10-18']);
+        Target::create([...$targetDefaults, 'name' => 'Sudah Terkumpul', 'target_date' => '2026-10-25', 'current_amount' => 140000000]);
+
+        $reminders = NotificationService::getRemindersForUser($user);
+
+        $this->assertSame(['Sudah Lewat', 'Hari Ini', 'Tepat H-30'], array_column($reminders['all'], 'title'));
+        $this->assertSame(['terlambat', 'hari_ini', 'mendatang'], array_column($reminders['all'], 'status'));
+        $this->assertSame(3, $reminders['targets_count']);
+    }
 }

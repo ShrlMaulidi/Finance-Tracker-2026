@@ -104,6 +104,7 @@ class DebtTransactionConceptTest extends TestCase
             ->actingAs($user)
             ->post('/transaksi', [
                 'type' => 'pengeluaran',
+                'payment_method' => 'Cash',
                 'amount' => 1000000,
                 'category' => 'Hutang',
                 'debt_id' => $debt->id,
@@ -146,6 +147,7 @@ class DebtTransactionConceptTest extends TestCase
             ->actingAs($user)
             ->post('/transaksi', [
                 'type' => 'pengeluaran',
+                'payment_method' => 'Cash',
                 'amount' => 500000,
                 'category' => 'Hutang',
                 'debt_id' => $debt->id,
@@ -175,6 +177,7 @@ class DebtTransactionConceptTest extends TestCase
 
         $this->actingAs($user)->post('/transaksi', [
             'type' => 'pengeluaran',
+            'payment_method' => 'Cash',
             'amount' => 200000,
             'category' => 'Hutang',
             'debt_id' => $debt->id,
@@ -219,6 +222,7 @@ class DebtTransactionConceptTest extends TestCase
 
         $this->actingAs($user)->post('/transaksi', [
             'type' => 'pengeluaran',
+            'payment_method' => 'Cash',
             'amount' => 300000,
             'category' => 'Hutang',
             'debt_id' => $debt->id,

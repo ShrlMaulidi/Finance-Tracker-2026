@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TransactionController extends Controller
@@ -158,13 +159,13 @@ class TransactionController extends Controller
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
-            'bill_id' => 'nullable|integer',
+            'bill_id' => $this->billIdRules($this->isRecurringBillExpense($request)),
             'debt_id' => 'nullable|integer',
-            'payment_method' => 'nullable|string|max:255',
+            'payment_method' => 'required|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',
-        ]);
+        ], $this->transactionValidationMessages());
 
         $billId = $request->input('bill_id');
         $debtId = $request->input('debt_id');
@@ -231,17 +232,21 @@ class TransactionController extends Controller
         $oldDate = $transaction->date;
         $oldType = $transaction->type;
 
+        // Older recurring-bill expenses may no longer have a linked bill, so only require one when switching into the category
+        $isSwitchingToRecurringBill = $this->isRecurringBillExpense($request)
+            && ! ($oldType === 'pengeluaran' && $this->isRecurringBillCategory($oldCategory));
+
         $validated = $request->validate([
             'type' => 'required|in:pemasukan,pengeluaran,tabungan',
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
-            'bill_id' => 'nullable|integer',
+            'bill_id' => $this->billIdRules($isSwitchingToRecurringBill),
             'debt_id' => 'nullable|integer',
             'payment_method' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date' => 'required|date',
-        ]);
+        ], $this->transactionValidationMessages());
 
         $billId = $request->input('bill_id');
         $debtId = $request->input('debt_id');
@@ -336,5 +341,48 @@ class TransactionController extends Controller
         );
 
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus.');
+    }
+
+    private function isRecurringBillCategory(?string $category): bool
+    {
+        return strtolower(trim((string) $category)) === 'tagihan rutin';
+    }
+
+    private function isRecurringBillExpense(Request $request): bool
+    {
+        return $request->input('type') === 'pengeluaran'
+            && $this->isRecurringBillCategory($request->input('category'));
+    }
+
+    /**
+     * A recurring-bill expense must point at one of the user's active bills.
+     *
+     * @return array<int, mixed>
+     */
+    private function billIdRules(bool $isBillRequired): array
+    {
+        if (! $isBillRequired) {
+            return ['nullable', 'integer'];
+        }
+
+        return [
+            'required',
+            'integer',
+            Rule::exists('bills', 'id')
+                ->where('user_id', Auth::id())
+                ->where('is_active', true),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function transactionValidationMessages(): array
+    {
+        return [
+            'bill_id.required' => 'Pilih tagihan rutin terlebih dahulu. Tambahkan tagihan di menu Tagihan jika belum ada.',
+            'bill_id.exists' => 'Tagihan rutin tidak ditemukan atau sudah tidak aktif.',
+            'payment_method.required' => 'Metode pembayaran wajib dipilih.',
+        ];
     }
 }

@@ -416,4 +416,130 @@ class BillTransactionConceptTest extends TestCase
             fn (TransactionRecorded $event) => $event->socket === '1234.5678' && $event->userId === $user->id
         );
     }
+
+    public function test_recurring_bill_expense_cannot_be_recorded_without_a_bill(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pengeluaran',
+            'category' => 'Tagihan Rutin',
+            'amount' => 150000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Tagihan',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'bill_id' => 'Pilih tagihan rutin terlebih dahulu. Tambahkan tagihan di menu Tagihan jika belum ada.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_recurring_bill_expense_cannot_use_another_users_bill(): void
+    {
+        $user = User::factory()->create();
+        $otherUsersBill = Bill::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'BPJS Kesehatan',
+            'amount' => 150000,
+            'due_day' => 10,
+            'category_name' => 'Tagihan Rutin',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pengeluaran',
+            'category' => 'Tagihan Rutin',
+            'bill_id' => $otherUsersBill->id,
+            'amount' => 150000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Tagihan BPJS Kesehatan',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'bill_id' => 'Tagihan rutin tidak ditemukan atau sudah tidak aktif.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertDatabaseCount('bill_payments', 0);
+    }
+
+    public function test_expense_cannot_be_switched_to_recurring_bill_without_a_bill(): void
+    {
+        $user = User::factory()->create();
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'type' => 'pengeluaran',
+            'category' => 'Makanan',
+            'amount' => 50000,
+            'payment_method' => 'Cash',
+            'title' => 'Makan Siang',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->put('/transaksi/'.$transaction->id, [
+            'type' => 'pengeluaran',
+            'category' => 'Tagihan Rutin',
+            'amount' => 50000,
+            'payment_method' => 'Cash',
+            'title' => 'Makan Siang',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'bill_id' => 'Pilih tagihan rutin terlebih dahulu. Tambahkan tagihan di menu Tagihan jika belum ada.',
+        ]);
+
+        $this->assertSame('Makanan', $transaction->fresh()->category);
+    }
+
+    public function test_existing_recurring_bill_expense_without_a_bill_can_still_be_edited(): void
+    {
+        $user = User::factory()->create();
+        $transaction = Transaction::create([
+            'user_id' => $user->id,
+            'type' => 'pengeluaran',
+            'category' => 'Tagihan Rutin',
+            'amount' => 100000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Tagihan Lama',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->put('/transaksi/'.$transaction->id, [
+            'type' => 'pengeluaran',
+            'category' => 'Tagihan Rutin',
+            'amount' => 120000,
+            'payment_method' => 'Cash',
+            'title' => 'Bayar Tagihan Lama',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $this->assertEquals(120000, (float) $transaction->fresh()->amount);
+    }
+
+    public function test_transaction_cannot_be_recorded_without_a_payment_method(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/transaksi', [
+            'type' => 'pengeluaran',
+            'category' => 'Makanan',
+            'amount' => 50000,
+            'title' => 'Makan Siang',
+            'date' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors([
+            'payment_method' => 'Metode pembayaran wajib dipilih.',
+        ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
 }

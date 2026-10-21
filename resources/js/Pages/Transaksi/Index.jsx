@@ -44,7 +44,7 @@ export default function Index({ transactions, summary, currentMonthName, current
         ? targets.map(t => ({ id: t.name, label: t.name })) 
         : [{ id: '', label: 'Belum ada target tabungan' }];
 
-    const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
+    const { data, setData, post, processing, reset, errors, setError, clearErrors } = useForm({
         type: 'pengeluaran',
         amount: '',
         category: '',
@@ -142,6 +142,9 @@ export default function Index({ transactions, summary, currentMonthName, current
         ? (activeBills.find(b => String(b.id) === String(data.bill_id)) || null)
         : null;
 
+    // A recurring-bill expense can only be saved once a bill has been picked
+    const isBillSelectionMissing = data.type === 'pengeluaran' && data.category === 'Tagihan Rutin' && !data.bill_id;
+
     // Pop-up Notification State
     const [popupNotification, setPopupNotification] = useState({
         show: false,
@@ -206,8 +209,17 @@ export default function Index({ transactions, summary, currentMonthName, current
         ? (activeBills.find(b => String(b.id) === String(editData.bill_id)) || null)
         : null;
 
+    // Older recurring-bill expenses may have lost their bill, so only require one when switching into the category
+    const isEditBillSelectionMissing = editData.type === 'pengeluaran' && editData.category === 'Tagihan Rutin' && !editData.bill_id
+        && !(editingTx?.type === 'pengeluaran' && editingTx?.category === 'Tagihan Rutin');
+
     const submit = (e) => {
         e.preventDefault();
+        if (isBillSelectionMissing) return;
+        if (!data.payment_method) {
+            setError('payment_method', 'Metode pembayaran wajib dipilih.');
+            return;
+        }
         const submittedData = { ...data };
         const newTransaction = toOptimisticTransaction(submittedData);
 
@@ -286,6 +298,7 @@ export default function Index({ transactions, summary, currentMonthName, current
 
     const submitEdit = (e) => {
         e.preventDefault();
+        if (isEditBillSelectionMissing) return;
         const transactionBeingEdited = editingTx;
         const updatedTransaction = toOptimisticTransaction(editData);
 
@@ -591,6 +604,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                                 ) : 'Semua tagihan bulan ini sudah lunas'}
                                             </p>
                                         )}
+                                        {errors.bill_id && <p className="text-red-500 text-[11px] sm:text-xs font-bold mt-1">{errors.bill_id}</p>}
                                     </div>
                                 )}
 
@@ -682,7 +696,10 @@ export default function Index({ transactions, summary, currentMonthName, current
                                         <div className="relative">
                                             <select
                                                 value={data.payment_method}
-                                                onChange={e => setData('payment_method', e.target.value)}
+                                                onChange={e => {
+                                                    setData('payment_method', e.target.value);
+                                                    clearErrors('payment_method');
+                                                }}
                                                 className={`${formFieldClass} ${formTheme.focus} pr-9 appearance-none bg-none cursor-pointer truncate`}
                                             >
                                                 <option value="" disabled>Pilih Metode</option>
@@ -710,8 +727,8 @@ export default function Index({ transactions, summary, currentMonthName, current
 
                                 <button
                                     type="submit"
-                                    disabled={processing}
-                                    className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${formTheme.button} text-white min-h-[50px] sm:min-h-[54px] rounded-2xl font-black text-sm sm:text-base tracking-wide shadow-lg transition-all duration-300 hover:brightness-105 active:scale-[0.98] ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    disabled={processing || isBillSelectionMissing}
+                                    className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r ${formTheme.button} text-white min-h-[50px] sm:min-h-[54px] rounded-2xl font-black text-sm sm:text-base tracking-wide shadow-lg transition-all duration-300 hover:brightness-105 active:scale-[0.98] ${processing || isBillSelectionMissing ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                     {processing ? 'Menyimpan...' : 'Simpan Transaksi'}
@@ -937,6 +954,12 @@ export default function Index({ transactions, summary, currentMonthName, current
                                                 </option>
                                             ))}
                                         </select>
+                                        {activeBills.length === 0 && (
+                                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500">
+                                                Belum ada tagihan. <Link href={route('tagihan.index')} className="text-[#009bd2] font-bold hover:underline">Tambah</Link>
+                                            </p>
+                                        )}
+                                        {editErrors.bill_id && <p className="text-red-500 text-[11px] sm:text-xs mt-1 font-bold">{editErrors.bill_id}</p>}
                                     </div>
                                 )}
 
@@ -1074,6 +1097,7 @@ export default function Index({ transactions, summary, currentMonthName, current
                                 <Button 
                                     type="submit" 
                                     loading={editProcessing}
+                                    disabled={isEditBillSelectionMissing}
                                     className={`flex-1 !py-2.5 sm:!py-3 ${editData.type === 'pengeluaran' ? '!bg-rose-500 hover:!bg-rose-600' : '!bg-emerald-500 hover:!bg-emerald-600'}`}
                                 >
                                     Simpan Perubahan

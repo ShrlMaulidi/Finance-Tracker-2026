@@ -1,10 +1,19 @@
 // FinanceTrack Lightweight Service Worker for PWA
-const CACHE_NAME = 'financetrack-pwa-v2';
+const CACHE_NAME = 'financetrack-pwa-v3';
+// The page itself is never cached: a stored copy points at build files that the next deploy deletes
 const PRECACHE_ASSETS = [
-    '/',
     '/logo.png',
     '/manifest.json'
 ];
+
+const OFFLINE_PAGE = `<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinanceTrack - Offline</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;text-align:center;padding:24px}
+button{margin-top:16px;padding:10px 20px;border:0;border-radius:999px;background:#009bd2;color:#fff;font-weight:700;font-size:14px}</style></head>
+<body><div><img src="/logo.png" alt="" width="56" height="56"><h1 style="font-size:18px;margin:16px 0 6px">Tidak dapat terhubung</h1>
+<p style="margin:0;color:#64748b;font-size:14px">Periksa koneksi internet Anda, lalu coba lagi.</p>
+<button onclick="location.reload()">Coba lagi</button></div></body></html>`;
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -64,16 +73,11 @@ self.addEventListener('fetch', (event) => {
     // Only intercept full-page document requests for offline fallback
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(async () => {
-                const rootCached = await caches.match('/');
-                if (rootCached) return rootCached;
-
-                return new Response('Jaringan sedang offline.', {
-                    status: 503,
-                    statusText: 'Service Unavailable',
-                    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-                });
-            })
+            fetch(event.request).catch(() => new Response(OFFLINE_PAGE, {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            }))
         );
         return;
     }

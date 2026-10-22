@@ -6,6 +6,17 @@ import Dropdown from '@/Components/Dropdown';
 import { Button, TabFilter, ActionButtons, Modal, ProgressBar, DeleteConfirmModal } from '@/Components/UI';
 import useOptimisticList from '@/Utils/useOptimisticList';
 
+// Inertia makes the last submitted values the form's new defaults, so reset() would refill them
+const EMPTY_DEBT_FORM = {
+    type: 'hutang',
+    name: '',
+    amount: '',
+    remaining_amount: '',
+    due_date: '',
+    status: 'belum_lunas',
+    description: '',
+};
+
 export default function Hutang({ debts }) {
     const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
@@ -14,21 +25,12 @@ export default function Hutang({ debts }) {
     const [editingDebt, setEditingDebt] = useState(null);
     const optimisticDebts = useOptimisticList(debts);
 
-    const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
-        type: 'hutang',
-        name: '',
-        amount: '',
-        remaining_amount: '',
-        due_date: '',
-        status: 'belum_lunas',
-        description: ''
-    });
+    const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm(EMPTY_DEBT_FORM);
 
     const openAddModal = () => {
         setEditingDebt(null);
         clearErrors();
-        reset();
-        setData('type', activeTab === 'riwayat' ? 'hutang' : activeTab);
+        setData({ ...EMPTY_DEBT_FORM, type: activeTab === 'riwayat' ? 'hutang' : activeTab });
         setIsModalOpen(true);
     };
 

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,21 +19,6 @@ class Target extends Model
         'target_date',
         'status',
     ];
-
-    protected static function booted(): void
-    {
-        static::saved(function (Target $target) {
-            if ($target->user_id) {
-                NotificationService::clearUserReminderCache($target->user_id);
-            }
-        });
-
-        static::deleted(function (Target $target) {
-            if ($target->user_id) {
-                NotificationService::clearUserReminderCache($target->user_id);
-            }
-        });
-    }
 
     public function user()
     {

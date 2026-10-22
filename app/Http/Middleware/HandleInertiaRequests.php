@@ -52,10 +52,10 @@ class HandleInertiaRequests extends Middleware
                 'urgent_count' => 0,
                 'total_count' => 0,
                 'bills_count' => 0,
-                'targets_count' => 0,
+                'debts_count' => 0,
                 'all' => [],
                 'bills' => [],
-                'targets' => [],
+                'debts' => [],
             ],
         ];
     }

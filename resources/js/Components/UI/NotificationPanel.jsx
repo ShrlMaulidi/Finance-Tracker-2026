@@ -20,7 +20,7 @@ function urlBase64ToUint8Array(base64String) {
 export default function NotificationPanel({ className = '' }) {
     const { notifications, vapid_public_key } = usePage().props;
     const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('all'); // 'all' | 'bill' | 'target'
+    const [activeTab, setActiveTab] = useState('all'); // 'all' | 'bill' | 'debt'
     const panelRef = useRef(null);
 
     // Push Notification State
@@ -182,7 +182,7 @@ export default function NotificationPanel({ className = '' }) {
     const urgentCount = notifications?.urgent_count || 0;
     const totalCount = notifications?.total_count || 0;
     const billsCount = notifications?.bills_count || 0;
-    const targetsCount = notifications?.targets_count || 0;
+    const debtsCount = notifications?.debts_count || 0;
 
     // Track read notifications in localStorage so users can dismiss badges
     const [readKeys, setReadKeys] = useState(() => {
@@ -249,8 +249,8 @@ export default function NotificationPanel({ className = '' }) {
         if (activeTab === 'bill') {
             return allItems.filter(item => item.type === 'bill');
         }
-        if (activeTab === 'target') {
-            return allItems.filter(item => item.type === 'target');
+        if (activeTab === 'debt') {
+            return allItems.filter(item => item.type === 'debt');
         }
         return allItems;
     }, [allItems, activeTab]);
@@ -258,7 +258,7 @@ export default function NotificationPanel({ className = '' }) {
     const tabs = [
         { id: 'all', label: 'Semua', count: totalCount },
         { id: 'bill', label: 'Tagihan', count: billsCount },
-        { id: 'target', label: 'Target', count: targetsCount },
+        { id: 'debt', label: 'Hutang & Piutang', count: debtsCount },
     ];
 
     return (
@@ -441,9 +441,7 @@ export default function NotificationPanel({ className = '' }) {
                                                 </svg>
                                             ) : (
                                                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="9" strokeWidth={2} />
-                                                    <circle cx="12" cy="12" r="4.5" strokeWidth={2} />
-                                                    <circle cx="12" cy="12" r="1" strokeWidth={2} fill="currentColor" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                 </svg>
                                             )}
                                             {isUnread && (
@@ -453,7 +451,7 @@ export default function NotificationPanel({ className = '' }) {
 
                                         <div className="min-w-0 flex-1">
                                             <p className={`text-[13px] truncate ${isUnread ? 'font-bold text-slate-900' : 'font-medium text-slate-600'}`}>
-                                                {item.title}
+                                                {item.type === 'debt' ? `${item.category} · ${item.title}` : item.title}
                                             </p>
                                             <p className={`text-[11px] font-medium truncate mt-0.5 ${statusStyle.text}`}>
                                                 {item.status_label}
@@ -461,7 +459,7 @@ export default function NotificationPanel({ className = '' }) {
                                         </div>
 
                                         <span className="text-xs font-bold text-slate-800 tabular-nums shrink-0">
-                                            {item.type === 'bill' ? item.amount_formatted : `${item.progress}%`}
+                                            {item.type === 'debt' ? item.remaining_formatted : item.amount_formatted}
                                         </span>
                                     </Link>
                                 );

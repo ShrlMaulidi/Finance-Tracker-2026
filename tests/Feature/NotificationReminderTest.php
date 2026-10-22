@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Bill;
 use App\Models\BillPayment;
+use App\Models\Debt;
 use App\Models\Target;
 use App\Models\User;
 use App\Services\NotificationService;
@@ -95,42 +96,6 @@ class NotificationReminderTest extends TestCase
         $this->assertEmpty($reminders['bills']);
     }
 
-    public function test_targets_with_due_dates_generate_reminders(): void
-    {
-        $user = User::factory()->create();
-
-        // Target ending on 2026-10-25 (6 days away)
-        Target::create([
-            'user_id' => $user->id,
-            'name' => 'Beli Laptop Baru',
-            'category' => 'Elektronik',
-            'target_amount' => 15000000,
-            'current_amount' => 5000000,
-            'target_date' => '2026-10-25',
-            'status' => 'Berjalan',
-        ]);
-
-        // Already achieved target
-        Target::create([
-            'user_id' => $user->id,
-            'name' => 'Dana Liburan',
-            'category' => 'Hiburan',
-            'target_amount' => 3000000,
-            'current_amount' => 3000000,
-            'target_date' => '2026-10-22',
-            'status' => 'Tercapai',
-        ]);
-
-        $reminders = NotificationService::getRemindersForUser($user);
-
-        $this->assertEquals(1, $reminders['targets_count']);
-        $targetReminder = $reminders['targets'][0];
-        $this->assertEquals('Beli Laptop Baru', $targetReminder['title']);
-        $this->assertEquals('segera', $targetReminder['status']);
-        $this->assertEquals(33, $targetReminder['progress']);
-        $this->assertEquals(6, $targetReminder['diff_days']);
-    }
-
     public function test_notifications_are_shared_in_inertia_props_for_authenticated_user(): void
     {
         $user = User::factory()->create();
@@ -154,28 +119,57 @@ class NotificationReminderTest extends TestCase
         );
     }
 
-    public function test_targets_are_reminded_from_thirty_days_before_and_after_the_target_date_passes(): void
+    public function test_bills_are_only_reminded_once_their_due_date_is_near(): void
     {
         $user = User::factory()->create();
-        $targetDefaults = [
-            'user_id' => $user->id,
-            'category' => 'Properti',
-            'target_amount' => 140000000,
-            'current_amount' => 10000000,
-            'status' => 'Berjalan',
-        ];
+        $billDefaults = ['user_id' => $user->id, 'amount' => 100000, 'is_active' => true];
 
-        Target::create([...$targetDefaults, 'name' => 'Hari Ini', 'target_date' => '2026-10-19']);
-        Target::create([...$targetDefaults, 'name' => 'Tepat H-30', 'target_date' => '2026-11-18']);
-        Target::create([...$targetDefaults, 'name' => 'H-31', 'target_date' => '2026-11-19']);
-        Target::create([...$targetDefaults, 'name' => 'Beli Rumah Tahun Depan', 'target_date' => '2027-10-19']);
-        Target::create([...$targetDefaults, 'name' => 'Sudah Lewat', 'target_date' => '2026-10-18']);
-        Target::create([...$targetDefaults, 'name' => 'Sudah Terkumpul', 'target_date' => '2026-10-25', 'current_amount' => 140000000]);
+        // Today is the 19th: the 28th is 9 days away
+        Bill::create([...$billDefaults, 'name' => 'Cicilan Motor', 'due_day' => 28, 'reminder_days' => 3]);
+        Bill::create([...$billDefaults, 'name' => 'Sewa Kos', 'due_day' => 28, 'reminder_days' => 10]);
+        Bill::create([...$billDefaults, 'name' => 'Pulsa', 'due_day' => 26, 'reminder_days' => 3]);
 
         $reminders = NotificationService::getRemindersForUser($user);
 
-        $this->assertSame(['Sudah Lewat', 'Hari Ini', 'Tepat H-30'], array_column($reminders['all'], 'title'));
-        $this->assertSame(['terlambat', 'hari_ini', 'mendatang'], array_column($reminders['all'], 'status'));
-        $this->assertSame(3, $reminders['targets_count']);
+        $this->assertSame(['Pulsa', 'Sewa Kos'], array_column($reminders['all'], 'title'));
+    }
+
+    public function test_debts_and_receivables_are_reminded_from_seven_days_before_and_after_they_are_overdue(): void
+    {
+        $user = User::factory()->create();
+        $debtDefaults = ['user_id' => $user->id, 'type' => 'hutang', 'amount' => 1000000, 'remaining_amount' => 400000, 'status' => 'belum_lunas'];
+
+        Debt::create([...$debtDefaults, 'name' => 'Pinjaman Teman', 'due_date' => '2026-10-15']);
+        Debt::create([...$debtDefaults, 'name' => 'Kasbon Kantor', 'due_date' => '2026-10-19']);
+        Debt::create([...$debtDefaults, 'type' => 'piutang', 'name' => 'Dipinjam Budi', 'due_date' => '2026-10-26']);
+        Debt::create([...$debtDefaults, 'name' => 'Cicilan Laptop', 'due_date' => '2026-10-27']);
+        Debt::create([...$debtDefaults, 'name' => 'Sudah Lunas', 'due_date' => '2026-10-20', 'status' => 'lunas']);
+        Debt::create([...$debtDefaults, 'name' => 'Tanpa Jatuh Tempo', 'due_date' => null]);
+
+        $reminders = NotificationService::getRemindersForUser($user);
+
+        $this->assertSame(['Pinjaman Teman', 'Kasbon Kantor', 'Dipinjam Budi'], array_column($reminders['all'], 'title'));
+        $this->assertSame(['terlambat', 'hari_ini', 'segera'], array_column($reminders['all'], 'status'));
+        $this->assertSame(3, $reminders['debts_count']);
+
+        $receivable = collect($reminders['debts'])->firstWhere('title', 'Dipinjam Budi');
+        $this->assertSame('Piutang', $receivable['category']);
+        $this->assertSame('Rp 400.000', $receivable['remaining_formatted']);
+        $this->assertSame(route('hutang-piutang.index'), $receivable['url']);
+    }
+
+    public function test_savings_targets_never_generate_reminders(): void
+    {
+        $user = User::factory()->create();
+        $targetDefaults = ['user_id' => $user->id, 'category' => 'Properti', 'target_amount' => 10000000, 'current_amount' => 1000000, 'status' => 'Berjalan'];
+
+        Target::create([...$targetDefaults, 'name' => 'Sudah Lewat', 'target_date' => '2026-10-18']);
+        Target::create([...$targetDefaults, 'name' => 'Hari Ini', 'target_date' => '2026-10-19']);
+        Target::create([...$targetDefaults, 'name' => 'Besok', 'target_date' => '2026-10-20']);
+
+        $reminders = NotificationService::getRemindersForUser($user);
+
+        $this->assertSame(0, $reminders['total_count']);
+        $this->assertArrayNotHasKey('targets', $reminders);
     }
 }

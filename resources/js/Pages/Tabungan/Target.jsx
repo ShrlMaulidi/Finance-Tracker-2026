@@ -49,6 +49,15 @@ const getSavingPlan = (remainingAmount, targetDate) => {
     return { isOverdue: false, monthsLeft, monthlyAmount: Math.ceil(remainingAmount / monthsLeft) };
 };
 
+// Inertia makes the last submitted values the form's new defaults, so reset() would refill them
+const EMPTY_TARGET_FORM = {
+    name: '',
+    category: '',
+    target_amount: '',
+    target_date: '',
+    image: null,
+};
+
 export default function Target({ dbTargets = [], isFree = false, canAdd = true, maxLimit = null, currentCount = 0 }) {
     const [activeTab, setActiveTab] = useState('berjalan');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,13 +67,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
     const optimisticTargets = useOptimisticList(dbTargets);
     
     // Inertia form
-    const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
-        name: '',
-        category: '',
-        target_amount: '',
-        target_date: '',
-        image: null
-    });
+    const { data, setData, post, processing, reset, errors, clearErrors } = useForm(EMPTY_TARGET_FORM);
 
     const openAddModal = () => {
         if (isFree && !canAdd) {
@@ -73,7 +76,7 @@ export default function Target({ dbTargets = [], isFree = false, canAdd = true, 
         }
         setEditingTarget(null);
         clearErrors();
-        reset();
+        setData(EMPTY_TARGET_FORM);
         setImagePreview(null);
         setIsModalOpen(true);
     };

@@ -21,7 +21,7 @@ class SendReminderPushNotifications extends Command
      *
      * @var string
      */
-    protected $description = 'Kirim Web Push Notifications untuk pengingat jatuh tempo tagihan rutin dan target tabungan';
+    protected $description = 'Kirim Web Push Notifications untuk pengingat jatuh tempo tagihan rutin serta hutang & piutang';
 
     /**
      * Execute the console command.
@@ -62,7 +62,7 @@ class SendReminderPushNotifications extends Command
                 $url = $firstItem['url'];
             } else {
                 $title = "⏰ {$count} Pengingat Tempo Memerlukan Perhatian";
-                $body = "Ada {$reminders['bills_count']} tagihan & {$reminders['targets_count']} target mendekati atau melewati tempo.";
+                $body = "Ada {$reminders['bills_count']} tagihan & {$reminders['debts_count']} hutang/piutang mendekati atau melewati jatuh tempo.";
                 $url = route('dashboard');
             }
 

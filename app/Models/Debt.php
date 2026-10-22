@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Model;
 
 class Debt extends Model
@@ -16,6 +17,21 @@ class Debt extends Model
         'status',
         'description',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Debt $debt) {
+            if ($debt->user_id) {
+                NotificationService::clearUserReminderCache($debt->user_id);
+            }
+        });
+
+        static::deleted(function (Debt $debt) {
+            if ($debt->user_id) {
+                NotificationService::clearUserReminderCache($debt->user_id);
+            }
+        });
+    }
 
     protected function casts(): array
     {

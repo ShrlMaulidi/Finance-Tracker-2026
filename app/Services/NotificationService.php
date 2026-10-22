@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Bill;
-use App\Models\Target;
+use App\Models\Debt;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -11,22 +11,22 @@ use Illuminate\Support\Facades\Cache;
 class NotificationService
 {
     /**
-     * Savings targets start showing up as reminders this many days before their target date.
+     * Unpaid debts and receivables start showing up as reminders this many days before their due date.
      */
-    private const TARGET_REMINDER_DAYS = 30;
+    private const DEBT_REMINDER_DAYS = 7;
 
     /**
-     * Get upcoming, due, and overdue reminders for a user (Bills & Savings Goals),
+     * Get due-soon and overdue reminders for a user (recurring bills, debts & receivables),
      * cached to provide fast zero-latency SPA page transitions.
      *
      * @return array{
      *     urgent_count: int,
      *     total_count: int,
      *     bills_count: int,
-     *     targets_count: int,
+     *     debts_count: int,
      *     all: array<int, array<string, mixed>>,
      *     bills: array<int, array<string, mixed>>,
-     *     targets: array<int, array<string, mixed>>
+     *     debts: array<int, array<string, mixed>>
      * }
      */
     public static function getRemindersForUser(User $user, bool $forceRefresh = false): array
@@ -43,7 +43,7 @@ class NotificationService
     }
 
     /**
-     * Clear cached reminders for a user when bills or targets change.
+     * Clear cached reminders for a user when bills or debts change.
      */
     public static function clearUserReminderCache(int|User $user): void
     {
@@ -85,6 +85,11 @@ class NotificationService
             $dueDate = Carbon::create($today->year, $today->month, $clampedDay)->startOfDay();
             $diffDays = (int) $today->diffInDays($dueDate, false); // negative if past due
 
+            // Only remind once the due date is near (or already passed)
+            if ($diffDays > max(7, (int) ($bill->reminder_days ?? 3))) {
+                continue;
+            }
+
             $paidAmount = $payment ? (float) $payment->amount : 0.0;
             $remainingBill = max(0.0, (float) $bill->amount - $paidAmount);
 
@@ -100,16 +105,11 @@ class NotificationService
                 $urgency = 'warning';
                 $statusLabel = 'Jatuh tempo Hari Ini!';
                 $message = "Tagihan {$bill->name} jatuh tempo hari ini! Segera lakukan pembayaran.";
-            } elseif ($diffDays <= max(7, (int) ($bill->reminder_days ?? 3))) {
+            } else {
                 $status = 'segera';
                 $urgency = $diffDays <= 3 ? 'warning' : 'info';
                 $statusLabel = "{$diffDays} hari lagi";
                 $message = "Tagihan {$bill->name} jatuh tempo dalam {$diffDays} hari ({$dueDate->translatedFormat('d M')}).";
-            } else {
-                $status = 'mendatang';
-                $urgency = 'info';
-                $statusLabel = "{$diffDays} hari lagi";
-                $message = "Tagihan {$bill->name} jatuh tempo pada {$dueDate->translatedFormat('d M Y')}.";
             }
 
             $billReminders[] = [
@@ -134,85 +134,77 @@ class NotificationService
             ];
         }
 
-        // 2. Tabungan & Target: remind from H-30 onwards, and keep reminding once the target date has passed
-        $rawTargets = Target::where('user_id', $user->id)
-            ->where('status', '!=', 'Tercapai')
-            ->whereDate('target_date', '<=', $today->copy()->addDays(self::TARGET_REMINDER_DAYS))
+        // 2. Hutang & Piutang: remind from H-7 onwards, and keep reminding once the due date has passed
+        $rawDebts = Debt::where('user_id', $user->id)
+            ->where('status', 'belum_lunas')
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<=', $today->copy()->addDays(self::DEBT_REMINDER_DAYS))
             ->get();
 
-        $targetReminders = [];
+        $debtReminders = [];
 
-        foreach ($rawTargets as $target) {
-            $targetDate = Carbon::parse($target->target_date)->startOfDay();
-            $diffDays = (int) $today->diffInDays($targetDate, false);
-
-            $targetAmount = (float) $target->target_amount;
-            $currentAmount = (float) $target->current_amount;
-            $remainingTarget = max(0.0, $targetAmount - $currentAmount);
-            $progress = $targetAmount > 0 ? min(100, (int) round(($currentAmount / $targetAmount) * 100)) : 0;
-            $remainingFormatted = 'Rp '.number_format($remainingTarget, 0, ',', '.');
-
-            // Fully saved targets need no reminder, even before the Target page flips them to Tercapai
-            if ($remainingTarget <= 0) {
+        foreach ($rawDebts as $debt) {
+            $remainingDebt = $debt->remaining_amount !== null ? (float) $debt->remaining_amount : (float) $debt->amount;
+            if ($remainingDebt <= 0) {
                 continue;
             }
+
+            $dueDate = Carbon::parse($debt->due_date)->startOfDay();
+            $diffDays = (int) $today->diffInDays($dueDate, false);
+            $isReceivable = $debt->type === 'piutang';
+            $label = $isReceivable ? 'Piutang' : 'Hutang';
+            $remainingFormatted = 'Rp '.number_format($remainingDebt, 0, ',', '.');
+            $action = $isReceivable ? 'Tagih sisa' : 'Sisa yang harus dibayar';
 
             if ($diffDays < 0) {
                 $status = 'terlambat';
                 $urgency = 'danger';
                 $absDiff = abs($diffDays);
-                $statusLabel = "Terlewat {$absDiff} hari";
-                $message = "Target {$target->name} telah melewati batas waktu ({$targetDate->translatedFormat('d M Y')}). Terkumpul {$progress}% (Kurang {$remainingFormatted}).";
+                $statusLabel = "Terlambat {$absDiff} hari";
+                $message = "{$label} {$debt->name} sudah lewat jatuh tempo ({$dueDate->translatedFormat('d M Y')}). {$action} {$remainingFormatted}.";
             } elseif ($diffDays === 0) {
                 $status = 'hari_ini';
                 $urgency = 'warning';
-                $statusLabel = 'Batas Waktu Hari Ini!';
-                $message = "Target {$target->name} mencapai tanggal batas hari ini! Terkumpul {$progress}% (Kurang {$remainingFormatted}).";
-            } elseif ($diffDays <= 14) {
-                $status = 'segera';
-                $urgency = $diffDays <= 5 ? 'warning' : 'info';
-                $statusLabel = "{$diffDays} hari lagi";
-                $message = "Target {$target->name} tersisa {$diffDays} hari lagi ({$targetDate->translatedFormat('d M Y')}). Terkumpul {$progress}%.";
+                $statusLabel = 'Jatuh tempo Hari Ini!';
+                $message = "{$label} {$debt->name} jatuh tempo hari ini! {$action} {$remainingFormatted}.";
             } else {
-                $status = 'mendatang';
-                $urgency = 'info';
+                $status = 'segera';
+                $urgency = $diffDays <= 3 ? 'warning' : 'info';
                 $statusLabel = "{$diffDays} hari lagi";
-                $message = "Target {$target->name} berakhir pada {$targetDate->translatedFormat('d M Y')}. Terkumpul {$progress}%.";
+                $message = "{$label} {$debt->name} jatuh tempo dalam {$diffDays} hari ({$dueDate->translatedFormat('d M')}). {$action} {$remainingFormatted}.";
             }
 
-            $targetReminders[] = [
-                'id' => "target_{$target->id}",
-                'item_id' => $target->id,
-                'type' => 'target',
-                'title' => $target->name,
-                'category' => $target->category ?: 'Target Tabungan',
-                'amount' => $targetAmount,
-                'amount_formatted' => 'Rp '.number_format($targetAmount, 0, ',', '.'),
-                'current_amount' => $currentAmount,
-                'remaining_amount' => $remainingTarget,
+            $debtReminders[] = [
+                'id' => "debt_{$debt->id}",
+                'item_id' => $debt->id,
+                'type' => 'debt',
+                'debt_type' => $debt->type,
+                'title' => $debt->name,
+                'category' => $label,
+                'amount' => (float) $debt->amount,
+                'amount_formatted' => 'Rp '.number_format((float) $debt->amount, 0, ',', '.'),
+                'remaining_amount' => $remainingDebt,
                 'remaining_formatted' => $remainingFormatted,
-                'progress' => $progress,
-                'due_date' => $targetDate->format('Y-m-d'),
-                'due_date_formatted' => $targetDate->translatedFormat('d M Y'),
+                'due_date' => $dueDate->format('Y-m-d'),
+                'due_date_formatted' => $dueDate->translatedFormat('d M Y'),
                 'diff_days' => $diffDays,
                 'status' => $status,
                 'status_label' => $statusLabel,
                 'urgency' => $urgency,
                 'message' => $message,
-                'url' => route('tabungan.target'),
+                'url' => route('hutang-piutang.index'),
             ];
         }
 
         // Combine and prioritize:
-        // Priority weight: terlambat = 1, hari_ini = 2, segera = 3, mendatang = 4
+        // Priority weight: terlambat = 1, hari_ini = 2, segera = 3
         $priorityMap = [
             'terlambat' => 1,
             'hari_ini' => 2,
             'segera' => 3,
-            'mendatang' => 4,
         ];
 
-        $allReminders = array_merge($billReminders, $targetReminders);
+        $allReminders = array_merge($billReminders, $debtReminders);
 
         usort($allReminders, function ($a, $b) use ($priorityMap) {
             $weightA = $priorityMap[$a['status']] ?? 99;
@@ -235,10 +227,10 @@ class NotificationService
             'urgent_count' => $urgentCount,
             'total_count' => count($allReminders),
             'bills_count' => count($billReminders),
-            'targets_count' => count($targetReminders),
+            'debts_count' => count($debtReminders),
             'all' => $allReminders,
             'bills' => $billReminders,
-            'targets' => $targetReminders,
+            'debts' => $debtReminders,
         ];
     }
 }

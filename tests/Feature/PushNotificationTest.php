@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\PushSubscription;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Minishlink\WebPush\VAPID;
@@ -68,6 +70,19 @@ class PushNotificationTest extends TestCase
     {
         $exitCode = Artisan::call('reminders:send-push');
         $this->assertEquals(0, $exitCode);
+    }
+
+    public function test_daily_push_reminders_run_at_eight_in_the_morning_jakarta_time(): void
+    {
+        $reminderEvent = collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains($event->command, 'reminders:send-push'));
+
+        // 08:00 WIB is 01:00 UTC
+        $this->travelTo(Carbon::parse('2026-10-22 01:00:00', 'UTC'));
+        $this->assertTrue($reminderEvent->isDue(app()));
+
+        $this->travelTo(Carbon::parse('2026-10-22 08:00:00', 'UTC'));
+        $this->assertFalse($reminderEvent->isDue(app()));
     }
 
     public function test_push_test_explains_that_the_device_is_not_registered(): void

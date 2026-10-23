@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminSettingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\AIAgentController;
+use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\WhatsAppAIWebhookController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\BudgetController;
@@ -48,6 +49,9 @@ Route::prefix('api/webhook/whatsapp')->group(function () {
     Route::post('/transaction/undo', [WhatsAppAIWebhookController::class, 'deleteTransaction']);
 });
 Route::post('/webhook/whatsapp', [WhatsAppAIWebhookController::class, 'storeTransaction']);
+
+// Midtrans payment notifications (set as the HTTP notification URL in the Midtrans dashboard)
+Route::post('/api/webhook/midtrans', MidtransWebhookController::class)->name('webhooks.midtrans');
 
 Route::middleware('auth')->group(function () {
     Route::get('/tabungan/target', [TargetController::class, 'index'])->name('tabungan.target');
@@ -95,6 +99,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/ai-agent/phone', [AIAgentController::class, 'updatePhone'])->name('ai-agent.update-phone');
     Route::delete('/ai-agent/phone', [AIAgentController::class, 'disconnectPhone'])->name('ai-agent.disconnect-phone');
     Route::get('/berlangganan', [SubscriptionController::class, 'index'])->name('berlangganan.index');
+    Route::post('/berlangganan/checkout', [SubscriptionController::class, 'checkout'])->name('berlangganan.checkout');
+    Route::post('/berlangganan/payments/{payment}/sync', [SubscriptionController::class, 'syncPayment'])->name('berlangganan.payments.sync');
 
     Route::get('/kategori', [CategoryController::class, 'index'])->name('kategori.index');
     Route::post('/kategori', [CategoryController::class, 'store'])->name('kategori.store');

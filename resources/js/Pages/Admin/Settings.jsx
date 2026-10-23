@@ -54,7 +54,7 @@ export default function Settings({ systemInfo, pricingSettings, tierRules }) {
         allow_registration: pricingSettings?.allow_registration ?? true,
         maintenance_mode: pricingSettings?.maintenance_mode ?? false,
         support_email: pricingSettings?.support_email ?? 'support@financetrack.com',
-        support_wa: pricingSettings?.support_wa ?? '6281234567890',
+        support_wa: pricingSettings?.support_wa ?? '6285212867574',
         tier_rules: {
             free: { ...defaultTierConfig.free, ...(tierRules?.free || {}) },
             pro: { ...defaultTierConfig.pro, ...(tierRules?.pro || {}) },

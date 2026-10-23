@@ -21,6 +21,7 @@ class CheckPlatformMaintenance
         'forgot-password',
         'reset-password/*',
         'webhook/*',
+        'api/webhook/midtrans',
         'up',
     ];
 
@@ -59,7 +60,7 @@ class CheckPlatformMaintenance
 
         return Inertia::render('Maintenance', [
             'supportEmail' => $settings['support_email'] ?? 'support@financetrack.com',
-            'supportWa' => $settings['support_wa'] ?? '6281234567890',
+            'supportWa' => $settings['support_wa'] ?? '6285212867574',
         ])->toResponse($request)->setStatusCode(503);
     }
 }

@@ -28,7 +28,7 @@ class AdminSettingController extends Controller
             'allow_registration' => true,
             'maintenance_mode' => false,
             'support_email' => 'support@financetrack.com',
-            'support_wa' => '6281234567890',
+            'support_wa' => '6285212867574',
         ]);
     }
 

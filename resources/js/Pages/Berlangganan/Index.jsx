@@ -1,8 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 
-export default function Index({ currentPlan = 'free', pricing }) {
+const PLAN_NAMES = {
+    pro: 'Paket Pro',
+    pro_plus: 'Paket Pro Plus (AI & WA)',
+};
+
+// Keys must match MidtransService::PAYMENT_CHANNELS. A method without a logo file shows its name instead.
+const LOGO_DIR = '/images/payment-methods';
+const PAYMENT_METHODS = [
+    { key: 'qris', name: 'QRIS', shortName: 'QRIS', category: 'ewallet', logo: `${LOGO_DIR}/qris.svg`, note: 'Semua bank & e-wallet', recommended: true },
+    { key: 'bca_va', name: 'BCA Virtual Account', shortName: 'BCA', category: 'bank', logo: `${LOGO_DIR}/BCA.svg` },
+    { key: 'bri_va', name: 'BRI Virtual Account', shortName: 'BRI', category: 'bank', logo: `${LOGO_DIR}/BRI.svg` },
+    { key: 'mandiri', name: 'Mandiri Virtual Account', shortName: 'Mandiri', category: 'bank', logo: `${LOGO_DIR}/mandiri.svg` },
+    { key: 'bni_va', name: 'BNI Virtual Account', shortName: 'BNI', category: 'bank', logo: `${LOGO_DIR}/BNI.svg` },
+    { key: 'permata_va', name: 'Permata Virtual Account', shortName: 'Permata', category: 'bank', logo: `${LOGO_DIR}/permata.svg`},
+    { key: 'cimb_va', name: 'CIMB Niaga Virtual Account', shortName: 'CIMB Niaga', category: 'bank', logo: `${LOGO_DIR}/cimb.svg`},
+    { key: 'gopay', name: 'GoPay', shortName: 'GoPay', category: 'ewallet', logo: `${LOGO_DIR}/gopay.svg` },
+    { key: 'dana', name: 'DANA', shortName: 'DANA', category: 'ewallet', logo: `${LOGO_DIR}/dana.svg`, note: 'Dibayar via QRIS' },
+];
+
+const PAYMENT_CATEGORIES = [
+    { key: 'all', label: 'Semua' },
+    { key: 'bank', label: 'Transfer Bank' },
+    { key: 'ewallet', label: 'E-Wallet & QRIS' },
+];
+
+const CATEGORY_LABELS = { bank: 'Transfer Bank', ewallet: 'E-Wallet & QRIS' };
+
+// Loads Midtrans Snap once and resolves with window.snap
+const loadSnap = (scriptUrl, clientKey) => new Promise((resolve, reject) => {
+    if (window.snap) {
+        resolve(window.snap);
+        return;
+    }
+    const existing = document.getElementById('midtrans-snap');
+    const script = existing || document.createElement('script');
+    script.addEventListener('load', () => resolve(window.snap));
+    script.addEventListener('error', () => reject(new Error('Gagal memuat halaman pembayaran.')));
+    if (!existing) {
+        script.id = 'midtrans-snap';
+        script.src = scriptUrl;
+        script.setAttribute('data-client-key', clientKey);
+        document.body.appendChild(script);
+    }
+});
+
+export default function Index({ currentPlan = 'free', subscriptionExpiresAt = null, pricing, midtrans = {}, pendingPayment = null }) {
     const { auth, pricing: pagePricing } = usePage().props;
     const user = auth?.user;
     const effectivePricing = pricing || pagePricing || {};
@@ -25,7 +70,13 @@ export default function Index({ currentPlan = 'free', pricing }) {
     const [mobilePlan, setMobilePlan] = useState('all'); // 'all' | 'pro_plus' | 'pro' | 'free'
     const [openFaq, setOpenFaq] = useState(null);
     const [checkoutPlan, setCheckoutPlan] = useState(null);
-    const [copied, setCopied] = useState(false);
+    const [payingMethod, setPayingMethod] = useState(null); // method key while its Snap token is being created
+    const isStartingPayment = payingMethod !== null;
+    const [methodCategory, setMethodCategory] = useState('all');
+    const [methodSearch, setMethodSearch] = useState('');
+    const [brokenLogos, setBrokenLogos] = useState({});
+    const [checkoutError, setCheckoutError] = useState(null);
+    const [paymentNotice, setPaymentNotice] = useState(null); // { type: 'success' | 'pending' | 'error', text }
 
     const toggleFaq = (index) => {
         setOpenFaq(openFaq === index ? null : index);
@@ -36,7 +87,69 @@ export default function Index({ currentPlan = 'free', pricing }) {
             key: planKey,
             name: name,
         });
-        setCopied(false);
+        setCheckoutError(null);
+        setMethodCategory('all');
+        setMethodSearch('');
+    };
+
+    const visiblePaymentMethods = PAYMENT_METHODS.filter(method => {
+        const matchesCategory = methodCategory === 'all' || method.category === methodCategory;
+        const keyword = methodSearch.trim().toLowerCase();
+        return matchesCategory && (!keyword || method.name.toLowerCase().includes(keyword));
+    });
+
+    // Ask the server for the real Midtrans status, then refresh the page props (plan, expiry, pending order)
+    const syncPayment = async (paymentId) => {
+        try {
+            const { data } = await window.axios.post(route('berlangganan.payments.sync', paymentId));
+            if (data.status === 'paid') {
+                setPaymentNotice({ type: 'success', text: `Pembayaran berhasil! Paket Anda aktif hingga ${data.subscription_expires_at}.` });
+            } else if (data.status === 'pending') {
+                setPaymentNotice({ type: 'pending', text: 'Menunggu pembayaran. Selesaikan pembayaran sesuai instruksi; paket aktif otomatis setelah pembayaran diterima.' });
+            } else if (['expired', 'cancelled', 'failed'].includes(data.status)) {
+                setPaymentNotice({ type: 'error', text: 'Pembayaran tidak berhasil atau sudah kedaluwarsa. Silakan buat pembayaran baru.' });
+            }
+        } catch (err) {
+            // The webhook still activates the plan; the realtime update refreshes this page when it arrives
+        }
+        router.reload({ preserveScroll: true });
+    };
+
+    const openSnap = async (token, paymentId) => {
+        const snap = await loadSnap(midtrans.snapScriptUrl, midtrans.clientKey);
+        setCheckoutPlan(null);
+        snap.pay(token, {
+            onSuccess: () => syncPayment(paymentId),
+            onPending: () => syncPayment(paymentId),
+            onClose: () => syncPayment(paymentId),
+            onError: () => setPaymentNotice({ type: 'error', text: 'Pembayaran gagal diproses. Silakan coba lagi.' }),
+        });
+    };
+
+    const handlePay = async (methodKey) => {
+        if (!checkoutPlan || isStartingPayment) return;
+        setPayingMethod(methodKey);
+        setCheckoutError(null);
+        try {
+            const { data } = await window.axios.post(route('berlangganan.checkout'), {
+                plan: checkoutPlan.key,
+                billing_cycle: billingCycle,
+                payment_method: methodKey,
+            });
+            await openSnap(data.token, data.payment_id);
+        } catch (err) {
+            setCheckoutError(err.response?.data?.message || err.message || 'Gagal memulai pembayaran. Silakan coba lagi.');
+        } finally {
+            setPayingMethod(null);
+        }
+    };
+
+    const resumePendingPayment = async () => {
+        try {
+            await openSnap(pendingPayment.snap_token, pendingPayment.id);
+        } catch (err) {
+            setPaymentNotice({ type: 'error', text: err.message || 'Gagal membuka halaman pembayaran.' });
+        }
     };
 
     const getCheckoutPrice = (planKey) => {
@@ -49,22 +162,15 @@ export default function Index({ currentPlan = 'free', pricing }) {
 
     const currentCheckoutPrice = getCheckoutPrice(checkoutPlan?.key);
 
-    const handleCopyAmount = () => {
-        if (!currentCheckoutPrice) return;
-        navigator.clipboard.writeText(String(currentCheckoutPrice));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     // Auto buka modal checkout jika ada query param ?plan=...
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             const planParam = params.get('plan');
-            if (planParam === 'pro' && currentPlan !== 'pro') {
-                handleSelectPlan('pro', 'Paket Pro');
+            if (planParam === 'pro' && currentPlan === 'free') {
+                handleSelectPlan('pro', PLAN_NAMES.pro);
             } else if (planParam === 'pro_plus' && currentPlan !== 'pro_plus') {
-                handleSelectPlan('pro_plus', 'Paket Pro Plus (AI & WA)');
+                handleSelectPlan('pro_plus', PLAN_NAMES.pro_plus);
             }
         }
     }, []);
@@ -80,19 +186,10 @@ export default function Index({ currentPlan = 'free', pricing }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [checkoutPlan]);
 
-    const waNumber = effectivePricing.support_wa?.replace(/\D/g, '') || '6281234567890';
-    const waMessage = checkoutPlan ? encodeURIComponent(
-`Halo Admin FinanceTrack, saya ingin mengonfirmasi pembayaran langganan via QRIS.
+    // wa.me needs the international format, so a local 08xx number becomes 628xx
+    const waNumber = (effectivePricing.support_wa?.replace(/\D/g, '') || '6285212867574').replace(/^0/, '62');
 
-Detail Akun & Paket:
-• Nama: ${user?.name || '-'}
-• Email: ${user?.email || '-'}
-• Paket: ${checkoutPlan.name}
-• Periode: ${billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan'}
-• Total Transfer: ${formatRupiah(currentCheckoutPrice)}
-
-Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukti transfer di chat ini. Mohon verifikasi dan aktivasi akun saya. Terima kasih!`
-    ) : '';
+    const canRenewCurrentPlan = Boolean(subscriptionExpiresAt);
 
     const faqs = [
         {
@@ -105,7 +202,7 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
         },
         {
             q: "Metode pembayaran apa saja yang didukung?",
-            a: "Kami mendukung pembayaran instan melalui QRIS, GoPay, OVO, ShopeePay, DANA, Virtual Account Bank (BCA, Mandiri, BNI, BRI), serta Kartu Kredit/Debit berlogo Visa dan Mastercard."
+            a: "Pembayaran diproses otomatis oleh Midtrans melalui QRIS (bisa dibayar dari semua aplikasi bank & e-wallet, termasuk OVO dan DANA), GoPay, ShopeePay, serta Virtual Account BCA, BNI, BRI, Mandiri, Permata, dan CIMB Niaga. Paket langsung aktif begitu pembayaran diterima."
         },
         {
             q: "Apakah data keuangan saya dijamin aman dan rahasia?",
@@ -165,6 +262,56 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
                         </div>
                     </div>
                 </div>
+
+                {/* Payment result / pending order / active plan */}
+                {paymentNotice && (
+                    <div className={`max-w-2xl mx-auto flex items-start gap-2.5 p-3 sm:p-3.5 rounded-2xl border text-xs sm:text-sm font-semibold ${
+                        paymentNotice.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                            : paymentNotice.type === 'pending' ? 'bg-amber-50 border-amber-100 text-amber-800'
+                            : 'bg-rose-50 border-rose-100 text-rose-700'
+                    }`}>
+                        <span className="flex-1 leading-relaxed">{paymentNotice.text}</span>
+                        <button type="button" onClick={() => setPaymentNotice(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Tutup">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                )}
+
+                {pendingPayment && (
+                    <div className="max-w-2xl mx-auto flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs sm:text-sm font-extrabold text-amber-900">Pembayaran belum selesai</p>
+                            <p className="text-[11px] sm:text-xs text-amber-800/80 font-medium mt-0.5">
+                                {PLAN_NAMES[pendingPayment.plan]} · {pendingPayment.billing_cycle === 'yearly' ? 'Tahunan' : 'Bulanan'} · {formatRupiah(pendingPayment.amount)}
+                                {PAYMENT_METHODS.find(method => method.key === pendingPayment.payment_method) && (
+                                    <> · {PAYMENT_METHODS.find(method => method.key === pendingPayment.payment_method).name}</>
+                                )}
+                            </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => syncPayment(pendingPayment.id)}
+                                className="h-9 px-3 rounded-xl bg-white border border-amber-200 text-amber-800 text-xs font-bold hover:bg-amber-100 transition"
+                            >
+                                Cek Status
+                            </button>
+                            <button
+                                type="button"
+                                onClick={resumePendingPayment}
+                                className="h-9 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold transition"
+                            >
+                                Lanjutkan Pembayaran
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {currentPlan !== 'free' && subscriptionExpiresAt && (
+                    <p className="text-center text-[11.5px] sm:text-sm font-semibold text-slate-500">
+                        {PLAN_NAMES[currentPlan]} Anda aktif hingga <span className="font-extrabold text-slate-800">{subscriptionExpiresAt}</span>
+                    </p>
+                )}
 
                 {/* Mobile Plan Tab Filter (Native iOS/Android Style Segmented Control) */}
                 <div className="grid grid-cols-4 md:hidden bg-slate-100 p-1 rounded-xl text-center shadow-inner gap-1">
@@ -370,15 +517,19 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
 
                         <button 
                             type="button"
-                            onClick={() => handleSelectPlan('pro', 'Paket Pro')}
-                            disabled={currentPlan === 'pro'}
+                            onClick={() => handleSelectPlan('pro', PLAN_NAMES.pro)}
+                            disabled={currentPlan === 'pro_plus' || (currentPlan === 'pro' && !canRenewCurrentPlan)}
                             className={`w-full py-2.5 sm:py-3.5 rounded-xl font-extrabold text-xs sm:text-sm shadow-sm transition-all text-center flex items-center justify-center gap-1.5 ${
-                                currentPlan === 'pro'
+                                currentPlan === 'pro_plus' || (currentPlan === 'pro' && !canRenewCurrentPlan)
                                     ? 'bg-slate-100 text-slate-500 cursor-default'
                                     : 'bg-slate-900 hover:bg-[#009bd2] text-white active:scale-98 cursor-pointer'
                             }`}
                         >
-                            {currentPlan === 'pro' ? '✓ Paket Anda Saat Ini (Aktif)' : 'Pilih Paket Pro'}
+                            {currentPlan === 'pro_plus'
+                                ? 'Sudah termasuk di Pro Plus'
+                                : currentPlan === 'pro'
+                                ? (canRenewCurrentPlan ? 'Perpanjang Paket Pro' : '✓ Paket Anda Saat Ini (Aktif)')
+                                : 'Pilih Paket Pro'}
                         </button>
                     </div>
 
@@ -467,16 +618,18 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
 
                         <button 
                             type="button"
-                            onClick={() => handleSelectPlan('pro_plus', 'Paket Pro Plus (AI & WA)')}
-                            disabled={currentPlan === 'pro_plus'}
+                            onClick={() => handleSelectPlan('pro_plus', PLAN_NAMES.pro_plus)}
+                            disabled={currentPlan === 'pro_plus' && !canRenewCurrentPlan}
                             style={{ backgroundColor: '#4f46e5' }}
                             className={`w-full py-2.5 sm:py-3.5 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all text-center flex items-center justify-center gap-1.5 ${
-                                currentPlan === 'pro_plus'
+                                currentPlan === 'pro_plus' && !canRenewCurrentPlan
                                     ? 'bg-slate-800 text-slate-400 cursor-default'
                                     : 'bg-indigo-600 bg-gradient-to-r from-indigo-500 to-sky-500 hover:from-indigo-600 hover:to-sky-600 text-white shadow-indigo-500/30 active:scale-98 cursor-pointer'
                             }`}
                         >
-                            {currentPlan === 'pro_plus' ? '✓ Paket Anda Saat Ini (Aktif)' : 'Pilih Pro Plus (AI)'}
+                            {currentPlan === 'pro_plus'
+                                ? (canRenewCurrentPlan ? 'Perpanjang Pro Plus' : '✓ Paket Anda Saat Ini (Aktif)')
+                                : 'Pilih Pro Plus (AI)'}
                         </button>
                     </div>
 
@@ -490,14 +643,14 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
                         </div>
                         <div>
                             <h4 className="text-xs sm:text-sm font-black text-slate-800">Garansi Keamanan Transaksi 100%</h4>
-                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium leading-tight">Mendukung pembayaran via QRIS, GoPay, OVO, Bank Transfer & Kartu Kredit.</p>
+                            <p className="text-[10.5px] sm:text-xs text-slate-500 font-medium leading-tight">Pembayaran diproses aman oleh Midtrans via QRIS, E-Wallet & Virtual Account Bank.</p>
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1 text-[9.5px] sm:text-xs font-bold text-slate-500">
                         <span className="px-2 py-0.5 bg-slate-100 rounded-md">QRIS</span>
                         <span className="px-2 py-0.5 bg-slate-100 rounded-md">GoPay</span>
-                        <span className="px-2 py-0.5 bg-slate-100 rounded-md">BCA</span>
-                        <span className="px-2 py-0.5 bg-slate-100 rounded-md">Visa/Mastercard</span>
+                        <span className="px-2 py-0.5 bg-slate-100 rounded-md">ShopeePay</span>
+                        <span className="px-2 py-0.5 bg-slate-100 rounded-md">Virtual Account</span>
                     </div>
                 </div>
 
@@ -537,165 +690,216 @@ Saya telah melakukan pembayaran sesuai nominal melalui QRIS dan melampirkan bukt
 
             </div>
 
-            {/* CHECKOUT / QRIS PAYMENT MODAL */}
+            {/* CHECKOUT MODAL: pick a payment method, then Midtrans Snap opens straight on it */}
             {checkoutPlan && (
-                <div 
-                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in"
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in"
                     onClick={(e) => {
-                        if (e.target === e.currentTarget) setCheckoutPlan(null);
+                        if (e.target === e.currentTarget && !isStartingPayment) setCheckoutPlan(null);
                     }}
                 >
-                    <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full shadow-2xl space-y-3.5 animate-scale-up max-h-[92vh] overflow-y-auto">
-                        
-                        {/* Header Modal */}
-                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2.5">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                    checkoutPlan.key === 'pro_plus' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-50 text-[#009bd2]'
-                                }`}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l3 6 5-4-2 12H6L4 6l5 4 3-6z" /></svg>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm sm:text-base font-black text-slate-800">{checkoutPlan.name}</h3>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Pembayaran Resmi via QRIS</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setCheckoutPlan(null)}
-                                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                aria-label="Tutup"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
+                    <div className="bg-slate-50 w-full sm:max-w-3xl max-h-[94dvh] sm:max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-up">
 
-                        {/* Rincian Tagihan & Tombol Salin */}
-                        <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-                            <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 font-medium">
-                                <span>Siklus Langganan:</span>
-                                <span className="font-extrabold text-slate-800 capitalize">
-                                    {billingCycle === 'monthly' ? 'Bulanan' : 'Tahunan (Hemat 20%)'}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
-                                <div>
-                                    <span className="text-[10.5px] sm:text-xs font-bold text-slate-600 block">Total Tagihan:</span>
-                                    <span className="text-lg sm:text-xl font-black text-[#009bd2] tracking-tight">
-                                        {formatRupiah(currentCheckoutPrice)}
-                                    </span>
+                        <div className="flex-1 overflow-y-auto">
+                        {/* Header */}
+                        <div className="relative bg-gradient-to-br from-[#0b2f5b] via-[#0a4a8a] to-[#009bd2] text-white px-4 sm:px-7 pt-4 sm:pt-6 pb-16 sm:pb-20 overflow-hidden">
+                            <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-white/10 pointer-events-none" />
+                            <div className="absolute right-10 -bottom-24 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
+                            <div className="relative flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
+                                        {currentPlan === checkoutPlan.key ? 'Perpanjangan paket' : 'Pembayaran langganan'}
+                                    </p>
+                                    <h3 className="mt-1.5 text-xl sm:text-3xl font-black tracking-tight">Pilih metode pembayaran</h3>
+                                    <p className="mt-1 text-[11.5px] sm:text-sm text-white/80 font-medium">Pilih metode yang paling nyaman untuk menyelesaikan pembayaran Anda.</p>
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={handleCopyAmount}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
-                                        copied
-                                            ? 'bg-emerald-600 text-white shadow-xs'
-                                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
-                                    }`}
+                                    onClick={() => setCheckoutPlan(null)}
+                                    disabled={isStartingPayment}
+                                    className="shrink-0 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition disabled:opacity-40"
+                                    aria-label="Tutup"
                                 >
-                                    {copied ? (
-                                        <>
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                            <span>Tersalin!</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                            <span>Salin Nominal</span>
-                                        </>
-                                    )}
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Tampilan Gambar QRIS */}
-                        <div className="p-3.5 rounded-2xl bg-white border-2 border-slate-100 shadow-xs space-y-2.5 text-center">
-                            <div className="flex items-center justify-between px-1">
-                                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span>Scan Kode QRIS</span>
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    Semua Bank & E-Wallet
-                                </span>
+                            {/* Order summary */}
+                            <div className="relative z-10 -mt-12 sm:-mt-14 mx-3 sm:mx-6 bg-white rounded-2xl shadow-[0_10px_30px_-12px_rgba(15,23,42,0.25)] border border-slate-100 grid grid-cols-2 sm:grid-cols-4">
+                                <div className="col-span-2 sm:col-span-1 p-3 sm:p-4 min-w-0 flex items-center gap-2.5 border-b sm:border-b-0 border-slate-100">
+                                    <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-sky-50 text-[#009bd2] flex items-center justify-center shrink-0">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama pelanggan</p>
+                                        <p className="mt-0.5 text-[12.5px] sm:text-sm font-extrabold text-slate-800 truncate" title={user?.email}>{user?.name || '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="p-3 sm:p-4 min-w-0 sm:border-l border-slate-100">
+                                    <p className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Paket</p>
+                                    <p className="mt-0.5 text-[12.5px] sm:text-sm font-extrabold text-slate-800 truncate">{checkoutPlan.name}</p>
+                                </div>
+                                <div className="p-3 sm:p-4 min-w-0 border-l border-slate-100">
+                                    <p className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Total tagihan</p>
+                                    <p className="mt-0.5 text-[13px] sm:text-base font-black text-[#009bd2] tabular-nums">{formatRupiah(currentCheckoutPrice)}</p>
+                                </div>
+                                <div className="col-span-2 sm:col-span-1 p-3 sm:p-4 border-t sm:border-t-0 sm:border-l border-slate-100 flex sm:block items-center justify-between gap-2">
+                                    <p className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Periode</p>
+                                    <div className="sm:mt-1 inline-flex items-center p-0.5 rounded-lg bg-slate-100">
+                                        {[{ key: 'monthly', label: 'Bulanan' }, { key: 'yearly', label: 'Tahunan' }].map(cycle => (
+                                            <button
+                                                key={cycle.key}
+                                                type="button"
+                                                onClick={() => setBillingCycle(cycle.key)}
+                                                disabled={isStartingPayment}
+                                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${billingCycle === cycle.key ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                                            >
+                                                {cycle.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
+                            {currentPlan === checkoutPlan.key && subscriptionExpiresAt && (
+                                <p className="mx-4 sm:mx-7 mt-2 text-[10.5px] sm:text-[11px] text-slate-500 font-medium">
+                                    Masa aktif ditambahkan dari tanggal berakhir sekarang ({subscriptionExpiresAt}).
+                                </p>
+                            )}
 
-                            {/* Foto QRIS Resmi */}
-                            <div className="relative bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/80 flex flex-col items-center justify-center">
-                                <img
-                                    src="/Qris/qris.jpeg"
-                                    alt="QRIS Pembayaran FinanceTrack"
-                                    className="w-full max-w-[210px] sm:max-w-[230px] h-auto rounded-lg object-contain shadow-xs bg-white"
-                                    loading="eager"
-                                />
-                                
-                                <div className="mt-2.5 flex items-center gap-2 w-full max-w-[240px]">
+                            {/* Methods */}
+                            <div className="m-3 sm:m-6 mt-4 sm:mt-5 bg-white rounded-2xl sm:rounded-3xl border border-slate-100 p-3.5 sm:p-6">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h4 className="text-[15px] sm:text-lg font-black text-slate-800 tracking-tight">Metode pembayaran</h4>
+                                        <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Silakan pilih salah satu metode yang tersedia di bawah ini.</p>
+                                    </div>
+                                    <span className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-100 text-[10.5px] sm:text-xs font-bold text-slate-600 tabular-nums">{PAYMENT_METHODS.length} metode</span>
+                                </div>
+
+                                <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                    <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5">
+                                        {PAYMENT_CATEGORIES.map(category => (
+                                            <button
+                                                key={category.key}
+                                                type="button"
+                                                onClick={() => setMethodCategory(category.key)}
+                                                className={`shrink-0 h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl text-[11.5px] sm:text-xs font-bold border transition ${
+                                                    methodCategory === category.key
+                                                        ? 'bg-[#009bd2] border-[#009bd2] text-white'
+                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                }`}
+                                            >
+                                                {category.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="relative sm:w-56">
+                                        <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+                                        <input
+                                            type="search"
+                                            value={methodSearch}
+                                            onChange={e => setMethodSearch(e.target.value)}
+                                            placeholder="Cari metode pembayaran..."
+                                            className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#009bd2] focus:ring-1 focus:ring-[#009bd2]"
+                                        />
+                                    </div>
+                                </div>
+
+                                {visiblePaymentMethods.length === 0 ? (
+                                    <p className="py-10 text-center text-xs font-medium text-slate-400">Metode pembayaran tidak ditemukan.</p>
+                                ) : (
+                                    <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
+                                        {visiblePaymentMethods.map(method => {
+                                            const isPayingThis = payingMethod === method.key;
+                                            const showLogo = method.logo && !brokenLogos[method.key];
+                                            return (
+                                                <button
+                                                    key={method.key}
+                                                    type="button"
+                                                    onClick={() => handlePay(method.key)}
+                                                    disabled={isStartingPayment || !midtrans.isConfigured || !currentCheckoutPrice}
+                                                    className={`group relative text-left rounded-2xl border bg-white p-2.5 sm:p-3.5 flex flex-col transition ${
+                                                        isPayingThis ? 'border-[#009bd2] ring-2 ring-[#009bd2]/20'
+                                                            : method.recommended ? 'border-emerald-300 ring-1 ring-emerald-200 hover:border-emerald-400 hover:shadow-md'
+                                                            : 'border-slate-200 hover:border-[#009bd2]/60 hover:shadow-md'
+                                                    } disabled:cursor-not-allowed ${isStartingPayment && !isPayingThis ? 'opacity-50' : ''}`}
+                                                >
+                                                    <div className="flex flex-wrap items-center gap-1">
+                                                        <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-[9px] sm:text-[10px] font-bold text-slate-500">
+                                                            {CATEGORY_LABELS[method.category]}
+                                                        </span>
+                                                        {method.recommended && (
+                                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-[9px] sm:text-[10px] font-extrabold text-emerald-700">
+                                                                <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.07 3.3a1 1 0 00.95.69h3.47c.97 0 1.37 1.24.59 1.81l-2.81 2.04a1 1 0 00-.36 1.12l1.07 3.3c.3.92-.75 1.69-1.54 1.12l-2.81-2.04a1 1 0 00-1.18 0l-2.81 2.04c-.78.57-1.84-.2-1.54-1.12l1.07-3.3a1 1 0 00-.36-1.12L2.97 8.73c-.78-.57-.38-1.81.59-1.81h3.47a1 1 0 00.95-.69l1.07-3.3z" /></svg>
+                                                                Direkomendasikan
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="h-14 sm:h-20 flex items-center justify-center px-2 sm:px-4">
+                                                        {showLogo ? (
+                                                            <img
+                                                                src={method.logo}
+                                                                alt={method.name}
+                                                                loading="lazy"
+                                                                onError={() => setBrokenLogos(prev => ({ ...prev, [method.key]: true }))}
+                                                                className="max-h-8 sm:max-h-11 max-w-full object-contain"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-base sm:text-xl font-black tracking-tight text-slate-700 text-center leading-tight">{method.shortName}</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="pt-2 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                                                        <div className="min-w-0">
+                                                            <p className="text-[11px] sm:text-[13px] font-extrabold text-slate-800 leading-snug line-clamp-2">{method.name}</p>
+                                                            {method.note && <p className="text-[9.5px] sm:text-[10.5px] font-medium text-slate-400 truncate">{method.note}</p>}
+                                                        </div>
+                                                        <span className="shrink-0 flex items-center gap-0.5 text-[10.5px] sm:text-xs font-bold text-[#009bd2]">
+                                                            {isPayingThis ? (
+                                                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="hidden sm:inline">Pilih</span>
+                                                                    <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {checkoutError && (
+                                    <p className="mt-3 text-[11px] sm:text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{checkoutError}</p>
+                                )}
+                                {!midtrans.isConfigured && (
+                                    <p className="mt-3 text-[11px] sm:text-xs font-bold text-slate-600 bg-slate-100 rounded-xl px-3 py-2">Pembayaran online belum tersedia. Silakan hubungi admin.</p>
+                                )}
+                                {!midtrans.isProduction && midtrans.isConfigured && (
+                                    <p className="mt-3 text-[10.5px] sm:text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                                        Mode uji coba (Sandbox): tidak ada uang sungguhan yang ditarik.
+                                    </p>
+                                )}
+
+                                <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <p className="flex items-start gap-1.5 text-[10.5px] sm:text-[11px] font-medium text-slate-500 leading-relaxed">
+                                        <svg className="w-3.5 h-3.5 shrink-0 mt-px text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <span>Setelah memilih metode, halaman pembayaran Midtrans akan terbuka. Paket aktif otomatis begitu pembayaran diterima.</span>
+                                    </p>
                                     <a
-                                        href="/Qris/qris.jpeg"
-                                        download="QRIS-FinanceTrack.jpeg"
-                                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1.5 active:scale-95"
-                                    >
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        <span>Download QRIS</span>
-                                    </a>
-                                    <a
-                                        href="/Qris/qris.jpeg"
+                                        href={`https://wa.me/${waNumber}`}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-1 active:scale-95"
-                                        title="Buka Gambar Penuh"
+                                        className="shrink-0 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition"
                                     >
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                        <span>Perbesar</span>
+                                        Butuh bantuan? Hubungi admin via WhatsApp
                                     </a>
                                 </div>
                             </div>
-
-                            {/* Badge Aplikasi yang Didukung */}
-                            <div className="flex flex-wrap items-center justify-center gap-1 text-[9px] font-bold text-slate-500 pt-0.5">
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BCA</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">Mandiri</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BRI</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">BNI</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">GoPay</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">OVO</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">DANA</span>
-                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600">ShopeePay</span>
-                            </div>
-                        </div>
-
-                        {/* Petunjuk Singkat Pembayaran */}
-                        <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100/70 text-left space-y-1">
-                            <p className="text-[11px] sm:text-xs font-black text-[#009bd2] flex items-center gap-1">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <span>Langkah Pembayaran:</span>
-                            </p>
-                            <ol className="text-[10px] sm:text-[11px] text-slate-600 space-y-0.5 list-decimal list-inside font-medium leading-relaxed">
-                                <li>Scan QRIS di atas atau simpan ke galeri ponsel Anda.</li>
-                                <li>Transfer sesuai nominal <strong>{formatRupiah(currentCheckoutPrice)}</strong>.</li>
-                                <li>Klik tombol WhatsApp di bawah untuk kirim bukti transfer agar akun langsung aktif.</li>
-                            </ol>
-                        </div>
-
-                        {/* Tombol Konfirmasi WhatsApp & Tutup */}
-                        <div className="pt-1 flex flex-col gap-1.5">
-                            <a
-                                href={`https://wa.me/${waNumber}?text=${waMessage}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-extrabold text-xs sm:text-sm text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] text-center"
-                            >
-                                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.173.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.203c.043.072.043.419-.101.824z"/></svg>
-                                <span>Konfirmasi Bukti Bayar via WhatsApp</span>
-                            </a>
-                            <button
-                                type="button"
-                                onClick={() => setCheckoutPlan(null)}
-                                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all text-center active:scale-[0.98]"
-                            >
-                                Kembali / Pilih Paket Lain
-                            </button>
                         </div>
                     </div>
                 </div>

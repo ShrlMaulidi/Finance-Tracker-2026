@@ -33,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/whatsapp',
             'webhook/whatsapp/*',
             'api/webhook/whatsapp/*',
+            'api/webhook/midtrans',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

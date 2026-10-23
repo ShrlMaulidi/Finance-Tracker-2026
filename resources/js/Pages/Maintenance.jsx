@@ -1,11 +1,11 @@
 import React from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 
-export default function Maintenance({ supportEmail = 'support@financetrack.com', supportWa = '6281234567890' }) {
+export default function Maintenance({ supportEmail = 'support@financetrack.com', supportWa = '6285212867574' }) {
     const { auth } = usePage().props;
     const user = auth?.user;
 
-    const formattedWa = supportWa.replace(/\D/g, '');
+    const formattedWa = supportWa.replace(/\D/g, '').replace(/^0/, '62');
 
     return (
         <div 
@@ -105,7 +105,7 @@ export default function Maintenance({ supportEmail = 'support@financetrack.com',
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-xs font-bold text-slate-800">WhatsApp CS</p>
-                                        <p className="text-[11px] text-slate-400 font-medium truncate">+{supportWa}</p>
+                                        <p className="text-[11px] text-slate-400 font-medium truncate">+{formattedWa}</p>
                                     </div>
                                 </a>
 

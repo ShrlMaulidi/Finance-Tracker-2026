@@ -33,6 +33,19 @@ class MidtransService
         'other_va' => 'other_va',
     ];
 
+    /**
+     * Method keys the user may pick: those listed in MIDTRANS_ENABLED_METHODS, or every method when it is empty.
+     *
+     * @return array<int, string>
+     */
+    public function enabledMethods(): array
+    {
+        $configured = (array) config('services.midtrans.enabled_methods', []);
+        $allMethods = array_keys(self::PAYMENT_CHANNELS);
+
+        return $configured === [] ? $allMethods : array_values(array_intersect($allMethods, $configured));
+    }
+
     public function isConfigured(): bool
     {
         return filled(config('services.midtrans.server_key')) && filled(config('services.midtrans.client_key'));

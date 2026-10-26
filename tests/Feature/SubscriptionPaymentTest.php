@@ -109,6 +109,26 @@ class SubscriptionPaymentTest extends TestCase
         Http::assertSent(fn (Request $request) => $request['enabled_payments'] === ['other_qris']);
     }
 
+    public function test_only_methods_activated_in_midtrans_are_offered_and_accepted(): void
+    {
+        Http::fake(['app.sandbox.midtrans.com/*' => Http::response(['token' => 'snap-token-123'])]);
+        config(['services.midtrans.enabled_methods' => ['gopay', 'bri_va']]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/berlangganan')
+            ->assertInertia(fn (Assert $page) => $page->where('midtrans.enabledMethods', ['gopay', 'bri_va']));
+
+        $this->actingAs($user)
+            ->postJson('/berlangganan/checkout', ['plan' => 'pro', 'billing_cycle' => 'monthly', 'payment_method' => 'qris'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payment_method' => 'Metode pembayaran tidak tersedia.']);
+        $this->actingAs($user)
+            ->postJson('/berlangganan/checkout', ['plan' => 'pro', 'billing_cycle' => 'monthly', 'payment_method' => 'bri_va'])
+            ->assertOk();
+
+        Http::assertSentCount(1);
+    }
+
     public function test_checkout_refuses_to_sell_pro_while_pro_plus_is_active(): void
     {
         Http::fake();

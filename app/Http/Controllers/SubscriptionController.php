@@ -41,6 +41,7 @@ class SubscriptionController extends Controller
             'pricing' => AdminSettingController::getPricingSettings(),
             'midtrans' => [
                 'isConfigured' => $this->midtrans->isConfigured(),
+                'enabledMethods' => $this->midtrans->enabledMethods(),
                 'clientKey' => config('services.midtrans.client_key'),
                 'snapScriptUrl' => $this->midtrans->snapScriptUrl(),
                 'isProduction' => $this->midtrans->isProduction(),
@@ -57,7 +58,7 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'plan' => 'required|in:pro,pro_plus',
             'billing_cycle' => 'required|in:monthly,yearly',
-            'payment_method' => ['required', Rule::in(array_keys(MidtransService::PAYMENT_CHANNELS))],
+            'payment_method' => ['required', Rule::in($this->midtrans->enabledMethods())],
         ], [
             'payment_method.required' => 'Pilih metode pembayaran terlebih dahulu.',
             'payment_method.in' => 'Metode pembayaran tidak tersedia.',

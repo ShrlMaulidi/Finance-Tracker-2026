@@ -92,7 +92,10 @@ export default function Index({ currentPlan = 'free', subscriptionExpiresAt = nu
         setMethodSearch('');
     };
 
-    const visiblePaymentMethods = PAYMENT_METHODS.filter(method => {
+    // Only methods activated in the Midtrans dashboard (MIDTRANS_ENABLED_METHODS) are offered
+    const availablePaymentMethods = PAYMENT_METHODS.filter(method => !midtrans.enabledMethods || midtrans.enabledMethods.includes(method.key));
+
+    const visiblePaymentMethods = availablePaymentMethods.filter(method => {
         const matchesCategory = methodCategory === 'all' || method.category === methodCategory;
         const keyword = methodSearch.trim().toLowerCase();
         return matchesCategory && (!keyword || method.name.toLowerCase().includes(keyword));
@@ -774,7 +777,7 @@ export default function Index({ currentPlan = 'free', subscriptionExpiresAt = nu
                                         <h4 className="text-[15px] sm:text-lg font-black text-slate-800 tracking-tight">Metode pembayaran</h4>
                                         <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Silakan pilih salah satu metode yang tersedia di bawah ini.</p>
                                     </div>
-                                    <span className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-100 text-[10.5px] sm:text-xs font-bold text-slate-600 tabular-nums">{PAYMENT_METHODS.length} metode</span>
+                                    <span className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-100 text-[10.5px] sm:text-xs font-bold text-slate-600 tabular-nums">{availablePaymentMethods.length} metode</span>
                                 </div>
 
                                 <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

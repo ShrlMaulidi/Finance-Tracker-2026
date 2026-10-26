@@ -50,6 +50,8 @@ return [
         'server_key' => env('MIDTRANS_SERVER_KEY'),
         'client_key' => env('MIDTRANS_CLIENT_KEY'),
         'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
+        // Comma-separated method keys activated in the Midtrans dashboard (empty = all methods)
+        'enabled_methods' => array_values(array_filter(array_map('trim', explode(',', (string) env('MIDTRANS_ENABLED_METHODS', ''))))),
     ],
 
     'vapid' => [
